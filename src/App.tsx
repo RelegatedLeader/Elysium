@@ -17,12 +17,18 @@ import Drawer from "./components/Drawer";
 import CreateNote from "./components/CreateNote";
 import Settings from "./components/Settings";
 import Logout from "./components/Logout";
+import { encryptAndCompress, generateNonce } from "./utils/crypto"; // Import updated crypto utils
 
 interface Note {
   id: number;
   title: string;
   content: string;
   template: string;
+  encryptedContent?: Uint8Array; // Encrypted note content
+  nonce?: Uint8Array; // Nonce for decryption
+  arweaveHash?: string; // Arweave transaction hash (placeholder)
+  isPermanent?: boolean; // Whether the note is saved on blockchain
+  completionTimestamps?: { [taskIndex: number]: string }; // Timestamps for completed tasks
 }
 
 const network = WalletAdapterNetwork.Mainnet;
@@ -44,7 +50,7 @@ function App() {
 
 // Child component for welcome page
 function WelcomePage() {
-  const { connected, publicKey, disconnect, wallets } = useWallet();
+  const { connected, publicKey, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
   const [hasBeenConnected, setHasBeenConnected] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -55,6 +61,8 @@ function WelcomePage() {
       content:
         "Discuss project timeline...\n- [ ] Prepare agenda\n- [ ] Assign tasks\n- [ ] Review progress",
       template: "To-Do List",
+      isPermanent: false,
+      completionTimestamps: {},
     },
     {
       id: 2,
@@ -62,6 +70,8 @@ function WelcomePage() {
       content:
         "Brainstorm new features for Elysium...\n- [ ] Add folder support\n- [ ] Enhance templates\n- [ ] Improve UI",
       template: "Checklist",
+      isPermanent: false,
+      completionTimestamps: {},
     },
   ]);
   const [activePage, setActivePage] = useState<
@@ -129,18 +139,29 @@ function WelcomePage() {
     template: string;
     files: File[];
   }) => {
-    if (note.title && note.content) {
+    if (note.title && note.content && publicKey) {
+      const nonce = generateNonce();
+      const { encrypted, nonce: newNonce } = encryptAndCompress(
+        note.content,
+        publicKey.toBytes()
+      );
       setNotes([
         ...notes,
         {
           id: Date.now(),
           title: note.title,
-          content: note.content,
+          content: note.content, // Keep unencrypted for display; will fetch from Arweave later
           template: note.template,
+          encryptedContent: encrypted,
+          nonce: newNonce,
+          isPermanent: false,
+          completionTimestamps: {},
         },
       ]);
       setFiles(note.files);
       setShowCreateModal(false);
+    } else {
+      alert("Please connect your wallet to create a note.");
     }
   };
 
@@ -160,7 +181,13 @@ function WelcomePage() {
     } else if (hasBeenConnected && !connected) {
       window.location.reload(); // Reload to login screen on disconnect
     }
-  }, [connected, hasBeenConnected]);
+    // Placeholder for sync mechanism
+    const syncInterval = setInterval(() => {
+      console.log("Syncing notes...", notes);
+      // TODO: Implement Solana/Arweave sync logic
+    }, 15 * 60 * 1000); // Default 15-minute interval (from Settings)
+    return () => clearInterval(syncInterval);
+  }, [connected, hasBeenConnected, notes]);
 
   const shortenedAddress = publicKey
     ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
@@ -176,125 +203,131 @@ function WelcomePage() {
     const lines = content.split("\n");
     const items = lines.map((line, index) => {
       const trimmed = line.trim();
-      if (trimmed.startsWith("-") || trimmed.startsWith(".")) {
-        let itemText = trimmed.slice(1).trim();
-        let isChecked = false;
-        let timestamp = "";
-        let isDone = false;
+      let itemText = trimmed;
+      let isChecked = false;
+      let timestamp =
+        notes.find((n) => n.id === noteId)?.completionTimestamps?.[index] || "";
 
+      if (trimmed.startsWith("-") || trimmed.startsWith(".")) {
+        itemText = trimmed.slice(1).trim();
         if (itemText.startsWith("[x]") || itemText.startsWith("[X]")) {
           isChecked = true;
-          isDone = true;
-          itemText = itemText.slice(3).trim();
-          timestamp = new Date().toISOString();
+          itemText = itemText
+            .slice(3)
+            .trim()
+            .replace(/\(Done at .*\)/, ""); // Remove old timestamp
         } else if (itemText.startsWith("[ ]")) {
           itemText = itemText.slice(3).trim();
         }
-
-        return {
-          id: index,
-          text: itemText,
-          checked: isChecked,
-          timestamp,
-          isDone,
-        };
       }
-      return {
-        id: index,
-        text: line,
-        checked: false,
-        timestamp: "",
-        isDone: false,
+
+      const handleToggleCheck = () => {
+        if (!isChecked && publicKey) {
+          const newTimestamp = new Date().toISOString();
+          const updatedNotes = notes.map((n) =>
+            n.id === noteId
+              ? {
+                  ...n,
+                  completionTimestamps: {
+                    ...n.completionTimestamps,
+                    [index]: newTimestamp,
+                  },
+                  content: n.content
+                    .split("\n")
+                    .map((l, i) =>
+                      i === index
+                        ? `${
+                            trimmed.startsWith("-") || trimmed.startsWith(".")
+                              ? trimmed[0]
+                              : ""
+                          } [x] ${itemText} (Done at ${newTimestamp})`
+                        : l
+                    )
+                    .join("\n"),
+                }
+              : n
+          );
+          setNotes(updatedNotes);
+        }
       };
-    });
 
-    const handleToggleCheck = (
-      noteId: number,
-      index: number,
-      checked: boolean
-    ) => {
-      const updatedNotes = notes.map((n: Note) => {
-        if (n.id === noteId) {
-          const updatedLines = n.content.split("\n").map((line, i) => {
-            if (i === index) {
-              const prefix =
-                line.trim().startsWith("-") || line.trim().startsWith(".")
-                  ? line.slice(0, line.indexOf(line.trim()[0]) + 1)
-                  : "";
-              const timestamp = checked
-                ? ` (Done at ${new Date().toISOString()})`
-                : "";
-              return `${prefix} [${checked ? "x" : " "}] ${
-                items[index].text
-              }${timestamp}`;
-            }
-            return line;
-          });
-          return { ...n, content: updatedLines.join("\n") };
+      const handleRemoveItem = () => {
+        // Do nothing if checked; just keep it lined out with timestamp
+        if (!isChecked && publicKey) {
+          const newTimestamp = new Date().toISOString();
+          const updatedNotes = notes.map((n) =>
+            n.id === noteId
+              ? {
+                  ...n,
+                  completionTimestamps: {
+                    ...n.completionTimestamps,
+                    [index]: newTimestamp,
+                  },
+                  content: n.content
+                    .split("\n")
+                    .map((l, i) =>
+                      i === index
+                        ? `${
+                            trimmed.startsWith("-") || trimmed.startsWith(".")
+                              ? trimmed[0]
+                              : ""
+                          } [x] ${itemText} (Done at ${newTimestamp})`
+                        : l
+                    )
+                    .join("\n"),
+                }
+              : n
+          );
+          setNotes(updatedNotes);
         }
-        return n;
-      });
-      setNotes(updatedNotes);
-    };
+      };
 
-    const handleRemoveItem = (noteId: number, index: number) => {
-      const updatedNotes = notes.map((n: Note) => {
-        if (n.id === noteId && !items[index].isDone) {
-          const updatedLines = n.content
-            .split("\n")
-            .filter((_, i) => i !== index);
-          return { ...n, content: updatedLines.join("\n") };
-        }
-        return n;
-      });
-      setNotes(updatedNotes);
-    };
-
-    return items.map((item) => (
-      <div key={item.id} className="flex items-center mb-2">
-        {(item.text.trim() ||
-          template === "To-Do List" ||
-          template === "Checklist" ||
-          template === "List") && (
-          <>
-            <input
-              type="checkbox"
-              checked={item.checked}
-              onChange={(e) =>
-                handleToggleCheck(noteId, item.id, e.target.checked)
-              }
-              className="mr-2 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors duration-200"
-            />
-            <span
-              className={`text-silver-200 flex-1 ${
-                item.checked ? "line-through text-gray-500" : ""
-              }`}
-            >
-              {item.text}
-            </span>
-            {(template === "Checklist" || template === "List") &&
-              !item.isDone && (
-                <button
-                  onClick={() => handleRemoveItem(noteId, item.id)}
-                  className="ml-2 text-red-400 hover:text-red-300 transition-colors duration-200"
-                >
-                  Remove
-                </button>
-              )}
-            {item.checked && item.timestamp && (
-              <span className="text-gray-500 text-sm ml-2">
-                {item.timestamp}
+      return (
+        <div key={index} className="flex items-center mb-2">
+          {(itemText.trim() ||
+            template === "To-Do List" ||
+            template === "Checklist" ||
+            template === "List") && (
+            <>
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={handleToggleCheck}
+                className="mr-2 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors duration-200"
+                disabled={isChecked}
+              />
+              <span
+                className={`text-silver-200 flex-1 ${
+                  isChecked ? "line-through text-gray-500" : ""
+                }`}
+              >
+                {itemText}{" "}
+                {timestamp && (
+                  <span className="text-gray-500 text-sm ml-2">
+                    {timestamp}
+                  </span>
+                )}
               </span>
-            )}
-          </>
-        )}
-        {template !== "To-Do List" &&
-          template !== "Checklist" &&
-          template !== "List" && (
-            <span className="text-silver-200 flex-1">{item.text}</span>
+              {(template === "Checklist" || template === "List") &&
+                !isChecked && (
+                  <button
+                    onClick={handleRemoveItem}
+                    className="ml-2 text-red-400 hover:text-red-300 transition-colors duration-200"
+                  >
+                    Remove
+                  </button>
+                )}
+            </>
           )}
-      </div>
-    ));
+          {template !== "To-Do List" &&
+            template !== "Checklist" &&
+            template !== "List" && (
+              <span className="text-silver-200 flex-1">{itemText}</span>
+            )}
+        </div>
+      );
+    });
+    return items;
   };
 
   return (
@@ -394,6 +427,10 @@ function WelcomePage() {
                   <h1 className="text-5xl font-extrabold mb-8 text-gold-100">
                     Recent Notes
                   </h1>
+                  <p className="text-gray-300 text-sm mb-4">
+                    Note: Delete removes from GUI only; blockchain storage is
+                    permanent.
+                  </p>
                   <button
                     onClick={() => setShowCreateModal(true)}
                     className="bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white font-bold py-3 px-8 rounded-full shadow-xl mb-8 transition-all duration-300"
@@ -402,7 +439,7 @@ function WelcomePage() {
                   </button>
                   {notes.length > 0 ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      {notes.map((note: Note) => (
+                      {notes.map((note) => (
                         <animated.div
                           key={note.id}
                           style={noteSpring}
@@ -410,7 +447,8 @@ function WelcomePage() {
                         >
                           <div>
                             <h2 className="text-2xl font-semibold text-gold-100 mb-4">
-                              {note.title}
+                              {note.title}{" "}
+                              {note.isPermanent && "(Blockchain Saved)"}
                             </h2>
                             {renderList(
                               note.id,
@@ -423,13 +461,24 @@ function WelcomePage() {
                           <div className="mt-4 text-right">
                             <button
                               onClick={() => {
-                                setNotes(notes.filter((n) => n.id !== note.id));
+                                if (note.isPermanent) {
+                                  if (
+                                    window.confirm(
+                                      "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
+                                    )
+                                  ) {
+                                    setNotes(
+                                      notes.filter((n) => n.id !== note.id)
+                                    );
+                                  }
+                                } else {
+                                  setNotes(
+                                    notes.filter((n) => n.id !== note.id)
+                                  );
+                                }
                               }}
                               className="text-red-400 hover:text-red-300 transition-colors duration-200"
-                              disabled={notes.some(
-                                (n) =>
-                                  n.id === note.id && n.content.includes("[x]")
-                              )}
+                              disabled={false} // Always enabled, but with pop-up for permanent notes
                             >
                               Delete
                             </button>
@@ -446,7 +495,49 @@ function WelcomePage() {
               )}
               {activePage === "create" && (
                 <CreateNote
-                  onSave={handleCreateNote}
+                  onSave={(note) => {
+                    if (note.title && note.content && publicKey) {
+                      const nonce = generateNonce();
+                      const { encrypted, nonce: newNonce } = encryptAndCompress(
+                        note.content,
+                        publicKey.toBytes()
+                      );
+                      const newNote = {
+                        id: Date.now(),
+                        title: note.title,
+                        content: note.content,
+                        template: note.template,
+                        encryptedContent: encrypted,
+                        nonce: newNonce,
+                        isPermanent: false,
+                        completionTimestamps: {},
+                      };
+                      setNotes([...notes, newNote]);
+                      setFiles(note.files);
+                      setShowCreateModal(false);
+                      if (
+                        window.confirm(
+                          "Save this note to the blockchain? (Gas fee applies)"
+                        )
+                      ) {
+                        // Placeholder for Arweave/Solana save
+                        console.log(
+                          "Saving to blockchain...",
+                          newNote.id,
+                          newNote
+                        );
+                        setNotes(
+                          notes.map((n) =>
+                            n.id === newNote.id
+                              ? { ...n, isPermanent: true }
+                              : n
+                          )
+                        );
+                      }
+                    } else {
+                      alert("Please connect your wallet to save the note.");
+                    }
+                  }}
                   onCancel={() => setShowCreateModal(false)}
                 />
               )}
@@ -463,7 +554,47 @@ function WelcomePage() {
               <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
                 <div className="w-[32rem] max-w-full">
                   <CreateNote
-                    onSave={handleCreateNote}
+                    onSave={(note) => {
+                      if (note.title && note.content && publicKey) {
+                        const nonce = generateNonce();
+                        const { encrypted, nonce: newNonce } =
+                          encryptAndCompress(note.content, publicKey.toBytes());
+                        const newNote = {
+                          id: Date.now(),
+                          title: note.title,
+                          content: note.content,
+                          template: note.template,
+                          encryptedContent: encrypted,
+                          nonce: newNonce,
+                          isPermanent: false,
+                          completionTimestamps: {},
+                        };
+                        setNotes([...notes, newNote]);
+                        setFiles(note.files);
+                        setShowCreateModal(false);
+                        if (
+                          window.confirm(
+                            "Save this note to the blockchain? (Gas fee applies)"
+                          )
+                        ) {
+                          // Placeholder for Arweave/Solana save
+                          console.log(
+                            "Saving to blockchain...",
+                            newNote.id,
+                            newNote
+                          );
+                          setNotes(
+                            notes.map((n) =>
+                              n.id === newNote.id
+                                ? { ...n, isPermanent: true }
+                                : n
+                            )
+                          );
+                        }
+                      } else {
+                        alert("Please connect your wallet to save the note.");
+                      }
+                    }}
                     onCancel={() => setShowCreateModal(false)}
                   />
                 </div>
