@@ -32,11 +32,15 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel }) => {
 
   const handleSave = () => {
     if (title && content) {
-      onSave({ title, content, template, files });
-      setTitle("");
-      setContent("");
-      setTemplate("Auto");
-      setFiles([]);
+      if (
+        window.confirm("Save this note to the blockchain? (Gas fee applies)")
+      ) {
+        onSave({ title, content, template, files });
+        setTitle("");
+        setContent("");
+        setTemplate("Auto");
+        setFiles([]);
+      }
     }
   };
 
@@ -133,10 +137,10 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel }) => {
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-green-700/80 text-white rounded-lg hover:bg-green-600/80 focus:ring-2 focus:ring-green-500 focus:outline-none transition-all duration-200 hover:shadow-[0_0_10px_rgba(34,197,94,0.4)]"
-                aria-label="Save note"
+                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-700 text-white font-bold rounded-full hover:from-cyan-600 hover:to-blue-800 focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200 hover:shadow-[0_0_15px_rgba(0,74,173,0.7)]"
+                aria-label="Save note to blockchain"
               >
-                Save
+                Save to Blockchain
               </button>
             </div>
           </div>
