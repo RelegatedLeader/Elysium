@@ -11,13 +11,21 @@ import {
   useWalletModal,
 } from "@solana/wallet-adapter-react-ui";
 import { useMemo } from "react";
+import {
+  Connection,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+} from "@solana/web3.js";
 import { clusterApiUrl } from "@solana/web3.js";
 import { ReactComponent as ElysiumLogo } from "./components/ElysiumLogo.svg";
 import Drawer from "./components/Drawer";
 import CreateNote from "./components/CreateNote";
 import Settings from "./components/Settings";
 import Logout from "./components/Logout";
-import { encryptAndCompress, generateNonce } from "./utils/crypto"; // Import updated crypto utils
+import { encryptAndCompress, generateNonce } from "./utils/crypto";
+import { uploadToArweave, setWallet } from "./utils/arweave-utils"; // Import Arweave utils
+import { disconnect } from "process";
 
 interface Note {
   id: number;
@@ -26,13 +34,14 @@ interface Note {
   template: string;
   encryptedContent?: Uint8Array; // Encrypted note content
   nonce?: Uint8Array; // Nonce for decryption
-  arweaveHash?: string; // Arweave transaction hash (placeholder)
+  arweaveHash?: string; // Arweave transaction hash
   isPermanent?: boolean; // Whether the note is saved on blockchain
   completionTimestamps?: { [taskIndex: number]: string }; // Timestamps for completed tasks
 }
 
 const network = WalletAdapterNetwork.Mainnet;
 const endpoint = clusterApiUrl(network);
+const connection = new Connection(endpoint, "confirmed");
 
 function App() {
   const wallets = useMemo(() => [], []);
@@ -50,7 +59,7 @@ function App() {
 
 // Child component for welcome page
 function WelcomePage() {
-  const { connected, publicKey, disconnect } = useWallet();
+  const { connected, publicKey, sendTransaction } = useWallet();
   const { setVisible } = useWalletModal();
   const [hasBeenConnected, setHasBeenConnected] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -145,19 +154,17 @@ function WelcomePage() {
         note.content,
         publicKey.toBytes()
       );
-      setNotes([
-        ...notes,
-        {
-          id: Date.now(),
-          title: note.title,
-          content: note.content, // Keep unencrypted for display; will fetch from Arweave later
-          template: note.template,
-          encryptedContent: encrypted,
-          nonce: newNonce,
-          isPermanent: false,
-          completionTimestamps: {},
-        },
-      ]);
+      const newNote = {
+        id: Date.now(),
+        title: note.title,
+        content: note.content,
+        template: note.template,
+        encryptedContent: encrypted,
+        nonce: newNonce,
+        isPermanent: false,
+        completionTimestamps: {},
+      };
+      setNotes([...notes, newNote]);
       setFiles(note.files);
       setShowCreateModal(false);
     } else {
@@ -176,8 +183,10 @@ function WelcomePage() {
   };
 
   useEffect(() => {
-    if (connected) {
+    if (connected && publicKey) {
       setHasBeenConnected(true);
+      // Set Arweave wallet (placeholder; replace with proper wallet integration)
+      setWallet({} as any); // Temporary; will use Solana wallet key later
     } else if (hasBeenConnected && !connected) {
       window.location.reload(); // Reload to login screen on disconnect
     }
@@ -187,7 +196,7 @@ function WelcomePage() {
       // TODO: Implement Solana/Arweave sync logic
     }, 15 * 60 * 1000); // Default 15-minute interval (from Settings)
     return () => clearInterval(syncInterval);
-  }, [connected, hasBeenConnected, notes]);
+  }, [connected, hasBeenConnected, notes, publicKey]);
 
   const shortenedAddress = publicKey
     ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
@@ -328,6 +337,59 @@ function WelcomePage() {
       );
     });
     return items;
+  };
+
+  const saveToBlockchain = async (note: Note) => {
+    if (!publicKey || !sendTransaction) {
+      alert("Please connect your wallet to save to the blockchain.");
+      return;
+    }
+
+    try {
+      // Step 1: Save metadata to Solana (placeholder transaction)
+      const metadataTransaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: publicKey, // Placeholder; replace with program account
+          lamports: 1000, // Small fee for demo; adjust based on program
+        })
+      );
+      const { blockhash } = await connection.getLatestBlockhash();
+      metadataTransaction.recentBlockhash = blockhash;
+      metadataTransaction.feePayer = publicKey;
+      const signature = await sendTransaction(metadataTransaction, connection, {
+        signers: [],
+        preflightCommitment: "confirmed",
+      });
+      await connection.confirmTransaction(signature, "confirmed");
+      console.log("Solana metadata saved, signature:", signature);
+
+      // Step 2: Prompt for Arweave permanent storage
+      if (
+        window.confirm(
+          "Save content permanently on Arweave? (Additional AR fee applies)"
+        )
+      ) {
+        if (note.encryptedContent) {
+          const arweaveHash = await uploadToArweave(note.encryptedContent);
+          console.log("Arweave content saved, hash:", arweaveHash);
+          setNotes(
+            notes.map((n) =>
+              n.id === note.id ? { ...n, arweaveHash, isPermanent: true } : n
+            )
+          );
+        }
+      } else {
+        setNotes(
+          notes.map((n) => (n.id === note.id ? { ...n, isPermanent: true } : n))
+        ); // Mark as permanent with only Solana metadata
+      }
+    } catch (error) {
+      console.error("Blockchain save failed:", error);
+      alert(
+        "Failed to save to blockchain. Please try again or check your wallet."
+      );
+    }
   };
 
   return (
@@ -495,7 +557,7 @@ function WelcomePage() {
               )}
               {activePage === "create" && (
                 <CreateNote
-                  onSave={(note) => {
+                  onSave={async (note) => {
                     if (note.title && note.content && publicKey) {
                       const nonce = generateNonce();
                       const { encrypted, nonce: newNonce } = encryptAndCompress(
@@ -515,25 +577,7 @@ function WelcomePage() {
                       setNotes([...notes, newNote]);
                       setFiles(note.files);
                       setShowCreateModal(false);
-                      if (
-                        window.confirm(
-                          "Save this note to the blockchain? (Gas fee applies)"
-                        )
-                      ) {
-                        // Placeholder for Arweave/Solana save
-                        console.log(
-                          "Saving to blockchain...",
-                          newNote.id,
-                          newNote
-                        );
-                        setNotes(
-                          notes.map((n) =>
-                            n.id === newNote.id
-                              ? { ...n, isPermanent: true }
-                              : n
-                          )
-                        );
-                      }
+                      await saveToBlockchain(newNote); // Trigger blockchain save
                     } else {
                       alert("Please connect your wallet to save the note.");
                     }
@@ -554,7 +598,7 @@ function WelcomePage() {
               <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
                 <div className="w-[32rem] max-w-full">
                   <CreateNote
-                    onSave={(note) => {
+                    onSave={async (note) => {
                       if (note.title && note.content && publicKey) {
                         const nonce = generateNonce();
                         const { encrypted, nonce: newNonce } =
@@ -572,25 +616,7 @@ function WelcomePage() {
                         setNotes([...notes, newNote]);
                         setFiles(note.files);
                         setShowCreateModal(false);
-                        if (
-                          window.confirm(
-                            "Save this note to the blockchain? (Gas fee applies)"
-                          )
-                        ) {
-                          // Placeholder for Arweave/Solana save
-                          console.log(
-                            "Saving to blockchain...",
-                            newNote.id,
-                            newNote
-                          );
-                          setNotes(
-                            notes.map((n) =>
-                              n.id === newNote.id
-                                ? { ...n, isPermanent: true }
-                                : n
-                            )
-                          );
-                        }
+                        await saveToBlockchain(newNote); // Trigger blockchain save
                       } else {
                         alert("Please connect your wallet to save the note.");
                       }
