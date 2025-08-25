@@ -140,7 +140,7 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel }) => {
                 className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-700 text-white font-bold rounded-full hover:from-cyan-600 hover:to-blue-800 focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200 hover:shadow-[0_0_15px_rgba(0,74,173,0.7)]"
                 aria-label="Save note to blockchain"
               >
-                Save to Blockchain
+                Save
               </button>
             </div>
           </div>
