@@ -11,41 +11,39 @@ import {
   useWalletModal,
 } from "@solana/wallet-adapter-react-ui";
 import { useMemo } from "react";
-import {
-  Connection,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-} from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import { clusterApiUrl } from "@solana/web3.js";
+import { AnchorProvider, Program, Idl, BN } from "@coral-xyz/anchor";
+import { useAnchorWallet } from "@solana/wallet-adapter-react";
 import { ReactComponent as ElysiumLogo } from "./components/ElysiumLogo.svg";
 import Drawer from "./components/Drawer";
 import CreateNote from "./components/CreateNote";
 import Settings from "./components/Settings";
 import Logout from "./components/Logout";
-import { encryptAndCompress, generateNonce } from "./utils/crypto";
-import { uploadToArweave, setWallet } from "./utils/arweave-utils"; // Import Arweave utils
-import { disconnect } from "process";
+import { encryptAndCompress, decryptNote } from "./utils/crypto";
+import { uploadToArweave, setWallet } from "./utils/arweave-utils";
+import idlJson from "./idl.json";
 
 interface Note {
   id: number;
   title: string;
   content: string;
   template: string;
-  encryptedContent?: Uint8Array; // Encrypted note content
-  nonce?: Uint8Array; // Nonce for decryption
-  arweaveHash?: string; // Arweave transaction hash
-  isPermanent?: boolean; // Whether the note is saved on blockchain
-  completionTimestamps?: { [taskIndex: number]: string }; // Timestamps for completed tasks
+  encryptedContent?: Uint8Array;
+  nonce?: Uint8Array;
+  arweaveHash?: string;
+  isPermanent?: boolean;
+  completionTimestamps?: { [taskIndex: number]: string };
 }
 
-const network = WalletAdapterNetwork.Mainnet;
+const network = WalletAdapterNetwork.Devnet;
 const endpoint = clusterApiUrl(network);
 const connection = new Connection(endpoint, "confirmed");
+const programId = new PublicKey(idlJson.address);
+const idl = idlJson as Idl;
 
 function App() {
   const wallets = useMemo(() => [], []);
-
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
@@ -57,10 +55,10 @@ function App() {
   );
 }
 
-// Child component for welcome page
 function WelcomePage() {
-  const { connected, publicKey, sendTransaction } = useWallet();
+  const { connected, publicKey, sendTransaction, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
+  const anchorWallet = useAnchorWallet();
   const [hasBeenConnected, setHasBeenConnected] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [notes, setNotes] = useState<Note[]>([
@@ -88,7 +86,16 @@ function WelcomePage() {
   >("recent");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
-
+  const [mode, setMode] = useState<"web3" | "db" | "cloud">("web3");
+  const [selectedMode, setSelectedMode] = useState<
+    null | "web3" | "db" | "cloud"
+  >(null);
+  const databaseGif =
+    "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaXgxNTRxM2U5bDJrZmw5cDFwd2pieGl2dHgzNTdxbnBybjU0OWM0ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/yoJC2lRIOnJSw7tD7G/giphy.gif";
+  const cloudGif =
+    "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzZwMTg4eGI1MzVoZmdtb2N3aDJtNmJmdHRtamEwb3JzZGJ3ZTBreiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/4N1FZFE5AGO3qrUGkw/giphy.gif";
+  const blockchainGif =
+    "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExdnRjbDFqaDgzOWF4eXJ0YTNjOXRsNmN3Z2V5ZjhpbmNhbDZkZHEydiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzmrqRPhYnFg9oGs/giphy.gif";
   const logoSpring = useSpring({
     from: { opacity: 0, transform: "scale(0.8)" },
     to: { opacity: 1, transform: "scale(1)" },
@@ -109,105 +116,181 @@ function WelcomePage() {
     to: { opacity: 1, transform: "translateY(0)" },
     delay: 200,
   });
-
   const handleSelectWallet = () => {
-    setVisible(true); // Opens the wallet selection modal
+    setVisible(true);
   };
-
   const handleWalletAction = () => {
     if (connected && publicKey) {
-      setShowPopup(true); // Show popup for wallet switch or logout
+      setShowPopup(true);
     } else {
-      setVisible(true); // Opens modal to select/change wallet
+      setVisible(true);
     }
   };
-
-  const handleSwitchWallet = () => {
-    if (connected) {
-      setVisible(true); // Trigger wallet selection modal for switching
-      setShowPopup(false); // Close popup after selection
-    }
-  };
-
   const handleLogout = () => {
     if (connected && disconnect) {
-      disconnect(); // Confirm logout with wallet disconnect
-      setShowPopup(false); // Close popup after logout
+      disconnect();
+      setShowPopup(false);
     }
   };
-
   const handleLogoButton = () => {
     alert(
       "You are amazing. Use the Drawer on the left to navigate and the button on the right to log out."
     );
   };
-
-  const handleCreateNote = (note: {
+  const handleCreateNote = async (note: {
     title: string;
     content: string;
     template: string;
     files: File[];
   }) => {
-    if (note.title && note.content && publicKey) {
-      const nonce = generateNonce();
-      const { encrypted, nonce: newNonce } = encryptAndCompress(
-        note.content,
-        publicKey.toBytes()
-      );
-      const newNote = {
-        id: Date.now(),
-        title: note.title,
-        content: note.content,
-        template: note.template,
-        encryptedContent: encrypted,
-        nonce: newNonce,
-        isPermanent: false,
-        completionTimestamps: {},
-      };
+    if (note.title && note.content) {
+      let newNote: Note;
+      if (mode === "web3" && publicKey) {
+        const { encrypted, nonce } = encryptAndCompress(
+          JSON.stringify({
+            title: note.title,
+            content: note.content,
+            template: note.template,
+            completionTimestamps: {},
+          }),
+          publicKey.toBytes()
+        );
+        newNote = {
+          id: Date.now(),
+          title: note.title,
+          content: note.content,
+          template: note.template,
+          encryptedContent: encrypted,
+          nonce: nonce,
+          isPermanent: false,
+          completionTimestamps: {},
+        };
+        await saveToBlockchain(newNote);
+      } else {
+        newNote = {
+          id: Date.now(),
+          title: note.title,
+          content: note.content,
+          template: note.template,
+          isPermanent: false,
+          completionTimestamps: {},
+        };
+      }
       setNotes([...notes, newNote]);
       setFiles(note.files);
       setShowCreateModal(false);
-    } else {
+    } else if (mode === "web3") {
       alert("Please connect your wallet to create a note.");
     }
   };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) setFiles(Array.from(e.target.files));
   };
-
   const handlePageChange = (
     page: "recent" | "create" | "settings" | "logout"
   ) => {
     setActivePage(page);
   };
-
-  useEffect(() => {
-    if (connected && publicKey) {
-      setHasBeenConnected(true);
-      // Set Arweave wallet (placeholder; replace with proper wallet integration)
-      setWallet({} as any); // Temporary; will use Solana wallet key later
-    } else if (hasBeenConnected && !connected) {
-      window.location.reload(); // Reload to login screen on disconnect
+  const loadFromBlockchain = async () => {
+    if (!publicKey || !anchorWallet) return;
+    const provider = new AnchorProvider(connection, anchorWallet, {});
+    const program = new Program(idl, provider);
+    try {
+      const noteAccounts = await (program.account as any).NoteAccount.all([
+        {
+          memcmp: {
+            offset: 8,
+            bytes: publicKey.toBase58(),
+          },
+        },
+      ]);
+      const fetchedNotes: Note[] = [];
+      for (const account of noteAccounts) {
+        const note = account.account;
+        const noteId = Number(note.noteId);
+        if (note.arweaveHash) {
+          try {
+            const response = await fetch(
+              `https://arweave.net/${note.arweaveHash}`
+            );
+            const data = await response.arrayBuffer();
+            const buffer = new Uint8Array(data);
+            const nonceLength = 24; // Matches tweetnacl.box.nonceLength
+            const nonce = buffer.slice(0, nonceLength);
+            const encrypted = buffer.slice(nonceLength);
+            const decrypted = decryptNote(
+              encrypted,
+              publicKey.toBytes(),
+              nonce
+            );
+            const parsed = JSON.parse(decrypted);
+            fetchedNotes.push({
+              id: noteId,
+              title: parsed.title,
+              content: parsed.content,
+              template: parsed.template,
+              completionTimestamps: parsed.completionTimestamps || {},
+              arweaveHash: note.arweaveHash,
+              isPermanent: note.isPermanent,
+            });
+          } catch (e) {
+            console.error("Failed to fetch or decrypt note", e);
+          }
+        } else {
+          fetchedNotes.push({
+            id: noteId,
+            title: "Untitled",
+            content: "No content",
+            template: "List",
+            isPermanent: note.isPermanent,
+            completionTimestamps: {},
+          });
+        }
+      }
+      setNotes(fetchedNotes);
+    } catch (error) {
+      console.error("Failed to load notes from blockchain:", error);
     }
-    // Placeholder for sync mechanism
+  };
+  useEffect(() => {
+    if (selectedMode) {
+      setMode(selectedMode);
+    }
+  }, [selectedMode]);
+  useEffect(() => {
+    if (mode !== "web3") {
+      const stored = localStorage.getItem(`elysium_notes_${mode}`);
+      if (stored) setNotes(JSON.parse(stored));
+    }
+  }, [mode]);
+  useEffect(() => {
+    if (mode !== "web3") {
+      localStorage.setItem(`elysium_notes_${mode}`, JSON.stringify(notes));
+    }
+  }, [notes, mode]);
+  useEffect(() => {
+    if (connected && mode === "web3") {
+      loadFromBlockchain();
+      setHasBeenConnected(true);
+      setWallet({} as any); // Temporary; replace with proper wallet integration
+    } else if (hasBeenConnected && !connected && mode === "web3") {
+      window.location.reload();
+    }
     const syncInterval = setInterval(() => {
       console.log("Syncing notes...", notes);
-      // TODO: Implement Solana/Arweave sync logic
-    }, 15 * 60 * 1000); // Default 15-minute interval (from Settings)
+    }, 15 * 60 * 1000);
     return () => clearInterval(syncInterval);
-  }, [connected, hasBeenConnected, notes, publicKey]);
-
+  }, [connected, hasBeenConnected, notes, publicKey, mode, anchorWallet]);
   const shortenedAddress = publicKey
     ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
     : "";
-
   const renderList = (
     noteId: number,
     content: string,
     template: string,
     notes: Note[],
-    setNotes: React.Dispatch<React.SetStateAction<Note[]>>
+    setNotes: React.Dispatch<React.SetStateAction<Note[]>>,
+    isPermanent: boolean
   ) => {
     const lines = content.split("\n");
     const items = lines.map((line, index) => {
@@ -216,7 +299,6 @@ function WelcomePage() {
       let isChecked = false;
       let timestamp =
         notes.find((n) => n.id === noteId)?.completionTimestamps?.[index] || "";
-
       if (trimmed.startsWith("-") || trimmed.startsWith(".")) {
         itemText = trimmed.slice(1).trim();
         if (itemText.startsWith("[x]") || itemText.startsWith("[X]")) {
@@ -224,14 +306,13 @@ function WelcomePage() {
           itemText = itemText
             .slice(3)
             .trim()
-            .replace(/\(Done at .*\)/, ""); // Remove old timestamp
+            .replace(/\(Done at .*\)/, "");
         } else if (itemText.startsWith("[ ]")) {
           itemText = itemText.slice(3).trim();
         }
       }
-
       const handleToggleCheck = () => {
-        if (!isChecked && publicKey) {
+        if (!isChecked && (mode !== "web3" || publicKey)) {
           const newTimestamp = new Date().toISOString();
           const updatedNotes = notes.map((n) =>
             n.id === noteId
@@ -259,10 +340,8 @@ function WelcomePage() {
           setNotes(updatedNotes);
         }
       };
-
       const handleRemoveItem = () => {
-        // Do nothing if checked; just keep it lined out with timestamp
-        if (!isChecked && publicKey) {
+        if (!isChecked && (mode !== "web3" || publicKey)) {
           const newTimestamp = new Date().toISOString();
           const updatedNotes = notes.map((n) =>
             n.id === noteId
@@ -290,7 +369,6 @@ function WelcomePage() {
           setNotes(updatedNotes);
         }
       };
-
       return (
         <div key={index} className="flex items-center mb-2">
           {(itemText.trim() ||
@@ -303,7 +381,7 @@ function WelcomePage() {
                 checked={isChecked}
                 onChange={handleToggleCheck}
                 className="mr-2 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors duration-200"
-                disabled={isChecked}
+                disabled={isChecked || isPermanent}
               />
               <span
                 className={`text-silver-200 flex-1 ${
@@ -318,7 +396,8 @@ function WelcomePage() {
                 )}
               </span>
               {(template === "Checklist" || template === "List") &&
-                !isChecked && (
+                !isChecked &&
+                !isPermanent && (
                   <button
                     onClick={handleRemoveItem}
                     className="ml-2 text-red-400 hover:text-red-300 transition-colors duration-200"
@@ -338,51 +417,65 @@ function WelcomePage() {
     });
     return items;
   };
-
   const saveToBlockchain = async (note: Note) => {
-    if (!publicKey || !sendTransaction) {
-      alert("Please connect your wallet to save to the blockchain.");
+    if (mode !== "web3" || !publicKey || !sendTransaction || !anchorWallet) {
       return;
     }
-
     try {
-      // Step 1: Save metadata to Solana (placeholder transaction)
-      const metadataTransaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: publicKey, // Placeholder; replace with program account
-          lamports: 1000, // Small fee for demo; adjust based on program
-        })
-      );
-      const { blockhash } = await connection.getLatestBlockhash();
-      metadataTransaction.recentBlockhash = blockhash;
-      metadataTransaction.feePayer = publicKey;
-      const signature = await sendTransaction(metadataTransaction, connection, {
-        signers: [],
-        preflightCommitment: "confirmed",
+      const provider = new AnchorProvider(connection, anchorWallet, {});
+      const program = new Program(idl, provider);
+      const dataStr = JSON.stringify({
+        title: note.title,
+        content: note.content,
+        template: note.template,
+        completionTimestamps: note.completionTimestamps,
       });
-      await connection.confirmTransaction(signature, "confirmed");
-      console.log("Solana metadata saved, signature:", signature);
-
-      // Step 2: Prompt for Arweave permanent storage
+      const { encrypted, nonce } = encryptAndCompress(
+        dataStr,
+        publicKey.toBytes()
+      );
+      const uploadData = new Uint8Array(nonce.length + encrypted.length);
+      uploadData.set(nonce);
+      uploadData.set(encrypted, nonce.length);
+      const arweaveHash = await uploadToArweave(uploadData);
+      console.log("Arweave content saved, hash:", arweaveHash);
+      const [noteAccountPDA] = await PublicKey.findProgramAddress(
+        [
+          Buffer.from("note"),
+          publicKey.toBuffer(),
+          Buffer.from(BigInt(note.id).toString(16).padStart(16, "0"), "hex"),
+        ],
+        programId
+      );
+      await program.methods
+        .initializeNote(new BN(note.id), arweaveHash, new BN(Date.now()))
+        .accounts({
+          noteAccount: noteAccountPDA,
+          user: publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
       if (
-        window.confirm(
-          "Save content permanently on Arweave? (Additional AR fee applies)"
-        )
+        window.confirm("Make this note permanent? (Additional fee may apply)")
       ) {
-        if (note.encryptedContent) {
-          const arweaveHash = await uploadToArweave(note.encryptedContent);
-          console.log("Arweave content saved, hash:", arweaveHash);
-          setNotes(
-            notes.map((n) =>
-              n.id === note.id ? { ...n, arweaveHash, isPermanent: true } : n
-            )
-          );
-        }
+        await program.methods
+          .setPermanent(new BN(note.id))
+          .accounts({
+            noteAccount: noteAccountPDA,
+            user: publicKey,
+          })
+          .rpc();
+        setNotes(
+          notes.map((n) =>
+            n.id === note.id ? { ...n, arweaveHash, isPermanent: true } : n
+          )
+        );
       } else {
         setNotes(
-          notes.map((n) => (n.id === note.id ? { ...n, isPermanent: true } : n))
-        ); // Mark as permanent with only Solana metadata
+          notes.map((n) =>
+            n.id === note.id ? { ...n, arweaveHash, isPermanent: false } : n
+          )
+        );
       }
     } catch (error) {
       console.error("Blockchain save failed:", error);
@@ -391,10 +484,88 @@ function WelcomePage() {
       );
     }
   };
-
+  const isLoggedIn = connected || mode !== "web3";
+  if (!selectedMode) {
+    return (
+      <div className="min-h-screen h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
+        <animated.div style={logoSpring} className="mb-8 flex items-center">
+          <h1 className="text-5xl font-extrabold tracking-wide text-gold-100 mr-4 font-serif">
+            Elysium
+          </h1>
+          <ElysiumLogo className="w-16 h-16" />
+        </animated.div>
+        <animated.p
+          style={titleSpring}
+          className="text-xl italic mb-6 max-w-md text-center text-silver-200"
+        >
+          Unlock Your Eternal Notes in a Decentralized Realm
+        </animated.p>
+        <div className="flex w-full max-w-6xl mx-auto space-x-4">
+          <div
+            className="flex-1 p-8 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl"
+            onClick={() => setSelectedMode("db")}
+            style={{
+              backgroundImage: `url(${databaseGif})`,
+              backgroundSize: "cover",
+              backgroundRepeat: "repeat",
+              backgroundPosition: "center",
+            }}
+          >
+            <div className="bg-black/60 p-4 rounded text-center">
+              <h2 className="text-3xl font-bold text-gold-100 mb-2 font-serif">
+                Database Version (Free)
+              </h2>
+              <p className="text-silver-200">
+                Store notes locally in your browser database.
+              </p>
+            </div>
+          </div>
+          <div
+            className="flex-1 p-8 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl"
+            onClick={() => setSelectedMode("cloud")}
+            style={{
+              backgroundImage: `url(${cloudGif})`,
+              backgroundSize: "cover",
+              backgroundRepeat: "repeat",
+              backgroundPosition: "center",
+            }}
+          >
+            <div className="bg-black/60 p-4 rounded text-center">
+              <h2 className="text-3xl font-bold text-gold-100 mb-2 font-serif">
+                Cloud Version
+              </h2>
+              <p className="text-silver-200">
+                Store notes in the cloud (simulated with local storage).
+              </p>
+            </div>
+          </div>
+          <div
+            className="flex-1 p-8 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl"
+            onClick={() => setSelectedMode("web3")}
+            style={{
+              backgroundImage: `url(${blockchainGif})`,
+              backgroundSize: "cover",
+              backgroundRepeat: "repeat",
+              backgroundPosition: "center",
+            }}
+          >
+            <div className="bg-black/60 p-4 rounded text-center">
+              <h2 className="text-3xl font-bold text-gold-100 mb-2 font-serif">
+                Blockchain Version (SOL + Arweave)
+              </h2>
+              <p className="text-silver-200">
+                Store notes permanently on the blockchain.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <>
-      {!connected ? (
+      {!isLoggedIn ? (
         <div className="min-h-screen h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
           <animated.div style={logoSpring}>
@@ -402,7 +573,7 @@ function WelcomePage() {
           </animated.div>
           <animated.h1
             style={titleSpring}
-            className="text-5xl font-extrabold tracking-wide mb-2 text-gold-100"
+            className="text-5xl font-extrabold tracking-wide mb-2 text-gold-100 font-serif"
           >
             Welcome to Elysium
           </animated.h1>
@@ -431,19 +602,19 @@ function WelcomePage() {
             </div>
           </button>
           <header className="w-full p-4 flex justify-end absolute top-0 left-0">
-            <button
-              onClick={handleWalletAction}
-              className="bg-gradient-to-r from-purple-600 to-blue-700 hover:from-purple-700 hover:to-blue-800 text-white font-bold py-2 px-6 rounded-full shadow-xl transition-all duration-300"
-            >
-              {shortenedAddress}
-            </button>
+            {connected && (
+              <button
+                onClick={handleWalletAction}
+                className="bg-gradient-to-r from-purple-600 to-blue-700 hover:from-purple-700 hover:to-blue-800 text-white font-bold py-2 px-6 rounded-full shadow-xl transition-all duration-300"
+              >
+                {shortenedAddress}
+              </button>
+            )}
           </header>
-
-          {/* Popup for wallet switch and logout */}
           {showPopup && (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
               <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-black p-6 rounded-lg shadow-2xl text-white w-80 transform transition-all duration-300 ease-in-out">
-                <h3 className="text-lg font-semibold mb-4 border-b border-indigo-700 pb-2 text-gold-100">
+                <h3 className="text-lg font-semibold mb-4 border-b border-indigo-700 pb-2 text-gold-100 font-serif">
                   Wallet Options
                 </h3>
                 <button
@@ -455,7 +626,6 @@ function WelcomePage() {
               </div>
             </div>
           )}
-
           <div
             className="flex flex-col items-center justify-start flex-1 mt-20 overflow-y-auto"
             style={{
@@ -465,7 +635,6 @@ function WelcomePage() {
           >
             <style>
               {`
-                /* Webkit browsers (Chrome, Safari) */
                 .overflow-y-auto::-webkit-scrollbar {
                   width: 12px;
                 }
@@ -486,7 +655,7 @@ function WelcomePage() {
             <div className="w-full p-6">
               {activePage === "recent" && (
                 <>
-                  <h1 className="text-5xl font-extrabold mb-8 text-gold-100">
+                  <h1 className="text-5xl font-extrabold mb-8 text-gold-100 font-serif">
                     Recent Notes
                   </h1>
                   <p className="text-gray-300 text-sm mb-4">
@@ -508,7 +677,7 @@ function WelcomePage() {
                           className="bg-gradient-to-br from-indigo-800 to-indigo-700 p-6 rounded-lg shadow-2xl flex flex-col justify-between"
                         >
                           <div>
-                            <h2 className="text-2xl font-semibold text-gold-100 mb-4">
+                            <h2 className="text-2xl font-semibold text-gold-100 mb-4 font-serif">
                               {note.title}{" "}
                               {note.isPermanent && "(Blockchain Saved)"}
                             </h2>
@@ -517,7 +686,8 @@ function WelcomePage() {
                               note.content,
                               note.template,
                               notes,
-                              setNotes
+                              setNotes,
+                              note.isPermanent || false
                             )}
                           </div>
                           <div className="mt-4 text-right">
@@ -540,7 +710,7 @@ function WelcomePage() {
                                 }
                               }}
                               className="text-red-400 hover:text-red-300 transition-colors duration-200"
-                              disabled={false} // Always enabled, but with pop-up for permanent notes
+                              disabled={false}
                             >
                               Delete
                             </button>
@@ -557,31 +727,7 @@ function WelcomePage() {
               )}
               {activePage === "create" && (
                 <CreateNote
-                  onSave={async (note) => {
-                    if (note.title && note.content && publicKey) {
-                      const nonce = generateNonce();
-                      const { encrypted, nonce: newNonce } = encryptAndCompress(
-                        note.content,
-                        publicKey.toBytes()
-                      );
-                      const newNote = {
-                        id: Date.now(),
-                        title: note.title,
-                        content: note.content,
-                        template: note.template,
-                        encryptedContent: encrypted,
-                        nonce: newNonce,
-                        isPermanent: false,
-                        completionTimestamps: {},
-                      };
-                      setNotes([...notes, newNote]);
-                      setFiles(note.files);
-                      setShowCreateModal(false);
-                      await saveToBlockchain(newNote); // Trigger blockchain save
-                    } else {
-                      alert("Please connect your wallet to save the note.");
-                    }
-                  }}
+                  onSave={handleCreateNote}
                   onCancel={() => setShowCreateModal(false)}
                 />
               )}
@@ -593,34 +739,11 @@ function WelcomePage() {
                 />
               )}
             </div>
-
             {showCreateModal && (
               <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
                 <div className="w-[32rem] max-w-full">
                   <CreateNote
-                    onSave={async (note) => {
-                      if (note.title && note.content && publicKey) {
-                        const nonce = generateNonce();
-                        const { encrypted, nonce: newNonce } =
-                          encryptAndCompress(note.content, publicKey.toBytes());
-                        const newNote = {
-                          id: Date.now(),
-                          title: note.title,
-                          content: note.content,
-                          template: note.template,
-                          encryptedContent: encrypted,
-                          nonce: newNonce,
-                          isPermanent: false,
-                          completionTimestamps: {},
-                        };
-                        setNotes([...notes, newNote]);
-                        setFiles(note.files);
-                        setShowCreateModal(false);
-                        await saveToBlockchain(newNote); // Trigger blockchain save
-                      } else {
-                        alert("Please connect your wallet to save the note.");
-                      }
-                    }}
+                    onSave={handleCreateNote}
                     onCancel={() => setShowCreateModal(false)}
                   />
                 </div>

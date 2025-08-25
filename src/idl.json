@@ -1,0 +1,139 @@
+{
+  "address": "CRVKN5qD1UBdqaZtBQ8mfCjwHznCTriXgsQt4nU8qM5G",
+  "metadata": {
+    "name": "elysium_program",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "initialize_note",
+      "discriminator": [16, 209, 254, 91, 57, 218, 201, 45],
+      "accounts": [
+        {
+          "name": "note_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [110, 111, 116, 101]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "arg",
+                "path": "note_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "note_id",
+          "type": "u64"
+        },
+        {
+          "name": "arweave_hash",
+          "type": "string"
+        },
+        {
+          "name": "timestamp",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "set_permanent",
+      "discriminator": [40, 154, 212, 39, 26, 184, 186, 25],
+      "accounts": [
+        {
+          "name": "note_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [110, 111, 116, 101]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "arg",
+                "path": "note_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "note_id",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "NoteAccount",
+      "discriminator": [81, 153, 230, 186, 216, 191, 215, 90]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidNoteId",
+      "msg": "Invalid note ID"
+    }
+  ],
+  "types": [
+    {
+      "name": "NoteAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "note_id",
+            "type": "u64"
+          },
+          {
+            "name": "arweave_hash",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "is_permanent",
+            "type": "bool"
+          }
+        ]
+      }
+    }
+  ]
+}
