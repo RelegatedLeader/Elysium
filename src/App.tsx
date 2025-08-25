@@ -61,41 +61,86 @@ function WelcomePage() {
   const anchorWallet = useAnchorWallet();
   const [hasBeenConnected, setHasBeenConnected] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
-  const [notes, setNotes] = useState<Note[]>([
-    {
-      id: 1,
-      title: "Meeting Notes 08/07/2025",
-      content:
-        "Discuss project timeline...\n- [ ] Prepare agenda\n- [ ] Assign tasks\n- [ ] Review progress",
-      template: "To-Do List",
-      isPermanent: false,
-      completionTimestamps: {},
-    },
-    {
-      id: 2,
-      title: "Ideas",
-      content:
-        "Brainstorm new features for Elysium...\n- [ ] Add folder support\n- [ ] Enhance templates\n- [ ] Improve UI",
-      template: "Checklist",
-      isPermanent: false,
-      completionTimestamps: {},
-    },
-  ]);
+
+  // Initialize selectedMode from localStorage to persist across refreshes
+  const [selectedMode, setSelectedMode] = useState<
+    null | "web3" | "db" | "cloud"
+  >(() => {
+    const savedMode = localStorage.getItem("elysium_selected_mode");
+    return savedMode ? (savedMode as "web3" | "db" | "cloud") : null;
+  });
+
+  const [mode, setMode] = useState<"web3" | "db" | "cloud">(() => {
+    const savedMode = localStorage.getItem("elysium_selected_mode");
+    return savedMode ? (savedMode as "web3" | "db" | "cloud") : "web3";
+  });
+
+  // Initialize notes based on the mode
+  const [notes, setNotes] = useState<Note[]>(() => {
+    if (mode === "db") {
+      return [
+        {
+          id: 1,
+          title: "Database Schema Notes",
+          content:
+            "Plan database structure...\n- [ ] Define tables\n- [ ] Set up indexes\n- [ ] Test queries",
+          template: "To-Do List",
+          isPermanent: false,
+          completionTimestamps: {},
+        },
+      ];
+    } else if (mode === "cloud") {
+      return [
+        {
+          id: 1,
+          title: "Cloud Sync Notes",
+          content:
+            "Configure cloud storage...\n- [ ] Set up S3 bucket\n- [ ] Enable versioning\n- [ ] Test sync",
+          template: "Checklist",
+          isPermanent: false,
+          completionTimestamps: {},
+        },
+      ];
+    } else {
+      return [
+        {
+          id: 1,
+          title: "Meeting Notes 08/07/2025",
+          content:
+            "Discuss project timeline...\n- [ ] Prepare agenda\n- [ ] Assign tasks\n- [ ] Review progress",
+          template: "To-Do List",
+          isPermanent: false,
+          completionTimestamps: {},
+        },
+        {
+          id: 2,
+          title: "Ideas",
+          content:
+            "Brainstorm new features for Elysium...\n- [ ] Add folder support\n- [ ] Enhance templates\n- [ ] Improve UI",
+          template: "Checklist",
+          isPermanent: false,
+          completionTimestamps: {},
+        },
+      ];
+    }
+  });
+
   const [activePage, setActivePage] = useState<
     "recent" | "create" | "settings" | "logout"
   >("recent");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
-  const [mode, setMode] = useState<"web3" | "db" | "cloud">("web3");
-  const [selectedMode, setSelectedMode] = useState<
-    null | "web3" | "db" | "cloud"
-  >(null);
+  const [isCloudButtonClicked, setIsCloudButtonClicked] = useState(false);
+
+  const mainMenuGif =
+    "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExaDF1NzNmZmlkaGd6cXRtem42ZXptMmV6cHQwMXVobWY5eWdrazU0eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ewwd4xlxeSrM4aDDpL/giphy.gif";
   const databaseGif =
     "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaXgxNTRxM2U5bDJrZmw5cDFwd2pieGl2dHgzNTdxbnBybjU0OWM0ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/yoJC2lRIOnJSw7tD7G/giphy.gif";
   const cloudGif =
     "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZzZwMTg4eGI1MzVoZmdtb2N3aDJtNmJmdHRtamEwb3JzZGJ3ZTBreiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/4N1FZFE5AGO3qrUGkw/giphy.gif";
   const blockchainGif =
     "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExdnRjbDFqaDgzOWF4eXJ0YTNjOXRsNmN3Z2V5ZjhpbmNhbDZkZHEydiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oFzmrqRPhYnFg9oGs/giphy.gif";
+
   const logoSpring = useSpring({
     from: { opacity: 0, transform: "scale(0.8)" },
     to: { opacity: 1, transform: "scale(1)" },
@@ -116,9 +161,11 @@ function WelcomePage() {
     to: { opacity: 1, transform: "translateY(0)" },
     delay: 200,
   });
+
   const handleSelectWallet = () => {
     setVisible(true);
   };
+
   const handleWalletAction = () => {
     if (connected && publicKey) {
       setShowPopup(true);
@@ -126,17 +173,23 @@ function WelcomePage() {
       setVisible(true);
     }
   };
+
   const handleLogout = () => {
     if (connected && disconnect) {
       disconnect();
-      setShowPopup(false);
     }
+    setShowPopup(false);
+    setSelectedMode(null); // Redirect to main menu
+    setMode("web3"); // Reset mode
+    localStorage.removeItem("elysium_selected_mode"); // Clear persisted mode
   };
+
   const handleLogoButton = () => {
     alert(
       "You are amazing. Use the Drawer on the left to navigate and the button on the right to log out."
     );
   };
+
   const handleCreateNote = async (note: {
     title: string;
     content: string;
@@ -179,18 +232,28 @@ function WelcomePage() {
       setNotes([...notes, newNote]);
       setFiles(note.files);
       setShowCreateModal(false);
+      if (mode === "db" || mode === "cloud") {
+        localStorage.setItem(
+          `elysium_notes_${mode}`,
+          JSON.stringify([...notes, newNote])
+        );
+      }
+      setIsCloudButtonClicked(false); // Reset cloud button state
     } else if (mode === "web3") {
       alert("Please connect your wallet to create a note.");
     }
   };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) setFiles(Array.from(e.target.files));
   };
+
   const handlePageChange = (
     page: "recent" | "create" | "settings" | "logout"
   ) => {
     setActivePage(page);
   };
+
   const loadFromBlockchain = async () => {
     if (!publicKey || !anchorWallet) return;
     const provider = new AnchorProvider(connection, anchorWallet, {});
@@ -252,38 +315,47 @@ function WelcomePage() {
       console.error("Failed to load notes from blockchain:", error);
     }
   };
+
   useEffect(() => {
     if (selectedMode) {
       setMode(selectedMode);
+      localStorage.setItem("elysium_selected_mode", selectedMode);
     }
   }, [selectedMode]);
+
   useEffect(() => {
     if (mode !== "web3") {
       const stored = localStorage.getItem(`elysium_notes_${mode}`);
       if (stored) setNotes(JSON.parse(stored));
     }
   }, [mode]);
+
   useEffect(() => {
     if (mode !== "web3") {
       localStorage.setItem(`elysium_notes_${mode}`, JSON.stringify(notes));
     }
   }, [notes, mode]);
+
   useEffect(() => {
     if (connected && mode === "web3") {
       loadFromBlockchain();
       setHasBeenConnected(true);
       setWallet({} as any); // Temporary; replace with proper wallet integration
     } else if (hasBeenConnected && !connected && mode === "web3") {
-      window.location.reload();
+      setSelectedMode(null);
+      setMode("web3");
+      localStorage.removeItem("elysium_selected_mode");
     }
     const syncInterval = setInterval(() => {
       console.log("Syncing notes...", notes);
     }, 15 * 60 * 1000);
     return () => clearInterval(syncInterval);
   }, [connected, hasBeenConnected, notes, publicKey, mode, anchorWallet]);
+
   const shortenedAddress = publicKey
     ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
     : "";
+
   const renderList = (
     noteId: number,
     content: string,
@@ -338,6 +410,12 @@ function WelcomePage() {
               : n
           );
           setNotes(updatedNotes);
+          if (mode !== "web3") {
+            localStorage.setItem(
+              `elysium_notes_${mode}`,
+              JSON.stringify(updatedNotes)
+            );
+          }
         }
       };
       const handleRemoveItem = () => {
@@ -367,6 +445,12 @@ function WelcomePage() {
               : n
           );
           setNotes(updatedNotes);
+          if (mode !== "web3") {
+            localStorage.setItem(
+              `elysium_notes_${mode}`,
+              JSON.stringify(updatedNotes)
+            );
+          }
         }
       };
       return (
@@ -417,6 +501,7 @@ function WelcomePage() {
     });
     return items;
   };
+
   const saveToBlockchain = async (note: Note) => {
     if (mode !== "web3" || !publicKey || !sendTransaction || !anchorWallet) {
       return;
@@ -484,10 +569,20 @@ function WelcomePage() {
       );
     }
   };
+
   const isLoggedIn = connected || mode !== "web3";
+
   if (!selectedMode) {
     return (
-      <div className="min-h-screen h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden">
+      <div
+        className="min-h-screen h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden"
+        style={{
+          backgroundImage: `url(${mainMenuGif})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
         <animated.div style={logoSpring} className="mb-8 flex items-center">
           <h1 className="text-5xl font-extrabold tracking-wide text-gold-100 mr-4 font-serif">
@@ -563,6 +658,7 @@ function WelcomePage() {
       </div>
     );
   }
+
   return (
     <>
       {!isLoggedIn ? (
@@ -662,12 +758,31 @@ function WelcomePage() {
                     Note: Delete removes from GUI only; blockchain storage is
                     permanent.
                   </p>
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white font-bold py-3 px-8 rounded-full shadow-xl mb-8 transition-all duration-300"
-                  >
-                    Create Note
-                  </button>
+                  <div className="flex space-x-4 mb-8">
+                    <button
+                      onClick={() => setShowCreateModal(true)}
+                      className={
+                        mode === "db"
+                          ? "bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-full shadow-xl transition-all duration-300"
+                          : mode === "cloud"
+                          ? `bg-white text-gray-800 font-bold py-3 px-8 rounded-full shadow-xl transition-all duration-300 ${
+                              isCloudButtonClicked
+                                ? "bg-cyan-300"
+                                : "hover:bg-cyan-200"
+                            }`
+                          : "bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white font-bold py-3 px-8 rounded-full shadow-xl transition-all duration-300"
+                      }
+                      onClickCapture={() => {
+                        if (mode === "cloud") setIsCloudButtonClicked(true);
+                      }}
+                    >
+                      {mode === "db"
+                        ? "Save to Database"
+                        : mode === "cloud"
+                        ? "Save to Cloud"
+                        : "Create Note"}
+                    </button>
+                  </div>
                   {notes.length > 0 ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                       {notes.map((note) => (
@@ -699,14 +814,28 @@ function WelcomePage() {
                                       "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
                                     )
                                   ) {
-                                    setNotes(
-                                      notes.filter((n) => n.id !== note.id)
+                                    const updatedNotes = notes.filter(
+                                      (n) => n.id !== note.id
                                     );
+                                    setNotes(updatedNotes);
+                                    if (mode !== "web3") {
+                                      localStorage.setItem(
+                                        `elysium_notes_${mode}`,
+                                        JSON.stringify(updatedNotes)
+                                      );
+                                    }
                                   }
                                 } else {
-                                  setNotes(
-                                    notes.filter((n) => n.id !== note.id)
+                                  const updatedNotes = notes.filter(
+                                    (n) => n.id !== note.id
                                   );
+                                  setNotes(updatedNotes);
+                                  if (mode !== "web3") {
+                                    localStorage.setItem(
+                                      `elysium_notes_${mode}`,
+                                      JSON.stringify(updatedNotes)
+                                    );
+                                  }
                                 }
                               }}
                               className="text-red-400 hover:text-red-300 transition-colors duration-200"
@@ -728,14 +857,20 @@ function WelcomePage() {
               {activePage === "create" && (
                 <CreateNote
                   onSave={handleCreateNote}
-                  onCancel={() => setShowCreateModal(false)}
+                  onCancel={() => {
+                    setShowCreateModal(false);
+                    setIsCloudButtonClicked(false);
+                  }}
                 />
               )}
               {activePage === "settings" && <Settings />}
               {activePage === "logout" && (
                 <Logout
                   onConfirm={handleLogout}
-                  onCancel={() => setShowPopup(false)}
+                  onCancel={() => {
+                    setShowPopup(false);
+                    setIsCloudButtonClicked(false);
+                  }}
                 />
               )}
             </div>
@@ -744,7 +879,10 @@ function WelcomePage() {
                 <div className="w-[32rem] max-w-full">
                   <CreateNote
                     onSave={handleCreateNote}
-                    onCancel={() => setShowCreateModal(false)}
+                    onCancel={() => {
+                      setShowCreateModal(false);
+                      setIsCloudButtonClicked(false);
+                    }}
                   />
                 </div>
               </div>
