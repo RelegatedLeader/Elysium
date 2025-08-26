@@ -217,7 +217,7 @@ const Settings: React.FC<SettingsProps> = ({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">
-                Donate to Support Elysium
+                Donate to Support Elysium (SOL)
               </label>
               <div className="flex items-center justify-center space-x-4">
                 <p className="text-xs text-yellow-300 break-all font-mono">

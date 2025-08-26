@@ -201,6 +201,7 @@ function WelcomePage() {
   const handleExitToMainMenu = () => {
     setSelectedMode(null); // Return to main menu
     setActivePage("recent"); // Reset page
+    setNotes([]); // Clear notes to prevent leakage
   };
 
   const saveToBlockchain = async (note: Note) => {
@@ -687,11 +688,9 @@ function WelcomePage() {
       {!isLoggedIn ? (
         <div className="min-h-screen h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden px-4 sm:px-6">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
-
           <animated.div style={logoSpring}>
             <ElysiumLogo className="mb-6 w-20 h-20 sm:w-24 sm:h-24" />
           </animated.div>
-
           <animated.h1
             style={titleSpring}
             className="text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 text-gold-100 font-serif"
@@ -704,7 +703,6 @@ function WelcomePage() {
           >
             Unlock Your Eternal Notes in a Decentralized Realm
           </animated.p>
-
           <animated.div style={buttonSpring}>
             <button
               onClick={handleSelectWallet}
@@ -712,7 +710,6 @@ function WelcomePage() {
             >
               Select SOL Wallet
             </button>
-            <br />
             <button
               onClick={handleExitToMainMenu}
               className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-3 px-6 sm:px-8 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg"
