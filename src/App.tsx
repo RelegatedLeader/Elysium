@@ -23,9 +23,11 @@ import Logout from "./components/Logout";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
 import { uploadToArweave, setWallet } from "./utils/arweave-utils";
 import idlJson from "./idl.json";
+import { supabase } from "./SUPABASE/supabaseClient";
+import { Session } from "@supabase/supabase-js";
 
 interface Note {
-  id: number;
+  id: string;
   title: string;
   content: string;
   template: string;
@@ -36,11 +38,18 @@ interface Note {
   completionTimestamps?: { [taskIndex: number]: string };
 }
 
+interface SupabaseNote {
+  id: string;
+  user_id: string;
+  title: string; // JSON string of encrypted data
+  content: string; // JSON string of encrypted data
+  created_at: string;
+}
+
 const network = WalletAdapterNetwork.Devnet;
 const endpoint = clusterApiUrl(network);
 const connection = new Connection(endpoint, "confirmed");
 const programId = new PublicKey(idlJson.address);
-const idl = idlJson as Idl;
 
 function App() {
   const wallets = useMemo(() => [], []);
@@ -57,21 +66,11 @@ function App() {
 
 function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
   if (mode === "db") {
-    return [
-      {
-        id: 1,
-        title: "Database Schema Notes",
-        content:
-          "Plan database structure...\n- [ ] Define tables\n- [ ] Set up indexes\n- [ ] Test queries",
-        template: "To-Do List",
-        isPermanent: false,
-        completionTimestamps: {},
-      },
-    ];
+    return [];
   } else if (mode === "cloud") {
     return [
       {
-        id: 1,
+        id: "1",
         title: "Cloud Sync Notes",
         content:
           "Configure cloud storage...\n- [ ] Set up S3 bucket\n- [ ] Enable versioning\n- [ ] Test sync",
@@ -83,7 +82,7 @@ function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
   } else {
     return [
       {
-        id: 1,
+        id: "1",
         title: "Meeting Notes 08/07/2025",
         content:
           "Discuss project timeline...\n- [ ] Prepare agenda\n- [ ] Assign tasks\n- [ ] Review progress",
@@ -92,7 +91,7 @@ function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
         completionTimestamps: {},
       },
       {
-        id: 2,
+        id: "2",
         title: "Ideas",
         content:
           "Brainstorm new features for Elysium...\n- [ ] Add folder support\n- [ ] Enhance templates\n- [ ] Improve UI",
@@ -110,8 +109,10 @@ function WelcomePage() {
   const anchorWallet = useAnchorWallet();
   const [hasBeenConnected, setHasBeenConnected] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [email, setEmail] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
-  // Initialize selectedMode from localStorage to persist across refreshes
   const [selectedMode, setSelectedMode] = useState<
     null | "web3" | "db" | "cloud"
   >(() => {
@@ -124,7 +125,6 @@ function WelcomePage() {
     return savedMode ? (savedMode as "web3" | "db" | "cloud") : "web3";
   });
 
-  // Initialize notes to empty array; will be set in useEffect
   const [notes, setNotes] = useState<Note[]>([]);
 
   const [activePage, setActivePage] = useState<
@@ -162,6 +162,7 @@ function WelcomePage() {
     from: { opacity: 0, transform: "translateY(20px)" },
     to: { opacity: 1, transform: "translateY(0)" },
     delay: 200,
+    reset: notes.length === 0,
   });
 
   const blockchainPageSpring = useSpring({
@@ -183,25 +184,186 @@ function WelcomePage() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (connected && disconnect) {
       disconnect();
     }
+    if (mode === "db") {
+      console.log("Logging out from Supabase");
+      await supabase.auth.signOut();
+      setUser(null);
+    }
     setShowPopup(false);
-    setSelectedMode(null); // Redirect to main menu
-    setMode("web3"); // Reset mode
-    setActivePage("recent"); // Ensure navigation to Recent Notes
-    localStorage.removeItem("elysium_selected_mode"); // Clear persisted mode
+    setSelectedMode(null);
+    setMode("web3");
+    setActivePage("recent");
+    setNotes([]);
+    localStorage.removeItem("elysium_selected_mode");
   };
 
   const handleLogoButton = () => {
-    setActivePage("recent"); // Navigate to Recent Notes page of current mode
+    setActivePage("recent");
   };
 
   const handleExitToMainMenu = () => {
-    setSelectedMode(null); // Return to main menu
-    setActivePage("recent"); // Reset page
-    setNotes([]); // Clear notes to prevent leakage
+    setSelectedMode(null);
+    setActivePage("recent");
+    setNotes([]);
+  };
+
+  async function deriveKey(token: string): Promise<CryptoKey> {
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(token),
+      "PBKDF2",
+      false,
+      ["deriveKey"]
+    );
+    return crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: encoder.encode("elysium-salt"),
+        iterations: 100000,
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  async function encryptData(data: string, key: CryptoKey) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      new TextEncoder().encode(data)
+    );
+    return {
+      iv: Array.from(iv),
+      encrypted: Array.from(new Uint8Array(encrypted)),
+    };
+  }
+
+  async function decryptData(
+    encryptedData: { iv: number[]; encrypted: number[] },
+    key: CryptoKey
+  ): Promise<string> {
+    try {
+      const decrypted = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: new Uint8Array(encryptedData.iv) },
+        key,
+        new Uint8Array(encryptedData.encrypted)
+      );
+      return new TextDecoder().decode(decrypted);
+    } catch (error) {
+      console.error("Decryption failed:", error);
+      return "";
+    }
+  }
+
+  const handleCreateNote = async (note: {
+    title: string;
+    content: string;
+    template: string;
+    files: File[];
+  }) => {
+    if (note.title && note.content) {
+      let newNote: Note;
+      if (mode === "web3" && publicKey) {
+        const { encrypted, nonce } = encryptAndCompress(
+          JSON.stringify({
+            title: note.title,
+            content: note.content,
+            template: note.template,
+            completionTimestamps: {},
+          }),
+          publicKey.toBytes()
+        );
+        newNote = {
+          id: Date.now().toString(),
+          title: note.title,
+          content: note.content,
+          template: note.template,
+          encryptedContent: encrypted,
+          nonce: nonce,
+          isPermanent: false,
+          completionTimestamps: {},
+        };
+        await saveToBlockchain(newNote);
+      } else if (mode === "db") {
+        const session = (await supabase.auth.getSession()).data.session;
+        if (session) {
+          const key = await deriveKey(session.access_token);
+          const encTitle = await encryptData(note.title, key);
+          const encContent = await encryptData(note.content, key);
+          console.log("Saving note to Supabase:", {
+            title: encTitle,
+            content: encContent,
+          });
+          const { data, error } = await supabase
+            .from("notes")
+            .insert({
+              user_id: session.user.id,
+              title: JSON.stringify(encTitle),
+              content: JSON.stringify(encContent),
+            })
+            .select()
+            .single();
+          if (error) {
+            console.error("Supabase insert error:", error);
+            alert("Failed to save note to database.");
+            return;
+          }
+          console.log("Note saved to Supabase:", data);
+          newNote = {
+            id: data.id,
+            title: note.title,
+            content: note.content,
+            template: note.template,
+            isPermanent: false,
+            completionTimestamps: {},
+          };
+        } else {
+          alert("Please log in to save a note.");
+          return;
+        }
+      } else {
+        newNote = {
+          id: Date.now().toString(),
+          title: note.title,
+          content: note.content,
+          template: note.template,
+          isPermanent: false,
+          completionTimestamps: {},
+        };
+      }
+      setNotes([...notes, newNote]);
+      setFiles(note.files);
+      setShowCreateModal(false);
+      setActivePage("recent");
+      if (mode === "cloud") {
+        localStorage.setItem(
+          `elysium_notes_${mode}`,
+          JSON.stringify([...notes, newNote])
+        );
+      }
+      setIsCloudButtonClicked(false);
+    } else if (mode === "web3") {
+      alert("Please connect your wallet to create a note.");
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) setFiles(Array.from(e.target.files));
+  };
+
+  const handlePageChange = (
+    page: "recent" | "create" | "settings" | "logout"
+  ) => {
+    setActivePage(page);
   };
 
   const saveToBlockchain = async (note: Note) => {
@@ -210,7 +372,7 @@ function WelcomePage() {
     }
     try {
       const provider = new AnchorProvider(connection, anchorWallet, {});
-      const program = new Program(idl, provider);
+      const program = new Program(idlJson as Idl, provider);
       const dataStr = JSON.stringify({
         title: note.title,
         content: note.content,
@@ -272,75 +434,10 @@ function WelcomePage() {
     }
   };
 
-  const handleCreateNote = async (note: {
-    title: string;
-    content: string;
-    template: string;
-    files: File[];
-  }) => {
-    if (note.title && note.content) {
-      let newNote: Note;
-      if (mode === "web3" && publicKey) {
-        const { encrypted, nonce } = encryptAndCompress(
-          JSON.stringify({
-            title: note.title,
-            content: note.content,
-            template: note.template,
-            completionTimestamps: {},
-          }),
-          publicKey.toBytes()
-        );
-        newNote = {
-          id: Date.now(),
-          title: note.title,
-          content: note.content,
-          template: note.template,
-          encryptedContent: encrypted,
-          nonce: nonce,
-          isPermanent: false,
-          completionTimestamps: {},
-        };
-        await saveToBlockchain(newNote);
-      } else {
-        newNote = {
-          id: Date.now(),
-          title: note.title,
-          content: note.content,
-          template: note.template,
-          isPermanent: false,
-          completionTimestamps: {},
-        };
-      }
-      setNotes([...notes, newNote]);
-      setFiles(note.files);
-      setShowCreateModal(false);
-      setActivePage("recent"); // Navigate back to Recent Notes
-      if (mode === "db" || mode === "cloud") {
-        localStorage.setItem(
-          `elysium_notes_${mode}`,
-          JSON.stringify([...notes, newNote])
-        );
-      }
-      setIsCloudButtonClicked(false); // Reset cloud button state
-    } else if (mode === "web3") {
-      alert("Please connect your wallet to create a note.");
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) setFiles(Array.from(e.target.files));
-  };
-
-  const handlePageChange = (
-    page: "recent" | "create" | "settings" | "logout"
-  ) => {
-    setActivePage(page);
-  };
-
   const loadFromBlockchain = async () => {
     if (!publicKey || !anchorWallet) return;
     const provider = new AnchorProvider(connection, anchorWallet, {});
-    const program = new Program(idl, provider);
+    const program = new Program(idlJson as Idl, provider);
     try {
       const noteAccounts = await (program.account as any).NoteAccount.all([
         {
@@ -353,7 +450,7 @@ function WelcomePage() {
       const fetchedNotes: Note[] = [];
       for (const account of noteAccounts) {
         const note = account.account;
-        const noteId = Number(note.noteId);
+        const noteId = note.noteId.toString();
         if (note.arweaveHash) {
           try {
             const response = await fetch(
@@ -361,7 +458,7 @@ function WelcomePage() {
             );
             const data = await response.arrayBuffer();
             const buffer = new Uint8Array(data);
-            const nonceLength = 24; // Matches tweetnacl.box.nonceLength
+            const nonceLength = 24;
             const nonce = buffer.slice(0, nonceLength);
             const encrypted = buffer.slice(nonceLength);
             const decrypted = decryptNote(
@@ -399,25 +496,109 @@ function WelcomePage() {
     }
   };
 
+  const handleLogin = async () => {
+    if (!email) {
+      alert("Please enter an email address.");
+      return;
+    }
+    setIsLoggingIn(true);
+    console.log("Sending magic link to:", email);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: "http://localhost:3000" },
+    });
+    if (error) {
+      console.error("Login error:", error);
+      alert("Failed to send magic link. Please try again.");
+    } else {
+      console.log("Magic link sent to:", email);
+      alert("Check your email for the magic link!");
+    }
+    setIsLoggingIn(false);
+    setEmail("");
+  };
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+      console.log("Initial session check:", { session, error });
+      setUser(session?.user ?? null);
+    };
+    checkSession();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (event: string, session: Session | null) => {
+        console.log("Auth state changed:", { event, session });
+        setUser(session?.user ?? null);
+      }
+    );
+    return () => {
+      console.log("Unsubscribing auth state listener");
+      subscription.unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     if (selectedMode) {
+      console.log("Mode selected:", selectedMode);
       setMode(selectedMode);
       localStorage.setItem("elysium_selected_mode", selectedMode);
-      setActivePage("recent"); // Navigate to Recent Notes on mode selection
+      setActivePage("recent");
+      setNotes([]);
     }
   }, [selectedMode]);
 
   useEffect(() => {
-    if (mode !== "web3") {
+    if (mode === "db" && user) {
+      const fetchNotes = async () => {
+        const session = (await supabase.auth.getSession()).data.session;
+        if (session) {
+          console.log("Fetching notes for user:", session.user.id);
+          const key = await deriveKey(session.access_token);
+          const { data, error } = await supabase
+            .from("notes")
+            .select("*")
+            .eq("user_id", session.user.id);
+          if (error) {
+            console.error("Supabase fetch error:", error);
+            return;
+          }
+          console.log("Raw notes from Supabase:", data);
+          const decryptedNotes = await Promise.all(
+            data.map(async (n: SupabaseNote) => ({
+              id: n.id,
+              title: await decryptData(JSON.parse(n.title), key),
+              content: await decryptData(JSON.parse(n.content), key),
+              template: "To-Do List",
+              isPermanent: false,
+              completionTimestamps: {},
+            }))
+          );
+          const validNotes = decryptedNotes.filter(
+            (n: Note) => n.title && n.content
+          );
+          console.log("Decrypted notes:", validNotes);
+          setNotes(validNotes);
+        }
+      };
+      fetchNotes();
+    } else if (mode === "cloud") {
       const stored = localStorage.getItem(`elysium_notes_${mode}`);
+      console.log("Cloud notes from localStorage:", stored);
       setNotes(stored ? JSON.parse(stored) : getDefaultNotes(mode));
-    } else {
+    } else if (mode === "web3") {
       setNotes(getDefaultNotes(mode));
+      if (connected) loadFromBlockchain();
     }
-  }, [mode]);
+  }, [mode, user, connected]);
 
   useEffect(() => {
-    if (mode !== "web3") {
+    if (mode !== "web3" && mode !== "db") {
+      console.log("Saving cloud notes to localStorage:", notes);
       localStorage.setItem(`elysium_notes_${mode}`, JSON.stringify(notes));
     }
   }, [notes, mode]);
@@ -426,11 +607,12 @@ function WelcomePage() {
     if (connected && mode === "web3") {
       loadFromBlockchain();
       setHasBeenConnected(true);
-      setWallet({} as any); // Temporary; replace with proper wallet integration
+      setWallet({} as any);
     } else if (hasBeenConnected && !connected && mode === "web3") {
       setSelectedMode(null);
       setMode("web3");
       setActivePage("recent");
+      setNotes([]);
       localStorage.removeItem("elysium_selected_mode");
     }
     const syncInterval = setInterval(() => {
@@ -444,7 +626,7 @@ function WelcomePage() {
     : "";
 
   const renderList = (
-    noteId: number,
+    noteId: string,
     content: string,
     template: string,
     notes: Note[],
@@ -470,7 +652,7 @@ function WelcomePage() {
           itemText = itemText.slice(3).trim();
         }
       }
-      const handleToggleCheck = () => {
+      const handleToggleCheck = async () => {
         if (!isChecked && (mode !== "web3" || publicKey)) {
           const newTimestamp = new Date().toISOString();
           const updatedNotes = notes.map((n) =>
@@ -497,7 +679,22 @@ function WelcomePage() {
               : n
           );
           setNotes(updatedNotes);
-          if (mode !== "web3") {
+          if (mode === "db" && user) {
+            const session = (await supabase.auth.getSession()).data.session;
+            if (session) {
+              const key = await deriveKey(session.access_token);
+              const encContent = await encryptData(
+                updatedNotes.find((n) => n.id === noteId)!.content,
+                key
+              );
+              console.log("Updating note content in Supabase:", encContent);
+              const { error } = await supabase
+                .from("notes")
+                .update({ content: JSON.stringify(encContent) })
+                .eq("id", noteId);
+              if (error) console.error("Supabase update error:", error);
+            }
+          } else if (mode === "cloud") {
             localStorage.setItem(
               `elysium_notes_${mode}`,
               JSON.stringify(updatedNotes)
@@ -505,7 +702,7 @@ function WelcomePage() {
           }
         }
       };
-      const handleRemoveItem = () => {
+      const handleRemoveItem = async () => {
         if (!isChecked && (mode !== "web3" || publicKey)) {
           const newTimestamp = new Date().toISOString();
           const updatedNotes = notes.map((n) =>
@@ -532,7 +729,22 @@ function WelcomePage() {
               : n
           );
           setNotes(updatedNotes);
-          if (mode !== "web3") {
+          if (mode === "db" && user) {
+            const session = (await supabase.auth.getSession()).data.session;
+            if (session) {
+              const key = await deriveKey(session.access_token);
+              const encContent = await encryptData(
+                updatedNotes.find((n) => n.id === noteId)!.content,
+                key
+              );
+              console.log("Updating note content in Supabase:", encContent);
+              const { error } = await supabase
+                .from("notes")
+                .update({ content: JSON.stringify(encContent) })
+                .eq("id", noteId);
+              if (error) console.error("Supabase update error:", error);
+            }
+          } else if (mode === "cloud") {
             localStorage.setItem(
               `elysium_notes_${mode}`,
               JSON.stringify(updatedNotes)
@@ -591,7 +803,10 @@ function WelcomePage() {
     return items;
   };
 
-  const isLoggedIn = connected || mode !== "web3";
+  const isLoggedIn =
+    (mode === "db" && user) ||
+    mode === "cloud" ||
+    (mode === "web3" && connected);
 
   if (!selectedMode) {
     return (
@@ -633,10 +848,10 @@ function WelcomePage() {
           >
             <div className="bg-black/60 p-4 rounded text-center">
               <h2 className="text-2xl sm:text-3xl font-bold text-gold-100 mb-2 font-serif">
-                Database Version (Free)
+                Database Version (Supabase)
               </h2>
               <p className="text-silver-200 text-sm sm:text-base">
-                Store notes locally in your browser database.
+                Store notes in a classic database system.
               </p>
             </div>
           </div>
@@ -685,7 +900,49 @@ function WelcomePage() {
 
   return (
     <>
-      {!isLoggedIn ? (
+      {mode === "db" && !user ? (
+        <div className="min-h-screen h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden px-4 sm:px-6">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
+          <animated.div style={logoSpring}>
+            <ElysiumLogo className="mb-6 w-20 h-20 sm:w-24 sm:h-24" />
+          </animated.div>
+          <animated.h1
+            style={titleSpring}
+            className="text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 text-gold-100 font-serif"
+          >
+            Welcome to Elysium
+          </animated.h1>
+          <animated.p
+            style={titleSpring}
+            className="text-lg sm:text-xl italic mb-6 max-w-md text-center text-silver-200"
+          >
+            Enter your email to receive a magic link for login
+          </animated.p>
+          <animated.div style={buttonSpring} className="w-full max-w-md">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="w-full p-3 mb-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200"
+              aria-required="true"
+            />
+            <button
+              onClick={handleLogin}
+              disabled={isLoggingIn}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white font-bold py-3 px-6 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg disabled:opacity-50"
+            >
+              {isLoggingIn ? "Sending..." : "Send Magic Link"}
+            </button>
+            <button
+              onClick={handleExitToMainMenu}
+              className="mt-4 w-full bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-3 px-6 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg"
+            >
+              Exit to Main Menu
+            </button>
+          </animated.div>
+        </div>
+      ) : mode === "web3" && !connected ? (
         <div className="min-h-screen h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden px-4 sm:px-6">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
           <animated.div style={logoSpring}>
@@ -745,7 +1002,7 @@ function WelcomePage() {
               </button>
             )}
           </header>
-          {showPopup && (
+          {showPopup && mode === "web3" && (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
               <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-black p-4 sm:p-6 rounded-lg shadow-2xl text-white w-11/12 max-w-md sm:w-80 transform transition-all duration-300 ease-in-out">
                 <h3 className="text-lg sm:text-xl font-semibold mb-4 border-b border-indigo-700 pb-2 text-gold-100 font-serif">
@@ -848,7 +1105,7 @@ function WelcomePage() {
                           </div>
                           <div className="mt-4 text-right">
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (note.isPermanent) {
                                   if (
                                     window.confirm(
@@ -859,7 +1116,21 @@ function WelcomePage() {
                                       (n) => n.id !== note.id
                                     );
                                     setNotes(updatedNotes);
-                                    if (mode !== "web3") {
+                                    if (mode === "db" && user) {
+                                      console.log(
+                                        "Deleting note from Supabase:",
+                                        note.id
+                                      );
+                                      const { error } = await supabase
+                                        .from("notes")
+                                        .delete()
+                                        .eq("id", note.id);
+                                      if (error)
+                                        console.error(
+                                          "Supabase delete error:",
+                                          error
+                                        );
+                                    } else if (mode === "cloud") {
                                       localStorage.setItem(
                                         `elysium_notes_${mode}`,
                                         JSON.stringify(updatedNotes)
@@ -871,7 +1142,21 @@ function WelcomePage() {
                                     (n) => n.id !== note.id
                                   );
                                   setNotes(updatedNotes);
-                                  if (mode !== "web3") {
+                                  if (mode === "db" && user) {
+                                    console.log(
+                                      "Deleting note from Supabase:",
+                                      note.id
+                                    );
+                                    const { error } = await supabase
+                                      .from("notes")
+                                      .delete()
+                                      .eq("id", note.id);
+                                    if (error)
+                                      console.error(
+                                        "Supabase delete error:",
+                                        error
+                                      );
+                                  } else if (mode === "cloud") {
                                     localStorage.setItem(
                                       `elysium_notes_${mode}`,
                                       JSON.stringify(updatedNotes)
@@ -901,7 +1186,7 @@ function WelcomePage() {
                   onCancel={() => {
                     setShowCreateModal(false);
                     setIsCloudButtonClicked(false);
-                    setActivePage("recent"); // Navigate back to Recent Notes
+                    setActivePage("recent");
                   }}
                 />
               )}
@@ -912,7 +1197,7 @@ function WelcomePage() {
                   onCancel={() => {
                     setShowPopup(false);
                     setIsCloudButtonClicked(false);
-                    setActivePage("recent"); // Navigate back to Recent Notes
+                    setActivePage("recent");
                   }}
                 />
               )}
@@ -925,7 +1210,7 @@ function WelcomePage() {
                     onCancel={() => {
                       setShowCreateModal(false);
                       setIsCloudButtonClicked(false);
-                      setActivePage("recent"); // Navigate back to Recent Notes
+                      setActivePage("recent");
                     }}
                   />
                 </div>
