@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { animated, useSpring } from "react-spring";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import {
@@ -43,6 +43,7 @@ interface SupabaseNote {
   user_id: string;
   title: string; // JSON string of encrypted data
   content: string; // JSON string of encrypted data
+  template?: string;
   created_at: string;
 }
 
@@ -53,11 +54,117 @@ const programId = new PublicKey(idlJson.address);
 
 function App() {
   const wallets = useMemo(() => [], []);
+  const [user, setUser] = useState<any>(null);
+  const [authSubscriptionRef, setAuthSubscriptionRef] = useState<any>(null);
+  const authProcessedRef = useRef(false);
+
+  useEffect(() => {
+    const handleAuthRedirect = async () => {
+      if (authProcessedRef.current) {
+        console.log("Auth already processed, skipping");
+        return;
+      }
+
+      const hash = window.location.hash;
+      console.log("URL hash on load:", hash);
+      if (hash.includes("error=access_denied")) {
+        console.error("Auth error in URL:", hash);
+        alert(
+          "Email link is invalid or has expired. Please request a new one."
+        );
+        return;
+      }
+
+      // Check if hash contains auth tokens
+      if (hash.includes("access_token")) {
+        // Parse the hash to extract tokens
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          console.log("Setting session from hash tokens");
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          console.log("Set session result:", { data, error });
+          if (error) {
+            console.error("Error setting session:", error);
+            alert(`Authentication failed: ${error.message}`);
+          } else if (data.session) {
+            setUser(data.session.user);
+            console.log("User set from session:", data.session.user);
+            alert(`Logged in as ${data.session.user.email}`);
+            authProcessedRef.current = true;
+          } else {
+            console.log("No session returned from setSession");
+            alert("Authentication failed: No session returned");
+          }
+        } else {
+          console.log("Hash contains access_token but missing tokens");
+          alert("Authentication failed: Missing tokens in URL");
+        }
+      } else {
+        // No tokens in hash, get current session
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+        console.log("Initial session check:", { session, error });
+        setUser(session?.user ?? null);
+        authProcessedRef.current = true;
+      }
+
+      // Clean the hash after processing
+      if (hash) {
+        window.history.replaceState(null, "", window.location.pathname);
+        console.log("URL hash cleaned");
+      }
+      const storageKey = `sb-${process.env.REACT_APP_SUPABASE_URL?.replace(
+        "https://",
+        ""
+      )}-auth-token`;
+      console.log(
+        "Supabase token in localStorage:",
+        localStorage.getItem(storageKey)
+      );
+    };
+
+    // Set up auth listener first
+    if (!authSubscriptionRef) {
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(
+        async (event: string, session: Session | null) => {
+          console.log("Auth state changed:", { event, session });
+          if (session) {
+            setUser(session.user);
+          } else {
+            setUser(null);
+          }
+        }
+      );
+      setAuthSubscriptionRef(subscription);
+    }
+
+    // Then handle initial session (including from hash)
+    handleAuthRedirect();
+
+    return () => {
+      if (authSubscriptionRef) {
+        console.log("Unsubscribing auth state listener");
+        authSubscriptionRef.unsubscribe();
+        setAuthSubscriptionRef(null);
+      }
+    };
+  }, []); // Only run once
+
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <WelcomePage />
+          <WelcomePage user={user} setUser={setUser} />
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
@@ -103,7 +210,7 @@ function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
   }
 }
 
-function WelcomePage() {
+function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => void }) {
   const { connected, publicKey, sendTransaction, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
   const anchorWallet = useAnchorWallet();
@@ -111,7 +218,6 @@ function WelcomePage() {
   const [showPopup, setShowPopup] = useState(false);
   const [email, setEmail] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [user, setUser] = useState<any>(null);
 
   const [selectedMode, setSelectedMode] = useState<
     null | "web3" | "db" | "cloud"
@@ -302,6 +408,7 @@ function WelcomePage() {
           console.log("Saving note to Supabase:", {
             title: encTitle,
             content: encContent,
+            template: note.template,
           });
           const { data, error } = await supabase
             .from("notes")
@@ -309,6 +416,7 @@ function WelcomePage() {
               user_id: session.user.id,
               title: JSON.stringify(encTitle),
               content: JSON.stringify(encContent),
+              template: note.template,
             })
             .select()
             .single();
@@ -327,6 +435,7 @@ function WelcomePage() {
             completionTimestamps: {},
           };
         } else {
+          console.log("No session found during note creation");
           alert("Please log in to save a note.");
           return;
         }
@@ -498,49 +607,89 @@ function WelcomePage() {
 
   const handleLogin = async () => {
     if (!email) {
-      alert("Please enter an email address.");
+      alert("Please enter a valid email address.");
       return;
     }
     setIsLoggingIn(true);
-    console.log("Sending magic link to:", email);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: "http://localhost:3000" },
-    });
-    if (error) {
-      console.error("Login error:", error);
-      alert("Failed to send magic link. Please try again.");
-    } else {
-      console.log("Magic link sent to:", email);
-      alert("Check your email for the magic link!");
+    console.log("Attempting to send magic link to:", email);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: "http://localhost:3000",
+          shouldCreateUser: true,
+        },
+      });
+      if (error) {
+        console.error("Login error:", error);
+        alert(
+          `Failed to send magic link: ${error.message}. Please check your Supabase dashboard for Auth logs, ensure SMTP is configured, and verify your email isn't blocked.`
+        );
+      } else {
+        console.log("Magic link sent successfully to:", email);
+        alert(
+          "Magic link sent! Check your email (including spam/junk folder). If not received, check Supabase Auth logs and ensure SMTP is configured."
+        );
+      }
+    } catch (err) {
+      console.error("Unexpected error during login:", err);
+      alert(
+        "An unexpected error occurred. Please check your Supabase configuration and try again."
+      );
+    } finally {
+      setIsLoggingIn(false);
+      setEmail("");
     }
-    setIsLoggingIn(false);
-    setEmail("");
   };
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-      console.log("Initial session check:", { session, error });
-      setUser(session?.user ?? null);
+  const debounce = <F extends (...args: any[]) => any>(
+    func: F,
+    wait: number
+  ) => {
+    let timeout: NodeJS.Timeout;
+    return (...args: Parameters<F>): Promise<ReturnType<F>> => {
+      return new Promise((resolve) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => resolve(func(...args)), wait);
+      });
     };
-    checkSession();
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (event: string, session: Session | null) => {
-        console.log("Auth state changed:", { event, session });
-        setUser(session?.user ?? null);
+  };
+
+  const fetchNotes = useCallback(
+    debounce(async () => {
+      if (mode !== "db" || !user) return;
+      const session = (await supabase.auth.getSession()).data.session;
+      if (session) {
+        console.log("Fetching notes for user:", session.user.id);
+        const key = await deriveKey(session.access_token);
+        const { data, error } = await supabase
+          .from("notes")
+          .select("*")
+          .eq("user_id", session.user.id);
+        if (error) {
+          console.error("Supabase fetch error:", error);
+          return;
+        }
+        console.log("Raw notes from Supabase:", data);
+        const decryptedNotes = await Promise.all(
+          data.map(async (n: SupabaseNote) => ({
+            id: n.id,
+            title: await decryptData(JSON.parse(n.title), key),
+            content: await decryptData(JSON.parse(n.content), key),
+            template: n.template || "To-Do List",
+            isPermanent: false,
+            completionTimestamps: {},
+          }))
+        );
+        const validNotes = decryptedNotes.filter(
+          (n: Note) => n.title && n.content
+        );
+        console.log("Decrypted notes:", validNotes);
+        setNotes(validNotes);
       }
-    );
-    return () => {
-      console.log("Unsubscribing auth state listener");
-      subscription.unsubscribe();
-    };
-  }, []);
+    }, 5000),
+    [mode, user]
+  );
 
   useEffect(() => {
     if (selectedMode) {
@@ -554,37 +703,6 @@ function WelcomePage() {
 
   useEffect(() => {
     if (mode === "db" && user) {
-      const fetchNotes = async () => {
-        const session = (await supabase.auth.getSession()).data.session;
-        if (session) {
-          console.log("Fetching notes for user:", session.user.id);
-          const key = await deriveKey(session.access_token);
-          const { data, error } = await supabase
-            .from("notes")
-            .select("*")
-            .eq("user_id", session.user.id);
-          if (error) {
-            console.error("Supabase fetch error:", error);
-            return;
-          }
-          console.log("Raw notes from Supabase:", data);
-          const decryptedNotes = await Promise.all(
-            data.map(async (n: SupabaseNote) => ({
-              id: n.id,
-              title: await decryptData(JSON.parse(n.title), key),
-              content: await decryptData(JSON.parse(n.content), key),
-              template: "To-Do List",
-              isPermanent: false,
-              completionTimestamps: {},
-            }))
-          );
-          const validNotes = decryptedNotes.filter(
-            (n: Note) => n.title && n.content
-          );
-          console.log("Decrypted notes:", validNotes);
-          setNotes(validNotes);
-        }
-      };
       fetchNotes();
     } else if (mode === "cloud") {
       const stored = localStorage.getItem(`elysium_notes_${mode}`);
@@ -594,7 +712,7 @@ function WelcomePage() {
       setNotes(getDefaultNotes(mode));
       if (connected) loadFromBlockchain();
     }
-  }, [mode, user, connected]);
+  }, [mode, user, connected, fetchNotes]);
 
   useEffect(() => {
     if (mode !== "web3" && mode !== "db") {
@@ -615,11 +733,7 @@ function WelcomePage() {
       setNotes([]);
       localStorage.removeItem("elysium_selected_mode");
     }
-    const syncInterval = setInterval(() => {
-      console.log("Syncing notes...", notes);
-    }, 15 * 60 * 1000);
-    return () => clearInterval(syncInterval);
-  }, [connected, hasBeenConnected, notes, publicKey, mode, anchorWallet]);
+  }, [connected, hasBeenConnected, mode, anchorWallet]);
 
   const shortenedAddress = publicKey
     ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
@@ -1188,6 +1302,7 @@ function WelcomePage() {
                     setIsCloudButtonClicked(false);
                     setActivePage("recent");
                   }}
+                  mode={mode}
                 />
               )}
               {activePage === "settings" && <Settings />}
@@ -1212,6 +1327,7 @@ function WelcomePage() {
                       setIsCloudButtonClicked(false);
                       setActivePage("recent");
                     }}
+                    mode={mode}
                   />
                 </div>
               </div>

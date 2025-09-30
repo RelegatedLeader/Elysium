@@ -8,9 +8,10 @@ interface CreateNoteProps {
     files: File[];
   }) => void;
   onCancel: () => void;
+  mode: "web3" | "db" | "cloud";
 }
 
-const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel }) => {
+const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [template, setTemplate] = useState("Auto");
@@ -32,9 +33,14 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel }) => {
 
   const handleSave = () => {
     if (title && content) {
-      if (
-        window.confirm("Save this note to the blockchain? (Gas fee applies)")
-      ) {
+      const confirmationMessage =
+        mode === "db"
+          ? "Save this note to the database?"
+          : mode === "web3"
+          ? "Save this note to the blockchain? (Gas fee applies)"
+          : "Save this note to cloud storage?";
+      
+      if (window.confirm(confirmationMessage)) {
         onSave({ title, content, template, files });
         setTitle("");
         setContent("");
