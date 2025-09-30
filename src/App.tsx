@@ -240,6 +240,13 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
   const [files, setFiles] = useState<File[]>([]);
   const [isCloudButtonClicked, setIsCloudButtonClicked] = useState(false);
 
+  // Note viewing/editing state
+  const [viewingNote, setViewingNote] = useState<Note | null>(null);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editTemplate, setEditTemplate] = useState("Auto");
+
   const mainMenuGif =
     "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExaDF1NzNmZmlkaGd6cXRtem42ZXptMmV6cHQwMXVobWY5eWdrazU0eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ewwd4xlxeSrM4aDDpL/giphy.gif";
   const databaseGif =
@@ -1196,36 +1203,74 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     </button>
                   </div>
                   {notes.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-6">
-                      {notes.map((note) => (
-                        <animated.div
-                          key={note.id}
-                          style={noteSpring}
-                          className="bg-gradient-to-br from-indigo-800 to-indigo-700 p-4 sm:p-6 rounded-lg shadow-2xl flex flex-col justify-between"
-                        >
-                          <div>
-                            <h2 className="text-xl sm:text-2xl font-semibold text-gold-100 mb-4 font-serif">
-                              {note.title}{" "}
-                              {note.isPermanent && "(Blockchain Saved)"}
-                            </h2>
-                            {renderList(
-                              note.id,
-                              note.content,
-                              note.template,
-                              notes,
-                              setNotes,
-                              note.isPermanent || false
-                            )}
-                          </div>
-                          <div className="mt-4 text-right">
-                            <button
-                              onClick={async () => {
-                                if (note.isPermanent) {
-                                  if (
-                                    window.confirm(
-                                      "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
-                                    )
-                                  ) {
+                    <>
+                      {mode === "db" && (
+                        <div className="mb-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
+                          <p className="text-red-400 text-sm text-center">
+                            <span className="font-semibold">Free Database Version:</span> Notes may take a moment to load. Please wait while we retrieve your data.
+                          </p>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 gap-6">
+                        {notes.map((note) => (
+                          <animated.div
+                            key={note.id}
+                            style={noteSpring}
+                            className="bg-gradient-to-br from-indigo-800 to-indigo-700 p-4 sm:p-6 rounded-lg shadow-2xl flex flex-col justify-between cursor-pointer hover:shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all duration-300"
+                            onClick={() => setViewingNote(note)}
+                          >
+                            <div>
+                              <h2 className="text-xl sm:text-2xl font-semibold text-gold-100 mb-4 font-serif">
+                                {note.title}{" "}
+                                {note.isPermanent && "(Blockchain Saved)"}
+                              </h2>
+                              <div className="text-gray-300 text-sm mb-2">
+                                {note.content.split('\n')[0].substring(0, 100)}
+                                {note.content.length > 100 ? '...' : ''}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                Template: {note.template}
+                              </div>
+                            </div>
+                            <div className="mt-4 flex justify-between items-center">
+                              <span className="text-xs text-gray-500">
+                                Click to view/edit
+                              </span>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation(); // Prevent triggering the view
+                                  if (note.isPermanent) {
+                                    if (
+                                      window.confirm(
+                                        "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
+                                      )
+                                    ) {
+                                      const updatedNotes = notes.filter(
+                                        (n) => n.id !== note.id
+                                      );
+                                      setNotes(updatedNotes);
+                                      if (mode === "db" && user) {
+                                        console.log(
+                                          "Deleting note from Supabase:",
+                                          note.id
+                                        );
+                                        const { error } = await supabase
+                                          .from("notes")
+                                          .delete()
+                                          .eq("id", note.id);
+                                        if (error)
+                                          console.error(
+                                            "Supabase delete error:",
+                                            error
+                                          );
+                                      } else if (mode === "cloud") {
+                                        localStorage.setItem(
+                                          `elysium_notes_${mode}`,
+                                          JSON.stringify(updatedNotes)
+                                        );
+                                      }
+                                    }
+                                  } else {
                                     const updatedNotes = notes.filter(
                                       (n) => n.id !== note.id
                                     );
@@ -1251,46 +1296,36 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                                       );
                                     }
                                   }
-                                } else {
-                                  const updatedNotes = notes.filter(
-                                    (n) => n.id !== note.id
-                                  );
-                                  setNotes(updatedNotes);
-                                  if (mode === "db" && user) {
-                                    console.log(
-                                      "Deleting note from Supabase:",
-                                      note.id
-                                    );
-                                    const { error } = await supabase
-                                      .from("notes")
-                                      .delete()
-                                      .eq("id", note.id);
-                                    if (error)
-                                      console.error(
-                                        "Supabase delete error:",
-                                        error
-                                      );
-                                  } else if (mode === "cloud") {
-                                    localStorage.setItem(
-                                      `elysium_notes_${mode}`,
-                                      JSON.stringify(updatedNotes)
-                                    );
-                                  }
-                                }
-                              }}
-                              className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm sm:text-base"
-                              disabled={false}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </animated.div>
-                      ))}
-                    </div>
+                                }}
+                                className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm"
+                                disabled={false}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </animated.div>
+                        ))}
+                      </div>
+                    </>
                   ) : (
-                    <p className="text-center text-gray-400 flex items-center justify-center h-64 text-sm sm:text-base">
-                      No notes yet—create one to get started!
-                    </p>
+                    <div className="text-center py-12">
+                      {mode === "db" ? (
+                        <div className="space-y-4">
+                          <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg">
+                            <p className="text-red-400 text-sm">
+                              <span className="font-semibold">Free Database Version:</span> Notes may take a moment to load. Please wait while we retrieve your data.
+                            </p>
+                          </div>
+                          <p className="text-gray-400 text-sm">
+                            No notes yet—create one to get started!
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">
+                          No notes yet—create one to get started!
+                        </p>
+                      )}
+                    </div>
                   )}
                 </>
               )}
@@ -1333,6 +1368,202 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
               </div>
             )}
           </div>
+
+          {/* Note Viewing/Editing Modal */}
+          {viewingNote && (
+            <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+              <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                <div className="bg-gradient-to-br from-indigo-900/95 via-indigo-800/95 to-purple-700/95 backdrop-blur-lg border border-indigo-500/50 rounded-xl p-6 shadow-[0_0_30px_rgba(79,70,229,0.3)]">
+                  {editingNote ? (
+                    // Edit Mode
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-semibold text-gold-100">Edit Note</h2>
+                        <button
+                          onClick={() => {
+                            setEditingNote(null);
+                            setViewingNote(null);
+                            setEditTitle("");
+                            setEditContent("");
+                            setEditTemplate("Auto");
+                          }}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-2">
+                            Note Title
+                          </label>
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="w-full p-3 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-2">
+                            Note Content
+                          </label>
+                          <textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 h-64 resize-none"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-2">
+                            Template
+                          </label>
+                          <select
+                            value={editTemplate}
+                            onChange={(e) => setEditTemplate(e.target.value)}
+                            className="p-3 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          >
+                            <option value="Auto">Auto</option>
+                            <option value="To-Do List">To-Do List</option>
+                            <option value="Checklist">Checklist</option>
+                            <option value="List">List</option>
+                            <option value="Canvas">Canvas</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-end space-x-4">
+                        <button
+                          onClick={() => {
+                            setEditingNote(null);
+                            setEditTitle("");
+                            setEditContent("");
+                            setEditTemplate("Auto");
+                          }}
+                          className="px-4 py-2 bg-gray-700/80 text-white rounded-lg hover:bg-gray-600/80 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (editTitle && editContent && editingNote) {
+                              const updatedNote: Note = {
+                                ...editingNote,
+                                title: editTitle,
+                                content: editContent,
+                                template: editTemplate,
+                              };
+                              
+                              const updatedNotes = notes.map(n => 
+                                n.id === editingNote.id ? updatedNote : n
+                              );
+                              setNotes(updatedNotes);
+                              
+                              // Update in database if db mode
+                              if (mode === "db" && user) {
+                                const session = (await supabase.auth.getSession()).data.session;
+                                if (session) {
+                                  const key = await deriveKey(session.access_token);
+                                  const encTitle = await encryptData(editTitle, key);
+                                  const encContent = await encryptData(editContent, key);
+                                  
+                                  const { error } = await supabase
+                                    .from("notes")
+                                    .update({
+                                      title: JSON.stringify(encTitle),
+                                      content: JSON.stringify(encContent),
+                                      template: editTemplate,
+                                    })
+                                    .eq("id", editingNote.id);
+                                    
+                                  if (error) {
+                                    console.error("Supabase update error:", error);
+                                    alert("Failed to update note in database.");
+                                  }
+                                }
+                              } else if (mode === "cloud") {
+                                localStorage.setItem(
+                                  `elysium_notes_${mode}`,
+                                  JSON.stringify(updatedNotes)
+                                );
+                              }
+                              
+                              setEditingNote(null);
+                              setViewingNote(null);
+                              setEditTitle("");
+                              setEditContent("");
+                              setEditTemplate("Auto");
+                            }
+                          }}
+                          className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-blue-700 text-white font-bold rounded-full hover:from-cyan-600 hover:to-blue-800 transition-all"
+                        >
+                          Save Changes
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // View Mode
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-3xl font-semibold text-gold-100 font-serif">
+                          {viewingNote.title}
+                        </h2>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setEditingNote(viewingNote);
+                              setEditTitle(viewingNote.title);
+                              setEditContent(viewingNote.content);
+                              setEditTemplate(viewingNote.template);
+                            }}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              setViewingNote(null);
+                            }}
+                            className="text-gray-400 hover:text-white transition-colors text-xl"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-indigo-950/50 rounded-lg p-4">
+                        <div className="text-sm text-gray-400 mb-2">
+                          Template: {viewingNote.template}
+                        </div>
+                        <div className="text-white whitespace-pre-wrap">
+                          {renderList(
+                            viewingNote.id,
+                            viewingNote.content,
+                            viewingNote.template,
+                            [viewingNote],
+                            () => {},
+                            viewingNote.isPermanent || false
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => setViewingNote(null)}
+                          className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-full hover:from-indigo-700 hover:to-purple-800 transition-all"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>
