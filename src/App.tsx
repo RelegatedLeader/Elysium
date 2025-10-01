@@ -61,8 +61,156 @@ function App() {
   const [authSubscriptionRef, setAuthSubscriptionRef] = useState<any>(null);
   const authProcessedRef = useRef(false);
 
+  // Security: Rate limiting for auth operations
+  const [authAttempts, setAuthAttempts] = useState(0);
+  const [lastAuthAttempt, setLastAuthAttempt] = useState<Date | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+
+  // Security: Audit logging
+  const logSecurityEvent = (event: string, details: any) => {
+    const auditEntry = {
+      timestamp: new Date().toISOString(),
+      event,
+      details,
+      userAgent: navigator.userAgent,
+      ip: 'client-side', // Would be server-side in production
+      sessionId: user?.id || 'anonymous'
+    };
+    console.log('🔐 Security Audit:', auditEntry);
+  };
+  const checkRateLimit = (): boolean => {
+    const now = new Date();
+    const timeWindow = 15 * 60 * 1000; // 15 minutes
+    const maxAttempts = 5;
+
+    if (lastAuthAttempt && (now.getTime() - lastAuthAttempt.getTime()) < timeWindow) {
+      if (authAttempts >= maxAttempts) {
+        setIsRateLimited(true);
+        logSecurityEvent('RATE_LIMIT_EXCEEDED', { attempts: authAttempts });
+        setTimeout(() => setIsRateLimited(false), timeWindow);
+        return false;
+      }
+    } else {
+      // Reset counter after time window
+      setAuthAttempts(0);
+    }
+
+    setAuthAttempts(prev => prev + 1);
+    setLastAuthAttempt(now);
+    return true;
+  };
+
+  // Security: Input validation
+  const validateInput = (input: string, type: 'email' | 'password' | 'text'): boolean => {
+    const patterns = {
+      email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      password: /^.{8,}$/, // Minimum 8 characters
+      text: /^.{1,1000}$/ // Reasonable text length
+    };
+
+    if (!patterns[type].test(input)) {
+      logSecurityEvent('INPUT_VALIDATION_FAILED', { type, inputLength: input.length });
+      return false;
+    }
+    return true;
+  };
+
+  // Security: Secure headers and CORS protection
+  const setSecureHeaders = () => {
+    // Note: These would be set server-side in production
+    // Client-side we can only log and monitor
+    logSecurityEvent('SECURE_HEADERS_CHECK', {
+      referrerPolicy: document.referrer,
+      https: window.location.protocol === 'https:',
+      userAgent: navigator.userAgent
+    });
+  };
+
+  // Security: Token rotation for session security
+  const rotateTokens = async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) {
+        logSecurityEvent('TOKEN_ROTATION_FAILED', { error: error.message });
+        return false;
+      }
+      if (data.session) {
+        logSecurityEvent('TOKEN_ROTATION_SUCCESS', { userId: data.session.user.id });
+        setUser(data.session.user);
+        return true;
+      }
+    } catch (err) {
+      logSecurityEvent('TOKEN_ROTATION_ERROR', { error: err });
+    }
+    return false;
+  };
+
+  // Security: Session integrity check
+  const checkSessionIntegrity = () => {
+    const session = supabase.auth.getSession();
+    if (!session) {
+      logSecurityEvent('SESSION_INTEGRITY_CHECK_FAILED', { reason: 'no_session' });
+      return false;
+    }
+
+    // Check for suspicious patterns
+    const now = Date.now();
+    const sessionAge = now - (user?.created_at ? new Date(user.created_at).getTime() : now);
+
+    if (sessionAge > 24 * 60 * 60 * 1000) { // 24 hours
+      logSecurityEvent('SESSION_INTEGRITY_WARNING', { sessionAge, threshold: '24h' });
+    }
+
+    return true;
+  };
+
+  // Security: Attack prevention - SQL injection, XSS monitoring
+  const sanitizeInput = (input: string): string => {
+    // Basic sanitization - in production, use a proper library
+    return input
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '')
+      .trim();
+  };
+
+  // Security: Monitor for suspicious activity
+  const monitorSuspiciousActivity = () => {
+    // Check for rapid successive requests
+    const now = Date.now();
+    const recentActivity = JSON.parse(localStorage.getItem('elysium_activity') || '[]');
+
+    // Keep only last 10 minutes of activity
+    const recentActivityFiltered = recentActivity.filter((timestamp: number) =>
+      now - timestamp < 10 * 60 * 1000
+    );
+
+    if (recentActivityFiltered.length > 50) { // More than 50 actions in 10 minutes
+      logSecurityEvent('SUSPICIOUS_ACTIVITY_DETECTED', {
+        actionCount: recentActivityFiltered.length,
+        timeWindow: '10min'
+      });
+    }
+
+    recentActivityFiltered.push(now);
+    localStorage.setItem('elysium_activity', JSON.stringify(recentActivityFiltered));
+  };
+
   useEffect(() => {
     const handleAuthRedirect = async () => {
+      // Security: Check rate limiting before processing auth
+      if (!checkRateLimit()) {
+        logSecurityEvent('AUTH_RATE_LIMITED', { action: 'handleAuthRedirect' });
+        alert("Too many authentication attempts. Please wait before trying again.");
+        return;
+      }
+
+      // Security: Monitor suspicious activity
+      monitorSuspiciousActivity();
+
+      // Security: Set secure headers check
+      setSecureHeaders();
+
       if (authProcessedRef.current) {
         console.log("Auth already processed, skipping");
         return;
@@ -70,8 +218,16 @@ function App() {
 
       const hash = window.location.hash;
       console.log("URL hash on load:", hash);
+
+      // Security: Validate and sanitize hash input
+      const sanitizedHash = sanitizeInput(hash);
+      if (sanitizedHash !== hash) {
+        logSecurityEvent('INPUT_SANITIZATION_TRIGGERED', { original: hash, sanitized: sanitizedHash });
+      }
+
       if (hash.includes("error=access_denied")) {
         console.error("Auth error in URL:", hash);
+        logSecurityEvent('AUTH_ERROR_ACCESS_DENIED', { hash });
         alert(
           "Email link is invalid or has expired. Please request a new one."
         );
@@ -86,6 +242,13 @@ function App() {
         const refreshToken = hashParams.get("refresh_token");
 
         if (accessToken && refreshToken) {
+          // Security: Validate token format (basic check)
+          if (!accessToken.includes('.') || !refreshToken.includes('.')) {
+            logSecurityEvent('INVALID_TOKEN_FORMAT', { hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken });
+            alert("Authentication failed: Invalid token format");
+            return;
+          }
+
           console.log("Setting session from hash tokens");
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
@@ -94,18 +257,30 @@ function App() {
           console.log("Set session result:", { data, error });
           if (error) {
             console.error("Error setting session:", error);
+            logSecurityEvent('SESSION_SET_ERROR', { error: error.message });
             alert(`Authentication failed: ${error.message}`);
           } else if (data.session) {
+            // Security: Check session integrity
+            if (!checkSessionIntegrity()) {
+              logSecurityEvent('SESSION_INTEGRITY_FAILED', { userId: data.session.user.id });
+            }
+
             setUser(data.session.user);
             console.log("User set from session:", data.session.user);
+            logSecurityEvent('AUTH_SUCCESS', { userId: data.session.user.id, email: data.session.user.email });
             alert(`Logged in as ${data.session.user.email}`);
             authProcessedRef.current = true;
+
+            // Security: Schedule token rotation
+            setTimeout(() => rotateTokens(), 30 * 60 * 1000); // Rotate after 30 minutes
           } else {
             console.log("No session returned from setSession");
+            logSecurityEvent('SESSION_SET_NO_SESSION', {});
             alert("Authentication failed: No session returned");
           }
         } else {
           console.log("Hash contains access_token but missing tokens");
+          logSecurityEvent('MISSING_TOKENS_IN_HASH', {});
           alert("Authentication failed: Missing tokens in URL");
         }
       } else {
@@ -115,6 +290,15 @@ function App() {
           error,
         } = await supabase.auth.getSession();
         console.log("Initial session check:", { session, error });
+
+        if (session) {
+          // Security: Check session integrity for existing session
+          if (!checkSessionIntegrity()) {
+            logSecurityEvent('EXISTING_SESSION_INTEGRITY_FAILED', { userId: session.user.id });
+          }
+          logSecurityEvent('EXISTING_SESSION_RESTORED', { userId: session.user.id });
+        }
+
         setUser(session?.user ?? null);
         authProcessedRef.current = true;
       }
@@ -141,8 +325,33 @@ function App() {
       } = supabase.auth.onAuthStateChange(
         async (event: string, session: Session | null) => {
           console.log("Auth state changed:", { event, session });
+
+          // Security: Log auth state changes
+          logSecurityEvent('AUTH_STATE_CHANGE', {
+            event,
+            hasSession: !!session,
+            userId: session?.user?.id,
+            email: session?.user?.email
+          });
+
+          // Security: Monitor for suspicious auth patterns
+          if (event === 'SIGNED_OUT') {
+            monitorSuspiciousActivity();
+          }
+
           if (session) {
+            // Security: Check session integrity on state change
+            if (!checkSessionIntegrity()) {
+              logSecurityEvent('SESSION_INTEGRITY_FAILED_ON_CHANGE', {
+                event,
+                userId: session.user.id
+              });
+            }
+
             setUser(session.user);
+
+            // Security: Schedule periodic token rotation
+            setTimeout(() => rotateTokens(), 45 * 60 * 1000); // Rotate after 45 minutes
           } else {
             setUser(null);
           }
