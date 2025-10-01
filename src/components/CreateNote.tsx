@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import elysiumLogo from "../img/elysium_logo_2.jpg";
 
 interface CreateNoteProps {
@@ -22,6 +22,16 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [messageHistory, setMessageHistory] = useState<Array<{type: 'user' | 'ai', content: string}>>([]);
+
+  // Ref for auto-scrolling to bottom of messages
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messageHistory]);
 
   const getPlaceholderText = () => {
     switch (template) {
@@ -539,6 +549,7 @@ Please provide a helpful, friendly response. Be conversational and focus on help
                         </div>
                       </div>
                     ))}
+                    <div ref={messagesEndRef} /> {/* Invisible element for auto-scrolling */}
                   </div>
                 </div>
               )}
