@@ -220,7 +220,13 @@ function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
   }
 }
 
-function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => void }) {
+function WelcomePage({
+  user,
+  setUser,
+}: {
+  user: any;
+  setUser: (user: any) => void;
+}) {
   const { connected, publicKey, sendTransaction, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
   const anchorWallet = useAnchorWallet();
@@ -242,6 +248,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
   });
 
   const [notes, setNotes] = useState<Note[]>([]);
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
 
   const [activePage, setActivePage] = useState<
     "recent" | "create" | "settings" | "logout" | "search"
@@ -263,11 +270,13 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
   // Settings state
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem("elysium_settings");
-    return saved ? JSON.parse(saved) : {
-      theme: "Dark",
-      notifications: false,
-      syncInterval: 15,
-    };
+    return saved
+      ? JSON.parse(saved)
+      : {
+          theme: "Dark",
+          notifications: false,
+          syncInterval: 15,
+        };
   });
 
   // Apply theme to document
@@ -293,14 +302,18 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
     return () => clearInterval(interval);
   }, [settings.notifications, settings.syncInterval, user, notes.length]);
 
-  const handleSettingsSave = (newSettings: { theme: string; notifications: boolean; syncInterval: number }) => {
+  const handleSettingsSave = (newSettings: {
+    theme: string;
+    notifications: boolean;
+    syncInterval: number;
+  }) => {
     setSettings(newSettings);
     localStorage.setItem("elysium_settings", JSON.stringify(newSettings));
-    
+
     // Show notification if enabled
     if (newSettings.notifications && !settings.notifications) {
       // Request notification permission
-      if ('Notification' in window && Notification.permission === 'default') {
+      if ("Notification" in window && Notification.permission === "default") {
         Notification.requestPermission();
       }
     }
@@ -308,11 +321,15 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
 
   // Notification utility function
   const showNotification = (title: string, body: string) => {
-    if (settings.notifications && 'Notification' in window && Notification.permission === 'granted') {
+    if (
+      settings.notifications &&
+      "Notification" in window &&
+      Notification.permission === "granted"
+    ) {
       new Notification(title, {
         body,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico'
+        icon: "/favicon.ico",
+        badge: "/favicon.ico",
       });
     }
   };
@@ -320,7 +337,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
   // Clean up orphaned notes that can't be decrypted
   const cleanupOrphanedNotes = async () => {
     if (mode !== "db" || !user) return;
-    
+
     try {
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) return;
@@ -360,7 +377,11 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           console.error("Error deleting orphaned notes:", deleteError);
           alert("Failed to clean up orphaned notes. Please try again.");
         } else {
-          alert(`Successfully cleaned up ${orphanedNoteIds.length} orphaned note${orphanedNoteIds.length === 1 ? '' : 's'}.`);
+          alert(
+            `Successfully cleaned up ${orphanedNoteIds.length} orphaned note${
+              orphanedNoteIds.length === 1 ? "" : "s"
+            }.`
+          );
           // Refresh notes
           fetchNotes();
         }
@@ -601,9 +622,12 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
         );
       }
       setIsCloudButtonClicked(false);
-      
+
       // Show notification for successful note creation
-      showNotification("Note Created", `"${note.title}" has been saved successfully`);
+      showNotification(
+        "Note Created",
+        `"${note.title}" has been saved successfully`
+      );
     } else if (mode === "web3") {
       alert("Please connect your wallet to create a note.");
     }
@@ -728,8 +752,12 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
               completionTimestamps: parsed.completionTimestamps || {},
               arweaveHash: note.arweaveHash,
               isPermanent: note.isPermanent,
-              createdAt: note.createdAt ? new Date(note.createdAt.toNumber() * 1000).toISOString() : new Date().toISOString(),
-              updatedAt: note.updatedAt ? new Date(note.updatedAt.toNumber() * 1000).toISOString() : new Date().toISOString(),
+              createdAt: note.createdAt
+                ? new Date(note.createdAt.toNumber() * 1000).toISOString()
+                : new Date().toISOString(),
+              updatedAt: note.updatedAt
+                ? new Date(note.updatedAt.toNumber() * 1000).toISOString()
+                : new Date().toISOString(),
               files: parsed.files || [],
             });
           } catch (e) {
@@ -743,8 +771,12 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
             template: "List",
             isPermanent: note.isPermanent,
             completionTimestamps: {},
-            createdAt: note.createdAt ? new Date(note.createdAt.toNumber() * 1000).toISOString() : new Date().toISOString(),
-            updatedAt: note.updatedAt ? new Date(note.updatedAt.toNumber() * 1000).toISOString() : new Date().toISOString(),
+            createdAt: note.createdAt
+              ? new Date(note.createdAt.toNumber() * 1000).toISOString()
+              : new Date().toISOString(),
+            updatedAt: note.updatedAt
+              ? new Date(note.updatedAt.toNumber() * 1000).toISOString()
+              : new Date().toISOString(),
           });
         }
       }
@@ -807,6 +839,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
   const fetchNotes = useCallback(
     debounce(async () => {
       if (mode !== "db" || !user) return;
+      setIsLoadingNotes(true);
       const session = (await supabase.auth.getSession()).data.session;
       if (session) {
         console.log("Fetching notes for user:", session.user.id);
@@ -837,7 +870,9 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                   updatedAt: n.created_at,
                 } as Note;
               } else {
-                console.warn(`Note ${n.id} failed to decrypt properly - title or content empty`);
+                console.warn(
+                  `Note ${n.id} failed to decrypt properly - title or content empty`
+                );
                 return null;
               }
             } catch (error) {
@@ -846,24 +881,38 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
             }
           })
         );
-        const validNotes = decryptedNotes.filter((note): note is Note => note !== null);
-        
+        const validNotes = decryptedNotes.filter(
+          (note): note is Note => note !== null
+        );
+
         // Handle orphaned notes (encrypted with old method)
-        const orphanedCount = decryptedNotes.filter(note => note === null).length;
+        const orphanedCount = decryptedNotes.filter(
+          (note) => note === null
+        ).length;
         if (orphanedCount > 0) {
-          console.warn(`Found ${orphanedCount} orphaned notes that were encrypted with the old method. These cannot be recovered.`);
+          console.warn(
+            `Found ${orphanedCount} orphaned notes that were encrypted with the old method. These cannot be recovered.`
+          );
           // Show user notification about orphaned notes
           setTimeout(() => {
-            alert(`Warning: ${orphanedCount} of your notes were encrypted with an old method and cannot be recovered. These notes will not appear in your list. New notes will work correctly.`);
+            alert(
+              `Warning: ${orphanedCount} of your notes were encrypted with an old method and cannot be recovered. These notes will not appear in your list. New notes will work correctly.`
+            );
           }, 1000);
         }
-        
+
         console.log("Decrypted notes:", validNotes);
         setNotes(validNotes);
-        
+        setIsLoadingNotes(false);
+
         // Show notification for successful sync
         if (validNotes.length > 0) {
-          showNotification("Elysium Notes Synced", `Successfully synced ${validNotes.length} note${validNotes.length === 1 ? '' : 's'}`);
+          showNotification(
+            "Elysium Notes Synced",
+            `Successfully synced ${validNotes.length} note${
+              validNotes.length === 1 ? "" : "s"
+            }`
+          );
         }
       }
     }, 5000),
@@ -933,7 +982,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
       let isChecked = false;
       let timestamp =
         notes.find((n) => n.id === noteId)?.completionTimestamps?.[index] || "";
-      
+
       // Handle different template types
       if (template === "List") {
         // For List template: just bullet points, no checkboxes
@@ -967,7 +1016,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           }
         }
       }
-      
+
       const handleToggleCheck = async () => {
         if (!isChecked && (mode !== "web3" || publicKey)) {
           const newTimestamp = new Date().toISOString();
@@ -984,7 +1033,15 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     .split("\n")
                     .map((l, i) =>
                       i === index
-                        ? `${trimmed.startsWith("*") ? "*" : trimmed.startsWith("-") ? "-" : trimmed.startsWith(".") ? "." : "*"} [x] ${itemText} (Done at ${newTimestamp})`
+                        ? `${
+                            trimmed.startsWith("*")
+                              ? "*"
+                              : trimmed.startsWith("-")
+                              ? "-"
+                              : trimmed.startsWith(".")
+                              ? "."
+                              : "*"
+                          } [x] ${itemText} (Done at ${newTimestamp})`
                         : l
                     )
                     .join("\n"),
@@ -1015,16 +1072,16 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           }
         }
       };
-      
+
       const handleTimestampClick = async () => {
         if (isChecked && (mode !== "web3" || publicKey)) {
           // Ask for confirmation since changing timestamp is irreversible
           const confirmChange = window.confirm(
             "Are you sure you want to change the completion timestamp? This action cannot be undone."
           );
-          
+
           if (!confirmChange) return;
-          
+
           const newTimestamp = new Date().toISOString();
           const updatedNotes = notes.map((n) =>
             n.id === noteId
@@ -1039,7 +1096,18 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     .split("\n")
                     .map((l, i) =>
                       i === index
-                        ? `${trimmed.startsWith("*") ? "*" : trimmed.startsWith("-") ? "-" : trimmed.startsWith(".") ? "." : "*"} [x] ${itemText.replace(/\(Done at .*\)/, "")} (Done at ${newTimestamp})`
+                        ? `${
+                            trimmed.startsWith("*")
+                              ? "*"
+                              : trimmed.startsWith("-")
+                              ? "-"
+                              : trimmed.startsWith(".")
+                              ? "."
+                              : "*"
+                          } [x] ${itemText.replace(
+                            /\(Done at .*\)/,
+                            ""
+                          )} (Done at ${newTimestamp})`
                         : l
                     )
                     .join("\n"),
@@ -1070,7 +1138,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           }
         }
       };
-      
+
       const handleRemoveItem = async () => {
         if (template === "List") {
           // For List template: remove the item entirely
@@ -1110,7 +1178,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           }
         }
       };
-      
+
       return (
         <div key={index} className="flex items-center mb-2">
           {template === "List" ? (
@@ -1129,7 +1197,10 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                 </button>
               )}
             </>
-          ) : (template === "To-Do List" || template === "Checklist") && (itemText.trim() || template === "To-Do List" || template === "Checklist") ? (
+          ) : (template === "To-Do List" || template === "Checklist") &&
+            (itemText.trim() ||
+              template === "To-Do List" ||
+              template === "Checklist") ? (
             // To-Do List/ Checklist template: checkboxes
             <>
               <input
@@ -1146,12 +1217,14 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
               >
                 {itemText}{" "}
                 {isChecked && (
-                  <span 
+                  <span
                     className="text-gray-500 text-xs md:text-sm ml-2 cursor-pointer hover:text-indigo-400 transition-colors bg-gray-800/50 px-2 py-1 rounded"
                     onClick={handleTimestampClick}
                     title="Click to update timestamp"
                   >
-                    {timestamp ? new Date(timestamp).toLocaleString() : "Click to set timestamp"}
+                    {timestamp
+                      ? new Date(timestamp).toLocaleString()
+                      : "Click to set timestamp"}
                   </span>
                 )}
               </span>
@@ -1216,7 +1289,9 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                 Database Version (Supabase)
               </h2>
               <p className="text-silver-200 text-sm sm:text-base">
-                Secure, private notes with user authentication. Perfect for personal organization with reliable cloud backup and instant sync across devices.
+                Secure, private notes with user authentication. Perfect for
+                personal organization with reliable cloud backup and instant
+                sync across devices.
               </p>
             </div>
           </div>
@@ -1235,7 +1310,9 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                 Cloud Version
               </h2>
               <p className="text-silver-200 text-sm sm:text-base">
-                Fast, offline-capable note storage with seamless device synchronization. Ideal for quick notes and collaborative work with automatic backup.
+                Fast, offline-capable note storage with seamless device
+                synchronization. Ideal for quick notes and collaborative work
+                with automatic backup.
               </p>
             </div>
           </div>
@@ -1254,7 +1331,10 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                 Blockchain Version (SOL + Arweave)
               </h2>
               <p className="text-silver-200 text-sm sm:text-base">
-                <strong>✨ PREMIUM:</strong> Eternal, censorship-resistant storage on Solana + Arweave. Your notes become immutable digital artifacts, preserved forever in the decentralized web. True ownership, zero data loss, maximum security.
+                <strong>✨ PREMIUM:</strong> Eternal, censorship-resistant
+                storage on Solana + Arweave. Your notes become immutable digital
+                artifacts, preserved forever in the decentralized web. True
+                ownership, zero data loss, maximum security.
               </p>
             </div>
           </div>
@@ -1343,7 +1423,10 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
       ) : (
         <div className="min-h-screen h-screen flex flex-col bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
-          <Drawer onNavigate={handlePageChange} onSearch={(query) => setSearchQuery(query)} />
+          <Drawer
+            onNavigate={handlePageChange}
+            onSearch={(query) => setSearchQuery(query)}
+          />
           <button onClick={handleLogoButton}>
             <div className="fixed top-4 sm:top-6 left-1/2 transform -translate-x-1/2 z-40">
               <ElysiumLogo className="w-12 h-12 sm:w-16 sm:h-16" />
@@ -1418,8 +1501,11 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     Recent Notes
                   </h1>
                   <p className="text-gray-300 text-sm mb-4">
-                    Note: Delete removes from GUI only; blockchain storage is
-                    permanent.
+                    {mode === "db"
+                      ? "🔒 Classic encrypted database: Simple, secure, and fully tied to your account with enterprise-grade protection."
+                      : mode === "cloud"
+                      ? "⚡️ Lightning-fast cloud storage: Encrypted, offline data access with advanced cloud security and instant access."
+                      : "⛓️ Eternal blockchain vault: Immutable, censorship-resistant storage where your notes become permanent digital artifacts."}
                   </p>
                   <div className="flex space-x-4 mb-6 sm:mb-8">
                     <button
@@ -1446,25 +1532,232 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                         : "Create Note"}
                     </button>
                   </div>
-                  {notes.filter(note => mode !== "db" || !note.isPermanent).length > 0 ? (
+                  {notes.filter((note) => mode !== "db" || !note.isPermanent)
+                    .length > 0 ? (
                     <>
-                      {mode === "db" && (
+                      {mode === "db" && isLoadingNotes && (
                         <div className="mb-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
                           <p className="text-red-400 text-sm text-center">
-                            <span className="font-semibold">Free Database Version:</span> Notes may take a moment to load. Please wait while we retrieve your data.
+                            <span className="font-semibold">
+                              Free Database Version:
+                            </span>{" "}
+                            Notes may take a moment to load. Please wait while
+                            we retrieve your data.
                           </p>
                         </div>
                       )}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                         {notes
-                          .filter(note => mode !== "db" || !note.isPermanent)
+                          .filter((note) => mode !== "db" || !note.isPermanent)
                           .sort((a, b) => {
                             // Sort by updatedAt first, then by createdAt if updatedAt is not available
-                            const aTime = new Date(a.updatedAt || a.createdAt).getTime();
-                            const bTime = new Date(b.updatedAt || b.createdAt).getTime();
+                            const aTime = new Date(
+                              a.updatedAt || a.createdAt
+                            ).getTime();
+                            const bTime = new Date(
+                              b.updatedAt || b.createdAt
+                            ).getTime();
                             return bTime - aTime; // Most recent first
                           })
                           .map((note) => (
+                            <animated.div
+                              key={note.id}
+                              style={noteSpring}
+                              className="group bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:scale-105 transition-all duration-300 border border-indigo-600/30 h-48 sm:h-52"
+                              onClick={() => setViewingNote(note)}
+                            >
+                              <div className="flex-1 overflow-hidden">
+                                <h3 className="text-lg sm:text-xl font-semibold text-gold-100 mb-2 font-serif line-clamp-2 leading-tight">
+                                  {note.title}
+                                  {note.isPermanent && (
+                                    <span className="text-xs text-amber-400 ml-1">
+                                      ⛓️
+                                    </span>
+                                  )}
+                                </h3>
+                                <div className="text-gray-300 text-sm mb-2 line-clamp-3 leading-relaxed">
+                                  {note.content
+                                    .split("\n")[0]
+                                    .substring(0, 120)}
+                                  {note.content.length > 120 ? "..." : ""}
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-gray-400">
+                                  <span className="bg-indigo-900/50 px-2 py-1 rounded-full">
+                                    {note.template}
+                                  </span>
+                                  <span className="text-gray-500">
+                                    Click to view
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex justify-end">
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation(); // Prevent triggering the view
+                                    if (note.isPermanent) {
+                                      if (
+                                        window.confirm(
+                                          "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
+                                        )
+                                      ) {
+                                        const updatedNotes = notes.filter(
+                                          (n) => n.id !== note.id
+                                        );
+                                        setNotes(updatedNotes);
+                                        if (mode === "db" && user) {
+                                          console.log(
+                                            "Deleting note from Supabase:",
+                                            note.id
+                                          );
+                                          const { error } = await supabase
+                                            .from("notes")
+                                            .delete()
+                                            .eq("id", note.id);
+                                          if (error)
+                                            console.error(
+                                              "Supabase delete error:",
+                                              error
+                                            );
+                                        } else if (mode === "cloud") {
+                                          localStorage.setItem(
+                                            `elysium_notes_${mode}`,
+                                            JSON.stringify(updatedNotes)
+                                          );
+                                        }
+                                      }
+                                    } else {
+                                      const updatedNotes = notes.filter(
+                                        (n) => n.id !== note.id
+                                      );
+                                      setNotes(updatedNotes);
+                                      if (mode === "db" && user) {
+                                        console.log(
+                                          "Deleting note from Supabase:",
+                                          note.id
+                                        );
+                                        const { error } = await supabase
+                                          .from("notes")
+                                          .delete()
+                                          .eq("id", note.id);
+                                        if (error)
+                                          console.error(
+                                            "Supabase delete error:",
+                                            error
+                                          );
+                                      } else if (mode === "cloud") {
+                                        localStorage.setItem(
+                                          `elysium_notes_${mode}`,
+                                          JSON.stringify(updatedNotes)
+                                        );
+                                      }
+                                    }
+                                  }}
+                                  className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
+                                  disabled={false}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </animated.div>
+                          ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-12">
+                      {mode === "db" ? (
+                        <div className="space-y-4">
+                          <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg">
+                            <p className="text-red-400 text-sm">
+                              <span className="font-semibold">
+                                Free Database Version:
+                              </span>{" "}
+                              Notes may take a moment to load. Please wait while
+                              we retrieve your data.
+                            </p>
+                          </div>
+                          <p className="text-gray-400 text-sm">
+                            No notes yet—create one to get started!
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">
+                          No notes yet—create one to get started!
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+              {activePage === "create" && (
+                <CreateNote
+                  onSave={handleCreateNote}
+                  onCancel={() => {
+                    setShowCreateModal(false);
+                    setIsCloudButtonClicked(false);
+                    setActivePage("recent");
+                  }}
+                  mode={mode}
+                />
+              )}
+              {activePage === "settings" && (
+                <Settings
+                  onSave={handleSettingsSave}
+                  onCleanupOrphanedNotes={cleanupOrphanedNotes}
+                  initialTheme={settings.theme}
+                  initialNotifications={settings.notifications}
+                  initialSyncInterval={settings.syncInterval}
+                />
+              )}
+              {activePage === "logout" && (
+                <Logout
+                  onConfirm={handleLogout}
+                  onCancel={() => {
+                    setShowPopup(false);
+                    setIsCloudButtonClicked(false);
+                    setActivePage("recent");
+                  }}
+                />
+              )}
+              {activePage === "search" && (
+                <>
+                  <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 text-gold-100 font-serif">
+                    Search Notes
+                  </h1>
+                  <div className="mb-6">
+                    <input
+                      type="text"
+                      placeholder="Search notes by title or content..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200"
+                    />
+                  </div>
+                  {(() => {
+                    const filteredNotes = notes
+                      .filter((note) => mode !== "db" || !note.isPermanent)
+                      .filter(
+                        (note) =>
+                          note.title
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase()) ||
+                          note.content
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase())
+                      )
+                      .sort((a, b) => {
+                        // Sort by updatedAt first, then by createdAt if updatedAt is not available
+                        const aTime = new Date(
+                          a.updatedAt || a.createdAt
+                        ).getTime();
+                        const bTime = new Date(
+                          b.updatedAt || b.createdAt
+                        ).getTime();
+                        return bTime - aTime; // Most recent first
+                      });
+
+                    return filteredNotes.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                        {filteredNotes.map((note) => (
                           <animated.div
                             key={note.id}
                             style={noteSpring}
@@ -1475,12 +1768,14 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                               <h3 className="text-lg sm:text-xl font-semibold text-gold-100 mb-2 font-serif line-clamp-2 leading-tight">
                                 {note.title}
                                 {note.isPermanent && (
-                                  <span className="text-xs text-amber-400 ml-1">⛓️</span>
+                                  <span className="text-xs text-amber-400 ml-1">
+                                    ⛓️
+                                  </span>
                                 )}
                               </h3>
                               <div className="text-gray-300 text-sm mb-2 line-clamp-3 leading-relaxed">
-                                {note.content.split('\n')[0].substring(0, 120)}
-                                {note.content.length > 120 ? '...' : ''}
+                                {note.content.split("\n")[0].substring(0, 120)}
+                                {note.content.length > 120 ? "..." : ""}
                               </div>
                               <div className="flex items-center justify-between text-xs text-gray-400">
                                 <span className="bg-indigo-900/50 px-2 py-1 rounded-full">
@@ -1494,7 +1789,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                             <div className="mt-3 flex justify-end">
                               <button
                                 onClick={async (e) => {
-                                  e.stopPropagation(); // Prevent triggering the view
+                                  e.stopPropagation();
                                   if (note.isPermanent) {
                                     if (
                                       window.confirm(
@@ -1562,187 +1857,6 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                           </animated.div>
                         ))}
                       </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-12">
-                      {mode === "db" ? (
-                        <div className="space-y-4">
-                          <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg">
-                            <p className="text-red-400 text-sm">
-                              <span className="font-semibold">Free Database Version:</span> Notes may take a moment to load. Please wait while we retrieve your data.
-                            </p>
-                          </div>
-                          <p className="text-gray-400 text-sm">
-                            No notes yet—create one to get started!
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-gray-400 text-sm">
-                          No notes yet—create one to get started!
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-              {activePage === "create" && (
-                <CreateNote
-                  onSave={handleCreateNote}
-                  onCancel={() => {
-                    setShowCreateModal(false);
-                    setIsCloudButtonClicked(false);
-                    setActivePage("recent");
-                  }}
-                  mode={mode}
-                />
-              )}
-              {activePage === "settings" && (
-                <Settings
-                  onSave={handleSettingsSave}
-                  onCleanupOrphanedNotes={cleanupOrphanedNotes}
-                  initialTheme={settings.theme}
-                  initialNotifications={settings.notifications}
-                  initialSyncInterval={settings.syncInterval}
-                />
-              )}
-              {activePage === "logout" && (
-                <Logout
-                  onConfirm={handleLogout}
-                  onCancel={() => {
-                    setShowPopup(false);
-                    setIsCloudButtonClicked(false);
-                    setActivePage("recent");
-                  }}
-                />
-              )}
-              {activePage === "search" && (
-                <>
-                  <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 text-gold-100 font-serif">
-                    Search Notes
-                  </h1>
-                  <div className="mb-6">
-                    <input
-                      type="text"
-                      placeholder="Search notes by title or content..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200"
-                    />
-                  </div>
-                  {(() => {
-                    const filteredNotes = notes
-                      .filter(note => mode !== "db" || !note.isPermanent)
-                      .filter(note =>
-                        note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        note.content.toLowerCase().includes(searchQuery.toLowerCase())
-                      )
-                      .sort((a, b) => {
-                        // Sort by updatedAt first, then by createdAt if updatedAt is not available
-                        const aTime = new Date(a.updatedAt || a.createdAt).getTime();
-                        const bTime = new Date(b.updatedAt || b.createdAt).getTime();
-                        return bTime - aTime; // Most recent first
-                      });
-                    
-                    return filteredNotes.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                        {filteredNotes.map((note) => (
-                          <animated.div
-                            key={note.id}
-                            style={noteSpring}
-                            className="group bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:scale-105 transition-all duration-300 border border-indigo-600/30 h-48 sm:h-52"
-                            onClick={() => setViewingNote(note)}
-                          >
-                            <div className="flex-1 overflow-hidden">
-                              <h3 className="text-lg sm:text-xl font-semibold text-gold-100 mb-2 font-serif line-clamp-2 leading-tight">
-                                {note.title}
-                                {note.isPermanent && (
-                                  <span className="text-xs text-amber-400 ml-1">⛓️</span>
-                                )}
-                              </h3>
-                              <div className="text-gray-300 text-sm mb-2 line-clamp-3 leading-relaxed">
-                                {note.content.split('\n')[0].substring(0, 120)}
-                                {note.content.length > 120 ? '...' : ''}
-                              </div>
-                              <div className="flex items-center justify-between text-xs text-gray-400">
-                                <span className="bg-indigo-900/50 px-2 py-1 rounded-full">
-                                  {note.template}
-                                </span>
-                                <span className="text-gray-500">
-                                  Click to view
-                                </span>
-                              </div>
-                            </div>
-                            <div className="mt-3 flex justify-end">
-                              <button
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  if (note.isPermanent) {
-                                    if (
-                                      window.confirm(
-                                        "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
-                                      )
-                                    ) {
-                                      const updatedNotes = notes.filter(
-                                        (n) => n.id !== note.id
-                                      );
-                                      setNotes(updatedNotes);
-                                      if (mode === "db" && user) {
-                                        console.log(
-                                          "Deleting note from Supabase:",
-                                          note.id
-                                        );
-                                        const { error } = await supabase
-                                          .from("notes")
-                                          .delete()
-                                          .eq("id", note.id);
-                                        if (error)
-                                          console.error(
-                                            "Supabase delete error:",
-                                            error
-                                          );
-                                      } else if (mode === "cloud") {
-                                        localStorage.setItem(
-                                          `elysium_notes_${mode}`,
-                                          JSON.stringify(updatedNotes)
-                                        );
-                                      }
-                                    }
-                                  } else {
-                                    const updatedNotes = notes.filter(
-                                      (n) => n.id !== note.id
-                                    );
-                                    setNotes(updatedNotes);
-                                    if (mode === "db" && user) {
-                                      console.log(
-                                        "Deleting note from Supabase:",
-                                        note.id
-                                      );
-                                      const { error } = await supabase
-                                        .from("notes")
-                                        .delete()
-                                        .eq("id", note.id);
-                                      if (error)
-                                        console.error(
-                                          "Supabase delete error:",
-                                          error
-                                        );
-                                      } else if (mode === "cloud") {
-                                        localStorage.setItem(
-                                          `elysium_notes_${mode}`,
-                                          JSON.stringify(updatedNotes)
-                                        );
-                                      }
-                                    }
-                                }}
-                                className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
-                                disabled={false}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </animated.div>
-                        ))}
-                      </div>
                     ) : searchQuery ? (
                       <div className="text-center py-12">
                         <p className="text-gray-400 text-sm">
@@ -1786,7 +1900,9 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     // Edit Mode
                     <div className="p-6 space-y-6 max-h-[90vh] overflow-y-auto">
                       <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-semibold text-gold-100">Edit Note</h2>
+                        <h2 className="text-2xl font-semibold text-gold-100">
+                          Edit Note
+                        </h2>
                         <button
                           onClick={() => {
                             setEditingNote(null);
@@ -1800,7 +1916,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                           ✕
                         </button>
                       </div>
-                      
+
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-200 mb-2">
@@ -1813,7 +1929,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                             className="w-full p-3 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                           />
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-200 mb-2">
                             Note Content
@@ -1824,7 +1940,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                             className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 h-64 resize-none"
                           />
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-200 mb-2">
                             Template
@@ -1842,7 +1958,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                           </select>
                         </div>
                       </div>
-                      
+
                       <div className="flex justify-end space-x-4">
                         <button
                           onClick={() => {
@@ -1865,20 +1981,30 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                                 template: editTemplate,
                                 updatedAt: new Date().toISOString(),
                               };
-                              
-                              const updatedNotes = notes.map(n => 
+
+                              const updatedNotes = notes.map((n) =>
                                 n.id === editingNote.id ? updatedNote : n
                               );
                               setNotes(updatedNotes);
-                              
+
                               // Update in database if db mode
                               if (mode === "db" && user) {
-                                const session = (await supabase.auth.getSession()).data.session;
+                                const session = (
+                                  await supabase.auth.getSession()
+                                ).data.session;
                                 if (session) {
-                                  const key = await deriveKey(session.access_token);
-                                  const encTitle = await encryptData(editTitle, key);
-                                  const encContent = await encryptData(editContent, key);
-                                  
+                                  const key = await deriveKey(
+                                    session.access_token
+                                  );
+                                  const encTitle = await encryptData(
+                                    editTitle,
+                                    key
+                                  );
+                                  const encContent = await encryptData(
+                                    editContent,
+                                    key
+                                  );
+
                                   const { error } = await supabase
                                     .from("notes")
                                     .update({
@@ -1887,9 +2013,12 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                                       template: editTemplate,
                                     })
                                     .eq("id", editingNote.id);
-                                    
+
                                   if (error) {
-                                    console.error("Supabase update error:", error);
+                                    console.error(
+                                      "Supabase update error:",
+                                      error
+                                    );
                                     alert("Failed to update note in database.");
                                   }
                                 }
@@ -1899,7 +2028,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                                   JSON.stringify(updatedNotes)
                                 );
                               }
-                              
+
                               setEditingNote(null);
                               setViewingNote(null);
                               setEditTitle("");
@@ -1958,9 +2087,9 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                       </div>
                       <div className="flex-1 overflow-y-auto p-6">
                         <div className="text-white text-base leading-relaxed">
-                          {(viewingNote.template === "To-Do List" || 
-                            viewingNote.template === "Checklist" || 
-                            viewingNote.template === "List") ? (
+                          {viewingNote.template === "To-Do List" ||
+                          viewingNote.template === "Checklist" ||
+                          viewingNote.template === "List" ? (
                             <div className="space-y-1">
                               {renderList(
                                 viewingNote.id,
@@ -1969,8 +2098,12 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                                 notes,
                                 (updatedNotes) => {
                                   // Update the viewing note when changes are made
-                                  const notesArray = Array.isArray(updatedNotes) ? updatedNotes : updatedNotes(notes);
-                                  const updatedViewingNote = notesArray.find(n => n.id === viewingNote.id);
+                                  const notesArray = Array.isArray(updatedNotes)
+                                    ? updatedNotes
+                                    : updatedNotes(notes);
+                                  const updatedViewingNote = notesArray.find(
+                                    (n) => n.id === viewingNote.id
+                                  );
                                   if (updatedViewingNote) {
                                     setViewingNote(updatedViewingNote);
                                   }
@@ -1986,7 +2119,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="flex justify-end">
                         <button
                           onClick={() => setViewingNote(null)}
