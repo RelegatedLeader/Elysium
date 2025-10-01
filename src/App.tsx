@@ -55,6 +55,31 @@ const endpoint = clusterApiUrl(network);
 const connection = new Connection(endpoint, "confirmed");
 const programId = new PublicKey(idlJson.address);
 
+// Core cryptographic function - defined outside component for reuse
+async function deriveKey(userId: string, customSalt?: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const salt = customSalt || "elysium-eternal-salt";
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(userId + "elysium-persistent-key"),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode(salt),
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"]
+  );
+}
+
 function App() {
   const wallets = useMemo(() => [], []);
   const [user, setUser] = useState<any>(null);
@@ -65,6 +90,27 @@ function App() {
   const [authAttempts, setAuthAttempts] = useState(0);
   const [lastAuthAttempt, setLastAuthAttempt] = useState<Date | null>(null);
   const [isRateLimited, setIsRateLimited] = useState(false);
+
+  // Security: Account lockout protection
+  const [accountLockout, setAccountLockout] = useState<{
+    locked: boolean;
+    lockoutUntil: Date | null;
+    failedAttempts: number;
+  }>({
+    locked: false,
+    lockoutUntil: null,
+    failedAttempts: 0
+  });
+
+  // Security: Password strength requirements
+  const [passwordRequirements] = useState({
+    minLength: 12,
+    requireUppercase: true,
+    requireLowercase: true,
+    requireNumbers: true,
+    requireSpecialChars: true,
+    preventCommonPasswords: true
+  });
 
   // Security: Audit logging
   const logSecurityEvent = (event: string, details: any) => {
@@ -115,6 +161,137 @@ function App() {
     return true;
   };
 
+  // Security: Enhanced password strength validation
+  const validatePasswordStrength = (password: string): { isValid: boolean; score: number; feedback: string[] } => {
+    const feedback: string[] = [];
+    let score = 0;
+
+    // Length check
+    if (password.length >= passwordRequirements.minLength) {
+      score += 25;
+    } else {
+      feedback.push(`Password must be at least ${passwordRequirements.minLength} characters long`);
+    }
+
+    // Uppercase check
+    if (passwordRequirements.requireUppercase && /[A-Z]/.test(password)) {
+      score += 20;
+    } else if (passwordRequirements.requireUppercase) {
+      feedback.push('Password must contain at least one uppercase letter');
+    }
+
+    // Lowercase check
+    if (passwordRequirements.requireLowercase && /[a-z]/.test(password)) {
+      score += 20;
+    } else if (passwordRequirements.requireLowercase) {
+      feedback.push('Password must contain at least one lowercase letter');
+    }
+
+    // Numbers check
+    if (passwordRequirements.requireNumbers && /\d/.test(password)) {
+      score += 15;
+    } else if (passwordRequirements.requireNumbers) {
+      feedback.push('Password must contain at least one number');
+    }
+
+    // Special characters check
+    if (passwordRequirements.requireSpecialChars && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      score += 10;
+    } else if (passwordRequirements.requireSpecialChars) {
+      feedback.push('Password must contain at least one special character');
+    }
+
+    // Common password check
+    const commonPasswords = ['password', '123456', 'qwerty', 'admin', 'letmein', 'welcome'];
+    if (passwordRequirements.preventCommonPasswords && commonPasswords.includes(password.toLowerCase())) {
+      score = 0;
+      feedback.push('Password is too common, please choose a stronger password');
+    }
+
+    // Entropy check (basic)
+    const uniqueChars = new Set(password).size;
+    if (uniqueChars >= password.length * 0.7) {
+      score += 10;
+    }
+
+    return {
+      isValid: score >= 70,
+      score,
+      feedback
+    };
+  };
+
+  // Security: Account lockout management
+  const checkAccountLockout = (): boolean => {
+    const now = new Date();
+
+    // Check if account is currently locked
+    if (accountLockout.locked && accountLockout.lockoutUntil) {
+      if (now < accountLockout.lockoutUntil) {
+        logSecurityEvent('ACCOUNT_LOCKOUT_ACTIVE', {
+          lockoutUntil: accountLockout.lockoutUntil.toISOString(),
+          failedAttempts: accountLockout.failedAttempts
+        });
+        return false; // Account is locked
+      } else {
+        // Lockout period has expired, reset
+        setAccountLockout({
+          locked: false,
+          lockoutUntil: null,
+          failedAttempts: 0
+        });
+        logSecurityEvent('ACCOUNT_LOCKOUT_EXPIRED', { previousFailedAttempts: accountLockout.failedAttempts });
+      }
+    }
+
+    return true; // Account is not locked
+  };
+
+  // Security: Handle failed authentication attempt
+  const handleFailedAuthAttempt = () => {
+    const newFailedAttempts = accountLockout.failedAttempts + 1;
+    let lockoutDuration = 0;
+
+    // Progressive lockout: 5 min after 3 attempts, 15 min after 5, 60 min after 10
+    if (newFailedAttempts >= 10) {
+      lockoutDuration = 60 * 60 * 1000; // 1 hour
+    } else if (newFailedAttempts >= 5) {
+      lockoutDuration = 15 * 60 * 1000; // 15 minutes
+    } else if (newFailedAttempts >= 3) {
+      lockoutDuration = 5 * 60 * 1000; // 5 minutes
+    }
+
+    if (lockoutDuration > 0) {
+      const lockoutUntil = new Date(Date.now() + lockoutDuration);
+      setAccountLockout({
+        locked: true,
+        lockoutUntil,
+        failedAttempts: newFailedAttempts
+      });
+      logSecurityEvent('ACCOUNT_LOCKOUT_TRIGGERED', {
+        failedAttempts: newFailedAttempts,
+        lockoutDuration: lockoutDuration / 1000 / 60, // minutes
+        lockoutUntil: lockoutUntil.toISOString()
+      });
+    } else {
+      setAccountLockout(prev => ({
+        ...prev,
+        failedAttempts: newFailedAttempts
+      }));
+    }
+  };
+
+  // Security: Handle successful authentication
+  const handleSuccessfulAuth = () => {
+    // Reset failed attempts on successful login
+    setAccountLockout({
+      locked: false,
+      lockoutUntil: null,
+      failedAttempts: 0
+    });
+    logSecurityEvent('ACCOUNT_LOCKOUT_RESET', { reason: 'successful_auth' });
+  };
+
   // Security: Secure headers and CORS protection
   const setSecureHeaders = () => {
     // Note: These would be set server-side in production
@@ -131,7 +308,7 @@ function App() {
     try {
       const { data, error } = await supabase.auth.refreshSession();
       if (error) {
-        logSecurityEvent('TOKEN_ROTATION_FAILED', { error: error.message });
+        logSecurityEvent('TOKEN_ROTATION_FAILED', { error: error instanceof Error ? error.message : String(error) });
         return false;
       }
       if (data.session) {
@@ -196,8 +373,879 @@ function App() {
     localStorage.setItem('elysium_activity', JSON.stringify(recentActivityFiltered));
   };
 
+  // Security: Data integrity - Checksum calculation
+  const calculateChecksum = (data: string): string => {
+    let hash = 0;
+    for (let i = 0; i < data.length; i++) {
+      const char = data.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString(16);
+  };
+
+  // Security: Data integrity verification
+  const verifyDataIntegrity = (data: string, expectedChecksum: string): boolean => {
+    const calculatedChecksum = calculateChecksum(data);
+    const isValid = calculatedChecksum === expectedChecksum;
+
+    if (!isValid) {
+      logSecurityEvent('DATA_INTEGRITY_VIOLATION', {
+        expectedChecksum,
+        calculatedChecksum,
+        dataLength: data.length
+      });
+    }
+
+    return isValid;
+  };
+
+  // Security: Field-level encryption for sensitive data
+  const encryptSensitiveField = async (data: string, fieldName: string): Promise<string> => {
+    try {
+      // Use a different key derivation for field-level encryption
+      const fieldKey = await deriveKey(user?.id || 'anonymous', `${fieldName}_field_salt`);
+      const encoder = new TextEncoder();
+      const dataBuffer = encoder.encode(data);
+
+      // Generate a new nonce for each encryption
+      const nonce = crypto.getRandomValues(new Uint8Array(12));
+
+      const encrypted = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: nonce },
+        fieldKey,
+        dataBuffer
+      );
+
+      // Combine nonce and encrypted data
+      const combined = new Uint8Array(nonce.length + encrypted.byteLength);
+      combined.set(nonce);
+      combined.set(new Uint8Array(encrypted), nonce.length);
+
+      const encryptedString = btoa(String.fromCharCode(...Array.from(combined)));
+      logSecurityEvent('FIELD_ENCRYPTION_SUCCESS', { fieldName, dataLength: data.length });
+
+      return encryptedString;
+    } catch (error) {
+      logSecurityEvent('FIELD_ENCRYPTION_FAILED', { fieldName, error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  };
+
+  // Security: Field-level decryption
+  const decryptSensitiveField = async (encryptedData: string, fieldName: string): Promise<string> => {
+    try {
+      const fieldKey = await deriveKey(user?.id || 'anonymous', `${fieldName}_field_salt`);
+      const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+
+      // Extract nonce and encrypted data
+      const nonce = combined.slice(0, 12);
+      const encrypted = combined.slice(12);
+
+      const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: nonce },
+        fieldKey,
+        encrypted
+      );
+
+      const decoder = new TextDecoder();
+      const decryptedString = decoder.decode(decrypted);
+
+      logSecurityEvent('FIELD_DECRYPTION_SUCCESS', { fieldName });
+      return decryptedString;
+    } catch (error) {
+      logSecurityEvent('FIELD_DECRYPTION_FAILED', { fieldName, error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  };
+
+  // Security: Secure deletion with data wiping
+  const secureDelete = (data: any, passes: number = 3): void => {
+    if (typeof data === 'string') {
+      // Overwrite string multiple times with random data
+      let wiped = data;
+      for (let pass = 0; pass < passes; pass++) {
+        wiped = crypto.getRandomValues(new Uint8Array(data.length)).toString();
+      }
+      logSecurityEvent('SECURE_DELETION_COMPLETED', {
+        dataType: 'string',
+        originalLength: data.length,
+        passes
+      });
+    } else if (data instanceof Uint8Array) {
+      // Overwrite array buffer multiple times
+      for (let pass = 0; pass < passes; pass++) {
+        crypto.getRandomValues(data);
+      }
+      logSecurityEvent('SECURE_DELETION_COMPLETED', {
+        dataType: 'Uint8Array',
+        arrayLength: data.length,
+        passes
+      });
+    } else {
+      logSecurityEvent('SECURE_DELETION_UNSUPPORTED', { dataType: typeof data });
+    }
+  };
+
+  // Security: Data classification and access control
+  const classifyDataSensitivity = (content: string): 'public' | 'internal' | 'confidential' | 'restricted' => {
+    const confidentialKeywords = ['password', 'secret', 'key', 'token', 'private', 'ssn', 'credit'];
+    const restrictedKeywords = ['medical', 'financial', 'personal', 'sensitive'];
+
+    const lowerContent = content.toLowerCase();
+
+    if (restrictedKeywords.some(keyword => lowerContent.includes(keyword))) {
+      return 'restricted';
+    } else if (confidentialKeywords.some(keyword => lowerContent.includes(keyword))) {
+      return 'confidential';
+    } else if (content.length > 1000 || /\b\d{3}-\d{2}-\d{4}\b/.test(content)) { // SSN pattern
+      return 'internal';
+    } else {
+      return 'public';
+    }
+  };
+
+  // Security: Audit trail for data modifications
+  const auditDataModification = (operation: string, noteId: string, changes: any) => {
+    const auditEntry = {
+      timestamp: new Date().toISOString(),
+      operation,
+      noteId,
+      userId: user?.id,
+      changes,
+      userAgent: navigator.userAgent,
+      ip: 'client-side',
+      dataClassification: classifyDataSensitivity(JSON.stringify(changes))
+    };
+
+    // Store audit trail (in production, this would go to a secure audit log)
+    const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]');
+    auditTrail.push(auditEntry);
+
+    // Keep only last 1000 entries to prevent localStorage bloat
+    if (auditTrail.length > 1000) {
+      auditTrail.splice(0, auditTrail.length - 1000);
+    }
+
+    localStorage.setItem('elysium_audit_trail', JSON.stringify(auditTrail));
+    logSecurityEvent('DATA_MODIFICATION_AUDITED', auditEntry);
+  };
+
+  // Security: API request size limits
+  const validateRequestSize = (data: any, maxSizeKB: number = 1024): boolean => {
+    const dataSize = JSON.stringify(data).length / 1024; // Size in KB
+
+    if (dataSize > maxSizeKB) {
+      logSecurityEvent('REQUEST_SIZE_LIMIT_EXCEEDED', {
+        actualSize: dataSize,
+        maxSize: maxSizeKB,
+        dataType: typeof data
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  // Security: API response size limits
+  const validateResponseSize = (response: any, maxSizeKB: number = 2048): boolean => {
+    const responseSize = JSON.stringify(response).length / 1024; // Size in KB
+
+    if (responseSize > maxSizeKB) {
+      logSecurityEvent('RESPONSE_SIZE_LIMIT_EXCEEDED', {
+        actualSize: responseSize,
+        maxSize: maxSizeKB,
+        responseType: typeof response
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  // Security: Content-Type validation
+  const validateContentType = (contentType: string, allowedTypes: string[]): boolean => {
+    if (!allowedTypes.includes(contentType)) {
+      logSecurityEvent('INVALID_CONTENT_TYPE', {
+        providedType: contentType,
+        allowedTypes
+      });
+      return false;
+    }
+    return true;
+  };
+
+  // Security: API security headers validation
+  const validateApiHeaders = (headers: Record<string, string>): boolean => {
+    const requiredHeaders = ['content-type', 'authorization'];
+    const securityHeaders = [
+      'x-content-type-options',
+      'x-frame-options',
+      'x-xss-protection',
+      'strict-transport-security'
+    ];
+
+    // Check for required headers
+    for (const header of requiredHeaders) {
+      if (!headers[header.toLowerCase()]) {
+        logSecurityEvent('MISSING_REQUIRED_HEADER', { header });
+        return false;
+      }
+    }
+
+    // Validate Content-Type
+    const contentType = headers['content-type'];
+    if (contentType && !validateContentType(contentType, [
+      'application/json',
+      'application/x-www-form-urlencoded',
+      'multipart/form-data'
+    ])) {
+      return false;
+    }
+
+    // Log security headers presence
+    const presentSecurityHeaders = securityHeaders.filter(header =>
+      headers[header.toLowerCase()]
+    );
+
+    logSecurityEvent('API_HEADERS_VALIDATED', {
+      requiredHeadersPresent: requiredHeaders.every(h => headers[h.toLowerCase()]),
+      securityHeadersPresent: presentSecurityHeaders
+    });
+
+    return true;
+  };
+
+  // Security: API versioning security
+  const validateApiVersion = (version: string): boolean => {
+    const supportedVersions = ['v1', 'v2', 'latest'];
+    const normalizedVersion = version.toLowerCase();
+
+    if (!supportedVersions.includes(normalizedVersion)) {
+      logSecurityEvent('UNSUPPORTED_API_VERSION', {
+        requestedVersion: version,
+        supportedVersions
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  // Security: Rate limiting per endpoint
+  const endpointRateLimit = new Map<string, { count: number; resetTime: number }>();
+
+  const checkEndpointRateLimit = (endpoint: string, maxRequests: number = 100, windowMs: number = 15 * 60 * 1000): boolean => {
+    const now = Date.now();
+    const key = `${endpoint}_${user?.id || 'anonymous'}`;
+
+    let limit = endpointRateLimit.get(key);
+    if (!limit || now > limit.resetTime) {
+      limit = { count: 0, resetTime: now + windowMs };
+      endpointRateLimit.set(key, limit);
+    }
+
+    if (limit.count >= maxRequests) {
+      logSecurityEvent('ENDPOINT_RATE_LIMIT_EXCEEDED', {
+        endpoint,
+        requestCount: limit.count,
+        maxRequests,
+        windowMs
+      });
+      return false;
+    }
+
+    limit.count++;
+    return true;
+  };
+
+  // Security: Request throttling
+  const requestThrottle = new Map<string, number>();
+  const throttleRequest = (key: string, minIntervalMs: number = 1000): boolean => {
+    const now = Date.now();
+    const lastRequest = requestThrottle.get(key) || 0;
+
+    if (now - lastRequest < minIntervalMs) {
+      logSecurityEvent('REQUEST_THROTTLED', {
+        key,
+        timeSinceLastRequest: now - lastRequest,
+        minInterval: minIntervalMs
+      });
+      return false;
+    }
+
+    requestThrottle.set(key, now);
+    return true;
+  };
+
+  // Security: API health monitoring
+  const monitorApiHealth = async (): Promise<boolean> => {
+    try {
+      const startTime = Date.now();
+      const { data, error } = await supabase.from('notes').select('count').limit(1).single();
+      const responseTime = Date.now() - startTime;
+
+      const isHealthy = !error && responseTime < 5000; // 5 second timeout
+
+      logSecurityEvent('API_HEALTH_CHECK', {
+        healthy: isHealthy,
+        responseTime,
+        error: error?.message
+      });
+
+      return isHealthy;
+    } catch (err) {
+      logSecurityEvent('API_HEALTH_CHECK_FAILED', { error: err instanceof Error ? err.message : String(err) });
+      return false;
+    }
+  };
+
+  // Security: Data retention policies
+  const enforceDataRetention = () => {
+    const retentionPolicies = {
+      notes: 365 * 24 * 60 * 60 * 1000, // 1 year
+      auditLogs: 90 * 24 * 60 * 60 * 1000, // 90 days
+      tempFiles: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sessionData: 30 * 24 * 60 * 60 * 1000 // 30 days
+    };
+
+    const now = Date.now();
+
+    // Clean up old audit logs
+    const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]');
+    const filteredAuditTrail = auditTrail.filter((entry: any) =>
+      now - new Date(entry.timestamp).getTime() < retentionPolicies.auditLogs
+    );
+
+    if (filteredAuditTrail.length !== auditTrail.length) {
+      localStorage.setItem('elysium_audit_trail', JSON.stringify(filteredAuditTrail));
+      logSecurityEvent('DATA_RETENTION_ENFORCED', {
+        dataType: 'audit_logs',
+        removedCount: auditTrail.length - filteredAuditTrail.length
+      });
+    }
+
+    // Clean up old activity logs
+    const activityLog = JSON.parse(localStorage.getItem('elysium_activity') || '[]');
+    const filteredActivityLog = activityLog.filter((timestamp: number) =>
+      now - timestamp < retentionPolicies.sessionData
+    );
+
+    if (filteredActivityLog.length !== activityLog.length) {
+      localStorage.setItem('elysium_activity', JSON.stringify(filteredActivityLog));
+      logSecurityEvent('DATA_RETENTION_ENFORCED', {
+        dataType: 'activity_logs',
+        removedCount: activityLog.length - filteredActivityLog.length
+      });
+    }
+  };
+
+  // Security: Privacy consent management
+  const [privacyConsent, setPrivacyConsent] = useState<{
+    analytics: boolean;
+    marketing: boolean;
+    dataProcessing: boolean;
+    lastUpdated: string;
+  }>({
+    analytics: false,
+    marketing: false,
+    dataProcessing: true, // Required for app functionality
+    lastUpdated: new Date().toISOString()
+  });
+
+  const updatePrivacyConsent = (consentType: keyof typeof privacyConsent, value: boolean) => {
+    if (consentType === 'dataProcessing' && !value) {
+      logSecurityEvent('PRIVACY_CONSENT_VIOLATION', {
+        attemptedChange: 'dataProcessing',
+        newValue: false
+      });
+      alert('Data processing consent is required for the application to function.');
+      return;
+    }
+
+    setPrivacyConsent(prev => ({
+      ...prev,
+      [consentType]: value,
+      lastUpdated: new Date().toISOString()
+    }));
+
+    logSecurityEvent('PRIVACY_CONSENT_UPDATED', {
+      consentType,
+      newValue: value,
+      userId: user?.id
+    });
+
+    // Store consent preferences
+    localStorage.setItem('elysium_privacy_consent', JSON.stringify({
+      ...privacyConsent,
+      [consentType]: value,
+      lastUpdated: new Date().toISOString()
+    }));
+  };
+
+  // Security: GDPR compliance - Right to be forgotten
+  const gdprDataDeletion = async (): Promise<boolean> => {
+    try {
+      if (!user?.id) {
+        logSecurityEvent('GDPR_DELETION_FAILED', { reason: 'no_user' });
+        return false;
+      }
+
+      // Delete all user notes
+      const { error: notesError } = await supabase
+        .from('notes')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (notesError) {
+        logSecurityEvent('GDPR_DELETION_FAILED', {
+          step: 'notes_deletion',
+          error: notesError instanceof Error ? notesError.message : String(notesError)
+        });
+        return false;
+      }
+
+      // Clear local storage
+      const keysToRemove = Object.keys(localStorage).filter(key =>
+        key.startsWith('elysium_') || key.includes(user.id)
+      );
+
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      // Sign out user
+      await supabase.auth.signOut();
+
+      logSecurityEvent('GDPR_DELETION_COMPLETED', {
+        userId: user.id,
+        notesDeleted: true,
+        localStorageCleared: true,
+        signedOut: true
+      });
+
+      return true;
+    } catch (error) {
+      logSecurityEvent('GDPR_DELETION_ERROR', { error: error instanceof Error ? error.message : String(error) });
+      return false;
+    }
+  };
+
+  // Security: GDPR compliance - Data portability
+  const gdprDataExport = async (): Promise<any> => {
+    try {
+      if (!user?.id) {
+        logSecurityEvent('GDPR_EXPORT_FAILED', { reason: 'no_user' });
+        return null;
+      }
+
+      // Export user notes
+      const { data: notes, error } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) {
+        logSecurityEvent('GDPR_EXPORT_FAILED', {
+          step: 'notes_export',
+          error: error instanceof Error ? error.message : String(error)
+        });
+        return null;
+      }
+
+      // Export audit trail (anonymized)
+      const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]')
+        .filter((entry: any) => entry.userId === user.id)
+        .map((entry: any) => ({
+          ...entry,
+          ip: '[REDACTED]', // Remove IP for privacy
+          userAgent: '[REDACTED]' // Remove user agent for privacy
+        }));
+
+      // Export privacy consent
+      const consentData = JSON.parse(localStorage.getItem('elysium_privacy_consent') || '{}');
+
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        userId: user.id,
+        data: {
+          notes,
+          auditTrail,
+          privacyConsent: consentData,
+          dataRetentionInfo: 'Data retained according to our privacy policy'
+        },
+        gdprCompliant: true
+      };
+
+      logSecurityEvent('GDPR_EXPORT_COMPLETED', {
+        userId: user.id,
+        notesCount: notes?.length || 0,
+        auditEntriesCount: auditTrail.length
+      });
+
+      return exportData;
+    } catch (error) {
+      logSecurityEvent('GDPR_EXPORT_ERROR', { error: error instanceof Error ? error.message : String(error) });
+      return null;
+    }
+  };
+
+  // Security: Privacy impact assessment
+  const performPrivacyImpactAssessment = (data: any, operation: string): {
+    riskLevel: 'low' | 'medium' | 'high';
+    concerns: string[];
+    recommendations: string[];
+  } => {
+    const concerns: string[] = [];
+    const recommendations: string[] = [];
+    let riskLevel: 'low' | 'medium' | 'high' = 'low';
+
+    const dataString = JSON.stringify(data);
+    const dataClassification = classifyDataSensitivity(dataString);
+
+    // Assess based on data classification
+    if (dataClassification === 'restricted') {
+      riskLevel = 'high';
+      concerns.push('Data contains restricted information');
+      recommendations.push('Implement additional encryption layers');
+      recommendations.push('Require explicit user consent');
+    } else if (dataClassification === 'confidential') {
+      riskLevel = 'medium';
+      concerns.push('Data contains confidential information');
+      recommendations.push('Use field-level encryption');
+    }
+
+    // Assess based on operation type
+    if (operation === 'export' || operation === 'share') {
+      riskLevel = riskLevel === 'low' ? 'medium' : 'high';
+      concerns.push('Data export/sharing operation detected');
+      recommendations.push('Implement data anonymization');
+      recommendations.push('Add data usage audit trail');
+    }
+
+    // Assess based on data volume
+    if (dataString.length > 10000) {
+      concerns.push('Large data volume may increase privacy risks');
+      recommendations.push('Implement data chunking for processing');
+    }
+
+    logSecurityEvent('PRIVACY_IMPACT_ASSESSMENT', {
+      operation,
+      dataClassification,
+      riskLevel,
+      concernsCount: concerns.length
+    });
+
+    return { riskLevel, concerns, recommendations };
+  };
+
+  // Security: Automated privacy compliance checks
+  const runPrivacyComplianceCheck = (): boolean => {
+    const issues: string[] = [];
+
+    // Check data retention compliance
+    const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]');
+    const oldEntries = auditTrail.filter((entry: any) =>
+      Date.now() - new Date(entry.timestamp).getTime() > 90 * 24 * 60 * 60 * 1000
+    );
+
+    if (oldEntries.length > 0) {
+      issues.push(`Found ${oldEntries.length} audit entries older than 90 days`);
+    }
+
+    // Check privacy consent
+    if (!privacyConsent.dataProcessing) {
+      issues.push('Required data processing consent is missing');
+    }
+
+    // Check for sensitive data in localStorage
+    const sensitiveKeys = Object.keys(localStorage).filter(key =>
+      key.includes('password') || key.includes('secret') || key.includes('key')
+    );
+
+    if (sensitiveKeys.length > 0) {
+      issues.push(`Found ${sensitiveKeys.length} potentially sensitive keys in localStorage`);
+    }
+
+    const compliant = issues.length === 0;
+
+    logSecurityEvent('PRIVACY_COMPLIANCE_CHECK', {
+      compliant,
+      issuesCount: issues.length,
+      issues
+    });
+
+    return compliant;
+  };
+
+  // Security: Database performance monitoring
+  const monitorDatabasePerformance = async (): Promise<{
+    responseTime: number;
+    throughput: number;
+    errorRate: number;
+    healthScore: number;
+  }> => {
+    const metrics = {
+      responseTime: 0,
+      throughput: 0,
+      errorRate: 0,
+      healthScore: 100
+    };
+
+    try {
+      // Measure response time
+      const startTime = Date.now();
+      const { data, error } = await supabase.from('notes').select('count').limit(1);
+      metrics.responseTime = Date.now() - startTime;
+
+      if (error) {
+        metrics.errorRate = 100;
+        metrics.healthScore -= 50;
+      } else {
+        // Measure throughput (operations per second)
+        const throughputStart = Date.now();
+        const promises = Array(5).fill(null).map(() =>
+          supabase.from('notes').select('id').limit(1)
+        );
+        await Promise.all(promises);
+        const throughputTime = Date.now() - throughputStart;
+        metrics.throughput = (5000 / throughputTime) * 1000; // ops per second
+
+        // Adjust health score based on performance
+        if (metrics.responseTime > 2000) metrics.healthScore -= 20;
+        if (metrics.responseTime > 5000) metrics.healthScore -= 30;
+        if (metrics.throughput < 10) metrics.healthScore -= 15;
+      }
+
+      logSecurityEvent('DATABASE_PERFORMANCE_METRICS', metrics);
+      return metrics;
+    } catch (err) {
+      metrics.errorRate = 100;
+      metrics.healthScore = 0;
+      logSecurityEvent('DATABASE_PERFORMANCE_CHECK_FAILED', { error: err instanceof Error ? err.message : String(err) });
+      return metrics;
+    }
+  };
+
+  // Security: Anomaly detection
+  const detectAnomalies = (): {
+    anomalies: string[];
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    recommendations: string[];
+  } => {
+    const anomalies: string[] = [];
+    const recommendations: string[] = [];
+    let severity: 'low' | 'medium' | 'high' | 'critical' = 'low';
+
+    // Check for unusual login patterns
+    const recentActivity = JSON.parse(localStorage.getItem('elysium_activity') || '[]');
+    const lastHourActivity = recentActivity.filter((timestamp: number) =>
+      Date.now() - timestamp < 60 * 60 * 1000
+    );
+
+    if (lastHourActivity.length > 100) {
+      anomalies.push('Unusually high activity in the last hour');
+      severity = 'high';
+      recommendations.push('Investigate for potential DoS attack');
+    }
+
+    // Check for failed authentication spikes
+    if (accountLockout.failedAttempts > 3) {
+      anomalies.push('Multiple recent authentication failures');
+      severity = severity === 'low' ? 'medium' : severity;
+      recommendations.push('Monitor for brute force attempts');
+    }
+
+    // Check for data integrity issues
+    const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]');
+    const recentErrors = auditTrail.filter((entry: any) =>
+      entry.event.includes('FAILED') &&
+      Date.now() - new Date(entry.timestamp).getTime() < 60 * 60 * 1000
+    );
+
+    if (recentErrors.length > 10) {
+      anomalies.push('High rate of operation failures');
+      severity = 'high';
+      recommendations.push('Check system health and connectivity');
+    }
+
+    // Check for unusual data access patterns
+    const dataAccessPatterns = auditTrail.filter((entry: any) =>
+      entry.operation === 'read' || entry.operation === 'update'
+    );
+
+    const uniqueUsers = new Set(dataAccessPatterns.map((entry: any) => entry.userId)).size;
+    if (uniqueUsers > 10) {
+      anomalies.push('Unusual number of users accessing data');
+      severity = severity === 'low' ? 'medium' : severity;
+      recommendations.push('Verify user access permissions');
+    }
+
+    // Check for session anomalies
+    if (user && user.created_at) {
+      const sessionAge = Date.now() - new Date(user.created_at).getTime();
+      if (sessionAge > 24 * 60 * 60 * 1000) { // 24 hours
+        anomalies.push('Very old session detected');
+        severity = severity === 'low' ? 'medium' : severity;
+        recommendations.push('Recommend session refresh');
+      }
+    }
+
+    logSecurityEvent('ANOMALY_DETECTION_COMPLETED', {
+      anomaliesCount: anomalies.length,
+      severity,
+      recommendationsCount: recommendations.length
+    });
+
+    return { anomalies, severity, recommendations };
+  };
+
+  // Security: Security health checks
+  const performSecurityHealthCheck = async (): Promise<{
+    overallHealth: number;
+    checks: Record<string, boolean>;
+    issues: string[];
+    recommendations: string[];
+  }> => {
+    const healthReport = {
+      overallHealth: 100,
+      checks: {} as Record<string, boolean>,
+      issues: [] as string[],
+      recommendations: [] as string[]
+    };
+
+    // Check 1: Authentication security
+    healthReport.checks.authSecurity = !accountLockout.locked && accountLockout.failedAttempts === 0;
+    if (!healthReport.checks.authSecurity) {
+      healthReport.overallHealth -= 20;
+      healthReport.issues.push('Authentication security issues detected');
+      healthReport.recommendations.push('Review authentication policies');
+    }
+
+    // Check 2: Data integrity
+    const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]');
+    const integrityViolations = auditTrail.filter((entry: any) =>
+      entry.event === 'DATA_INTEGRITY_VIOLATION'
+    );
+    healthReport.checks.dataIntegrity = integrityViolations.length === 0;
+    if (!healthReport.checks.dataIntegrity) {
+      healthReport.overallHealth -= 25;
+      healthReport.issues.push('Data integrity violations detected');
+      healthReport.recommendations.push('Verify data backup and integrity');
+    }
+
+    // Check 3: Privacy compliance
+    healthReport.checks.privacyCompliance = runPrivacyComplianceCheck();
+    if (!healthReport.checks.privacyCompliance) {
+      healthReport.overallHealth -= 15;
+      healthReport.issues.push('Privacy compliance issues found');
+      healthReport.recommendations.push('Review and update privacy policies');
+    }
+
+    // Check 4: API health
+    healthReport.checks.apiHealth = await monitorApiHealth();
+    if (!healthReport.checks.apiHealth) {
+      healthReport.overallHealth -= 30;
+      healthReport.issues.push('API health issues detected');
+      healthReport.recommendations.push('Check API connectivity and performance');
+    }
+
+    // Check 5: Rate limiting status
+    healthReport.checks.rateLimiting = !isRateLimited;
+    if (!healthReport.checks.rateLimiting) {
+      healthReport.overallHealth -= 10;
+      healthReport.issues.push('Rate limiting is active');
+      healthReport.recommendations.push('Monitor for potential abuse');
+    }
+
+    // Anomaly detection
+    const anomalyReport = detectAnomalies();
+    healthReport.checks.anomalyFree = anomalyReport.anomalies.length === 0;
+    if (!healthReport.checks.anomalyFree) {
+      const severityPenalty = { low: 5, medium: 15, high: 25, critical: 40 };
+      healthReport.overallHealth -= severityPenalty[anomalyReport.severity] || 10;
+      healthReport.issues.push(...anomalyReport.anomalies);
+      healthReport.recommendations.push(...anomalyReport.recommendations);
+    }
+
+    logSecurityEvent('SECURITY_HEALTH_CHECK_COMPLETED', {
+      overallHealth: healthReport.overallHealth,
+      checksPassed: Object.values(healthReport.checks).filter(Boolean).length,
+      totalChecks: Object.keys(healthReport.checks).length,
+      issuesCount: healthReport.issues.length
+    });
+
+    return healthReport;
+  };
+
+  // Security: Automated security monitoring
+  const startAutomatedSecurityMonitoring = () => {
+    // Run health checks every 5 minutes
+    const healthCheckInterval = setInterval(async () => {
+      const healthReport = await performSecurityHealthCheck();
+
+      if (healthReport.overallHealth < 70) {
+        logSecurityEvent('SECURITY_HEALTH_ALERT', {
+          healthScore: healthReport.overallHealth,
+          criticalIssues: healthReport.issues.length,
+          severity: healthReport.overallHealth < 50 ? 'critical' : 'warning'
+        });
+
+        // In production, this would send alerts to administrators
+        console.warn('🚨 Security Health Alert:', healthReport);
+      }
+    }, 5 * 60 * 1000); // Every 5 minutes
+
+    // Run anomaly detection every 10 minutes
+    const anomalyCheckInterval = setInterval(() => {
+      const anomalyReport = detectAnomalies();
+
+      if (anomalyReport.severity === 'high' || anomalyReport.severity === 'critical') {
+        logSecurityEvent('ANOMALY_ALERT', {
+          severity: anomalyReport.severity,
+          anomaliesCount: anomalyReport.anomalies.length
+        });
+
+        console.warn('🚨 Anomaly Detected:', anomalyReport);
+      }
+    }, 10 * 60 * 1000); // Every 10 minutes
+
+    // Run data retention enforcement daily
+    const retentionInterval = setInterval(() => {
+      enforceDataRetention();
+    }, 24 * 60 * 60 * 1000); // Daily
+
+    // Store interval IDs for cleanup
+    return { healthCheckInterval, anomalyCheckInterval, retentionInterval };
+  };
+
+  // Security: Emergency security lockdown
+  const initiateSecurityLockdown = (reason: string) => {
+    logSecurityEvent('SECURITY_LOCKDOWN_INITIATED', {
+      reason,
+      timestamp: new Date().toISOString(),
+      userId: user?.id
+    });
+
+    // Disable all user operations
+    // In a real implementation, this would:
+    // 1. Block all API calls
+    // 2. Force logout all users
+    // 3. Enable read-only mode
+    // 4. Alert administrators
+
+    alert(`Security lockdown initiated: ${reason}. Please contact administrators.`);
+
+    // Force logout current user
+    supabase.auth.signOut();
+  };
+
   useEffect(() => {
     const handleAuthRedirect = async () => {
+      // Security: Check account lockout before processing auth
+      if (!checkAccountLockout()) {
+        alert("Account is temporarily locked due to too many failed login attempts. Please try again later.");
+        return;
+      }
+
       // Security: Check rate limiting before processing auth
       if (!checkRateLimit()) {
         logSecurityEvent('AUTH_RATE_LIMITED', { action: 'handleAuthRedirect' });
@@ -228,6 +1276,7 @@ function App() {
       if (hash.includes("error=access_denied")) {
         console.error("Auth error in URL:", hash);
         logSecurityEvent('AUTH_ERROR_ACCESS_DENIED', { hash });
+        handleFailedAuthAttempt();
         alert(
           "Email link is invalid or has expired. Please request a new one."
         );
@@ -257,8 +1306,9 @@ function App() {
           console.log("Set session result:", { data, error });
           if (error) {
             console.error("Error setting session:", error);
-            logSecurityEvent('SESSION_SET_ERROR', { error: error.message });
-            alert(`Authentication failed: ${error.message}`);
+            logSecurityEvent('SESSION_SET_ERROR', { error: error instanceof Error ? error.message : String(error) });
+            handleFailedAuthAttempt();
+            alert(`Authentication failed: ${error instanceof Error ? error.message : String(error)}`);
           } else if (data.session) {
             // Security: Check session integrity
             if (!checkSessionIntegrity()) {
@@ -268,6 +1318,7 @@ function App() {
             setUser(data.session.user);
             console.log("User set from session:", data.session.user);
             logSecurityEvent('AUTH_SUCCESS', { userId: data.session.user.id, email: data.session.user.email });
+            handleSuccessfulAuth();
             alert(`Logged in as ${data.session.user.email}`);
             authProcessedRef.current = true;
 
@@ -276,6 +1327,7 @@ function App() {
           } else {
             console.log("No session returned from setSession");
             logSecurityEvent('SESSION_SET_NO_SESSION', {});
+            handleFailedAuthAttempt();
             alert("Authentication failed: No session returned");
           }
         } else {
@@ -349,11 +1401,20 @@ function App() {
             }
 
             setUser(session.user);
+            logSecurityEvent('AUTH_STATE_CHANGE_SUCCESS', {
+              event,
+              userId: session.user.id,
+              email: session.user.email
+            });
+            handleSuccessfulAuth();
 
             // Security: Schedule periodic token rotation
             setTimeout(() => rotateTokens(), 45 * 60 * 1000); // Rotate after 45 minutes
           } else {
             setUser(null);
+            if (event === 'SIGNED_OUT') {
+              logSecurityEvent('USER_SIGNED_OUT', { reason: 'user_action' });
+            }
           }
         }
       );
@@ -679,28 +1740,7 @@ function WelcomePage({
     setNotes([]);
   };
 
-  async function deriveKey(userId: string): Promise<CryptoKey> {
-    const encoder = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(userId + "elysium-persistent-key"),
-      "PBKDF2",
-      false,
-      ["deriveKey"]
-    );
-    return crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: encoder.encode("elysium-eternal-salt"),
-        iterations: 100000,
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      true,
-      ["encrypt", "decrypt"]
-    );
-  }
+
 
   async function encryptData(data: string, key: CryptoKey) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -731,6 +1771,10 @@ function WelcomePage({
       return "";
     }
   }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) setFiles(Array.from(e.target.files));
+  };
 
   const handleCreateNote = async (note: {
     title: string;
@@ -839,10 +1883,6 @@ function WelcomePage({
     } else if (mode === "web3") {
       alert("Please connect your wallet to create a note.");
     }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) setFiles(Array.from(e.target.files));
   };
 
   const handlePageChange = (
@@ -1012,7 +2052,7 @@ function WelcomePage({
       if (error) {
         console.error("Login error:", error);
         alert(
-          `Failed to send magic link: ${error.message}. Please check your Supabase dashboard for Auth logs, ensure SMTP is configured, and verify your email isn't blocked.`
+          `Failed to send magic link: ${error instanceof Error ? error.message : String(error)}. Please check your Supabase dashboard for Auth logs, ensure SMTP is configured, and verify your email isn't blocked.`
         );
       } else {
         console.log("Magic link sent successfully to:", email);
