@@ -1291,11 +1291,20 @@ function App() {
         const refreshToken = hashParams.get("refresh_token");
 
         if (accessToken && refreshToken) {
-          // Security: Validate token format (basic check)
-          if (!accessToken.includes('.') || !refreshToken.includes('.')) {
-            logSecurityEvent('INVALID_TOKEN_FORMAT', { hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken });
-            alert("Authentication failed: Invalid token format");
-            return;
+          // Security: Validate token format (basic JWT structure check)
+          const isValidTokenFormat = (token: string) => {
+            // JWT tokens have three parts separated by dots: header.payload.signature
+            const parts = token.split('.');
+            return parts.length === 3 && parts.every(part => part.length > 0);
+          };
+
+          if (!isValidTokenFormat(accessToken) || !isValidTokenFormat(refreshToken)) {
+            logSecurityEvent('INVALID_TOKEN_FORMAT', {
+              accessTokenValid: isValidTokenFormat(accessToken),
+              refreshTokenValid: isValidTokenFormat(refreshToken)
+            });
+            // Don't show alert for format issues - let Supabase handle auth errors
+            console.warn('Token format validation failed, proceeding with Supabase auth');
           }
 
           console.log("Setting session from hash tokens");
@@ -2853,6 +2862,15 @@ function WelcomePage({
                                         );
                                         setNotes(updatedNotes);
                                         if (mode === "db" && user) {
+                                          // Security: Confirm permanent deletion from database
+                                          const confirmDelete = window.confirm(
+                                            `Are you sure you want to permanently delete "${note.title}" from the database? This action cannot be undone.`
+                                          );
+
+                                          if (!confirmDelete) {
+                                            return; // Cancel deletion
+                                          }
+
                                           console.log(
                                             "Deleting note from Supabase:",
                                             note.id
@@ -2861,11 +2879,19 @@ function WelcomePage({
                                             .from("notes")
                                             .delete()
                                             .eq("id", note.id);
-                                          if (error)
+                                          if (error) {
                                             console.error(
                                               "Supabase delete error:",
                                               error
                                             );
+                                            alert("Failed to delete note from database. Please try again.");
+                                          } else {
+                                            console.log('Note deleted from database successfully', {
+                                              noteId: note.id,
+                                              userId: user.id,
+                                              noteTitle: note.title
+                                            });
+                                          }
                                         } else if (mode === "cloud") {
                                           localStorage.setItem(
                                             `elysium_notes_${mode}`,
@@ -3075,6 +3101,15 @@ function WelcomePage({
                                     );
                                     setNotes(updatedNotes);
                                     if (mode === "db" && user) {
+                                      // Security: Confirm permanent deletion from database
+                                      const confirmDelete = window.confirm(
+                                        `Are you sure you want to permanently delete "${note.title}" from the database? This action cannot be undone.`
+                                      );
+
+                                      if (!confirmDelete) {
+                                        return; // Cancel deletion
+                                      }
+
                                       console.log(
                                         "Deleting note from Supabase:",
                                         note.id
@@ -3083,11 +3118,19 @@ function WelcomePage({
                                         .from("notes")
                                         .delete()
                                         .eq("id", note.id);
-                                      if (error)
+                                      if (error) {
                                         console.error(
                                           "Supabase delete error:",
                                           error
                                         );
+                                        alert("Failed to delete note from database. Please try again.");
+                                      } else {
+                                        console.log('Note deleted from database successfully', {
+                                          noteId: note.id,
+                                          userId: user.id,
+                                          noteTitle: note.title
+                                        });
+                                      }
                                     } else if (mode === "cloud") {
                                       localStorage.setItem(
                                         `elysium_notes_${mode}`,
