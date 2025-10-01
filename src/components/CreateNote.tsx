@@ -64,7 +64,46 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
   const generateAISuggestions = async (context: string, type: string) => {
     setIsGenerating(true);
     try {
-      // For now, using rule-based suggestions (can be upgraded to API later)
+      const response = await fetch('https://api-inference.huggingface.co/models/google/flan-t5-base', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.REACT_APP_HUGGINGFACE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: getPromptForType(type, context),
+          parameters: {
+            max_length: 200,
+            temperature: 0.7,
+            do_sample: true,
+            return_full_text: false,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      let suggestion = '';
+
+      if (Array.isArray(data) && data.length > 0) {
+        suggestion = data[0].generated_text || '';
+      } else if (data.generated_text) {
+        suggestion = data.generated_text;
+      }
+
+      // Clean up the response
+      suggestion = suggestion.trim();
+      if (suggestion.startsWith(getPromptForType(type, context))) {
+        suggestion = suggestion.substring(getPromptForType(type, context).length).trim();
+      }
+
+      setAiSuggestions([suggestion || 'AI suggestion generated successfully!']);
+    } catch (error) {
+      console.error("Hugging Face API error:", error);
+      // Fallback to rule-based suggestions
       const suggestions = [];
 
       if (type === "summarize") {
@@ -81,17 +120,23 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
         suggestions.push(`🎯 Concise: ${context.split(' ').slice(0, 15).join(' ')}...`);
       }
 
-      // Add some generic helpful suggestions
       suggestions.push("💡 Tip: Use * for checkboxes, - for lists, or free-form for notes");
       suggestions.push("🔒 Security: Your notes are encrypted and stored securely");
 
       setAiSuggestions(suggestions);
-    } catch (error) {
-      console.error("AI generation error:", error);
-      setAiSuggestions(["❌ Sorry, couldn't generate suggestions right now."]);
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const getPromptForType = (type: string, context: string) => {
+    const prompts = {
+      summarize: `Please provide a concise summary of the following note:\n\n${context}`,
+      list: `Extract the key points from this note and present them as a bullet list:\n\n${context}`,
+      todo: `Convert this note into actionable tasks with checkboxes (use * for checkboxes):\n\n${context}`,
+      improve: `Improve and enhance this note by making it clearer, more organized, and more useful:\n\n${context}`
+    };
+    return prompts[type as keyof typeof prompts] || `Please help me with this note: ${context}`;
   };
 
   const copyToClipboard = async (text: string) => {
