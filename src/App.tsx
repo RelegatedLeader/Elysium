@@ -1018,6 +1018,13 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
       
       const handleTimestampClick = async () => {
         if (isChecked && (mode !== "web3" || publicKey)) {
+          // Ask for confirmation since changing timestamp is irreversible
+          const confirmChange = window.confirm(
+            "Are you sure you want to change the completion timestamp? This action cannot be undone."
+          );
+          
+          if (!confirmChange) return;
+          
           const newTimestamp = new Date().toISOString();
           const updatedNotes = notes.map((n) =>
             n.id === noteId
@@ -1856,6 +1863,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                                 title: editTitle,
                                 content: editContent,
                                 template: editTemplate,
+                                updatedAt: new Date().toISOString(),
                               };
                               
                               const updatedNotes = notes.map(n => 
@@ -1958,7 +1966,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                                 viewingNote.id,
                                 viewingNote.content,
                                 viewingNote.template,
-                                [viewingNote],
+                                notes,
                                 (updatedNotes) => {
                                   // Update the viewing note when changes are made
                                   const notesArray = Array.isArray(updatedNotes) ? updatedNotes : updatedNotes(notes);
