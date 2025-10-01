@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import elysiumLogo from "../img/elysium_logo_2.jpg";
 
 interface CreateNoteProps {
   onSave: (note: {
@@ -16,6 +17,9 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
   const [content, setContent] = useState("");
   const [template, setTemplate] = useState("Auto");
   const [files, setFiles] = useState<File[]>([]);
+  const [showAIPopup, setShowAIPopup] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const getPlaceholderText = () => {
     switch (template) {
@@ -53,6 +57,58 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
       } else if (firstLine.startsWith("-") || firstLine.startsWith(".")) {
         setTemplate("List");
       }
+    }
+  };
+
+  // AI Assistant Functions
+  const generateAISuggestions = async (context: string, type: string) => {
+    setIsGenerating(true);
+    try {
+      // For now, using rule-based suggestions (can be upgraded to API later)
+      const suggestions = [];
+
+      if (type === "summarize") {
+        suggestions.push(`📝 Summary: ${context.split(' ').slice(0, 10).join(' ')}...`);
+        suggestions.push(`🔑 Key Points:\n• ${context.split('.').slice(0, 3).join('\n• ')}`);
+      } else if (type === "list") {
+        const items = context.split(/[.!?]+/).filter(item => item.trim().length > 5);
+        suggestions.push(`📋 Action Items:\n${items.slice(0, 5).map(item => `• ${item.trim()}`).join('\n')}`);
+      } else if (type === "todo") {
+        const sentences = context.split(/[.!?]+/).filter(s => s.trim().length > 3);
+        suggestions.push(`✅ Tasks:\n${sentences.slice(0, 5).map(s => `* ${s.trim()}`).join('\n')}`);
+      } else if (type === "improve") {
+        suggestions.push(`✨ Improved: ${context.replace(/\s+/g, ' ').trim()}`);
+        suggestions.push(`🎯 Concise: ${context.split(' ').slice(0, 15).join(' ')}...`);
+      }
+
+      // Add some generic helpful suggestions
+      suggestions.push("💡 Tip: Use * for checkboxes, - for lists, or free-form for notes");
+      suggestions.push("🔒 Security: Your notes are encrypted and stored securely");
+
+      setAiSuggestions(suggestions);
+    } catch (error) {
+      console.error("AI generation error:", error);
+      setAiSuggestions(["❌ Sorry, couldn't generate suggestions right now."]);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // Could add a toast notification here
+      alert("Copied to clipboard!");
+    } catch (error) {
+      console.error("Copy failed:", error);
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      alert("Copied to clipboard!");
     }
   };
 
@@ -180,6 +236,129 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
           </div>
         </div>
       </div>
+
+      {/* AI Mascot - positioned at bottom right of create note interface */}
+      <div
+        className="absolute bottom-4 right-4 cursor-pointer transition-all duration-300 ease-out hover:scale-110"
+        onClick={() => setShowAIPopup(!showAIPopup)}
+      >
+        <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow duration-300 border-2 border-gold-400/50 animate-pulse relative overflow-hidden">
+          {/* Custom Elephant Logo Image */}
+          <img
+            src={elysiumLogo}
+            alt="Elysium AI Elephant"
+            className="w-10 h-10 rounded-full object-cover object-center"
+            style={{
+              transform: 'scale(1.2)',
+              transformOrigin: 'center',
+            }}
+          />
+          
+          {/* Sparkle effect */}
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-gold-400 rounded-full animate-ping opacity-75"></div>
+        </div>
+      </div>
+
+      {/* AI Popup - positioned next to mascot */}
+      {showAIPopup && (
+        <div className="absolute bottom-20 right-4 z-50">
+          <div className="bg-gradient-to-br from-indigo-900/95 via-indigo-800/95 to-purple-700/95 backdrop-blur-lg border border-indigo-500/50 rounded-xl shadow-[0_0_30px_rgba(79,70,229,0.3)] p-4 max-w-xs w-80">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gold-100 flex items-center">
+                <span className="text-xl mr-2">🐘</span>
+                AI Assistant
+              </h3>
+              <button
+                onClick={() => setShowAIPopup(false)}
+                className="text-gray-400 hover:text-white transition-colors text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-silver-200 text-xs">
+                Transform your thoughts into perfect notes!
+              </p>
+
+              {/* AI Action Buttons - smaller grid */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => generateAISuggestions(content, "summarize")}
+                  disabled={!content.trim() || isGenerating}
+                  className="bg-indigo-700/50 hover:bg-indigo-600/50 disabled:bg-gray-700/50 text-silver-200 px-2 py-1.5 rounded text-xs transition-colors disabled:cursor-not-allowed"
+                >
+                  📝 Summarize
+                </button>
+                <button
+                  onClick={() => generateAISuggestions(content, "list")}
+                  disabled={!content.trim() || isGenerating}
+                  className="bg-indigo-700/50 hover:bg-indigo-600/50 disabled:bg-gray-700/50 text-silver-200 px-2 py-1.5 rounded text-xs transition-colors disabled:cursor-not-allowed"
+                >
+                  📋 Extract
+                </button>
+                <button
+                  onClick={() => generateAISuggestions(content, "todo")}
+                  disabled={!content.trim() || isGenerating}
+                  className="bg-indigo-700/50 hover:bg-indigo-600/50 disabled:bg-gray-700/50 text-silver-200 px-2 py-1.5 rounded text-xs transition-colors disabled:cursor-not-allowed"
+                >
+                  ✅ Tasks
+                </button>
+                <button
+                  onClick={() => generateAISuggestions(content, "improve")}
+                  disabled={!content.trim() || isGenerating}
+                  className="bg-indigo-700/50 hover:bg-indigo-600/50 disabled:bg-gray-700/50 text-silver-200 px-2 py-1.5 rounded text-xs transition-colors disabled:cursor-not-allowed"
+                >
+                  ✨ Improve
+                </button>
+              </div>
+
+              {/* Loading State */}
+              {isGenerating && (
+                <div className="text-center py-2">
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gold-400"></div>
+                  <p className="text-silver-300 text-xs mt-1">Generating...</p>
+                </div>
+              )}
+
+              {/* AI Suggestions - compact */}
+              {aiSuggestions.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-gold-100 font-medium text-sm">💡 Click to copy:</h4>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {aiSuggestions.slice(0, 3).map((suggestion, index) => (
+                      <div
+                        key={index}
+                        onClick={() => copyToClipboard(suggestion)}
+                        className="bg-indigo-950/50 rounded p-2 border border-indigo-700/50 cursor-pointer hover:bg-indigo-900/50 transition-colors group text-xs"
+                      >
+                        <div className="flex justify-between items-start">
+                          <pre className="text-silver-200 whitespace-pre-wrap flex-1 font-mono leading-tight">
+                            {suggestion.length > 80 ? suggestion.substring(0, 80) + "..." : suggestion}
+                          </pre>
+                          <span className="text-gold-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-xs">
+                            📋
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Template Tips - compact */}
+              <div className="bg-indigo-950/50 rounded p-2 border border-indigo-700/50">
+                <h4 className="text-gold-100 font-medium mb-1 text-sm">🎨 Tips:</h4>
+                <ul className="text-silver-300 space-y-0.5 text-xs">
+                  <li>• <strong>*</strong> for checkboxes</li>
+                  <li>• <strong>-</strong> for lists</li>
+                  <li>• Free-form for notes</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

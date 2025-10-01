@@ -267,7 +267,6 @@ function WelcomePage({
   const [editContent, setEditContent] = useState("");
   const [editTemplate, setEditTemplate] = useState("Auto");
 
-  // Settings state
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem("elysium_settings");
     return saved
@@ -1504,7 +1503,7 @@ function WelcomePage({
                     {mode === "db"
                       ? "🔒 Classic encrypted database: Simple, secure, and fully tied to your account with enterprise-grade protection."
                       : mode === "cloud"
-                      ? "⚡️ Lightning-fast cloud storage: Encrypted, offline data access with advanced cloud security and instant access."
+                      ? "⚡️ Lightning-fast cloud storage: Encrypted, downloadable data access with advanced cloud security and instant offline access."
                       : "⛓️ Eternal blockchain vault: Immutable, censorship-resistant storage where your notes become permanent digital artifacts."}
                   </p>
                   <div className="flex space-x-4 mb-6 sm:mb-8">
