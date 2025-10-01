@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 
 interface DrawerProps {
-  onNavigate: (page: "recent" | "create" | "settings" | "logout") => void;
+  onNavigate: (page: "recent" | "create" | "settings" | "logout" | "search") => void;
+  onSearch: (query: string) => void;
 }
 
-const Drawer: React.FC<DrawerProps> = ({ onNavigate }) => {
+const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleDrawer = () => {
@@ -12,7 +13,7 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate }) => {
   };
 
   const handleNavigate = (
-    page: "recent" | "create" | "settings" | "logout"
+    page: "recent" | "create" | "settings" | "logout" | "search"
   ) => {
     onNavigate(page);
     setIsOpen(false); // Close the drawer after navigation
@@ -64,11 +65,15 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate }) => {
         </button>
 
         <nav className="mt-20 px-6 space-y-4">
-          <input
-            type="text"
-            placeholder="Search notes..."
-            className="w-full py-3 px-4 rounded-lg bg-gradient-to-br from-indigo-800 to-indigo-900 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-300 ease-in-out"
-          />
+          <button
+            onClick={() => handleNavigate("search")}
+            className="w-full py-3 px-4 rounded-lg bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 transition-all duration-300 ease-in-out text-left flex items-center space-x-2"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span>Search Notes</span>
+          </button>
           <button
             onClick={() => handleNavigate("recent")}
             className="w-full py-3 px-4 rounded-lg bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 transition-all duration-300 ease-in-out text-left"

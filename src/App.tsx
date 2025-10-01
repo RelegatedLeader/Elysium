@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+﻿import React, { useState, useEffect, useCallback, useRef } from "react";
 import { animated, useSpring } from "react-spring";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import {
@@ -36,6 +36,9 @@ interface Note {
   arweaveHash?: string;
   isPermanent?: boolean;
   completionTimestamps?: { [taskIndex: number]: string };
+  createdAt: string;
+  updatedAt: string;
+  files?: File[];
 }
 
 interface SupabaseNote {
@@ -172,6 +175,7 @@ function App() {
 }
 
 function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
+  const now = new Date().toISOString();
   if (mode === "db") {
     return [];
   } else if (mode === "cloud") {
@@ -184,6 +188,8 @@ function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
         template: "Checklist",
         isPermanent: false,
         completionTimestamps: {},
+        createdAt: now,
+        updatedAt: now,
       },
     ];
   } else {
@@ -196,6 +202,8 @@ function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
         template: "To-Do List",
         isPermanent: false,
         completionTimestamps: {},
+        createdAt: now,
+        updatedAt: now,
       },
       {
         id: "2",
@@ -205,6 +213,8 @@ function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
         template: "Checklist",
         isPermanent: false,
         completionTimestamps: {},
+        createdAt: now,
+        updatedAt: now,
       },
     ];
   }
@@ -234,11 +244,14 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
   const [notes, setNotes] = useState<Note[]>([]);
 
   const [activePage, setActivePage] = useState<
-    "recent" | "create" | "settings" | "logout"
+    "recent" | "create" | "settings" | "logout" | "search"
   >("recent");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [isCloudButtonClicked, setIsCloudButtonClicked] = useState(false);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Note viewing/editing state
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
@@ -517,6 +530,8 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           nonce: nonce,
           isPermanent: false,
           completionTimestamps: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
         await saveToBlockchain(newNote);
       } else if (mode === "db") {
@@ -553,6 +568,9 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
             template: note.template,
             isPermanent: false,
             completionTimestamps: {},
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            files: note.files,
           };
         } else {
           console.log("No session found during note creation");
@@ -567,6 +585,9 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           template: note.template,
           isPermanent: false,
           completionTimestamps: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          files: note.files,
         };
       }
       setNotes([...notes, newNote]);
@@ -593,7 +614,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
   };
 
   const handlePageChange = (
-    page: "recent" | "create" | "settings" | "logout"
+    page: "recent" | "create" | "settings" | "logout" | "search"
   ) => {
     setActivePage(page);
   };
@@ -707,6 +728,9 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
               completionTimestamps: parsed.completionTimestamps || {},
               arweaveHash: note.arweaveHash,
               isPermanent: note.isPermanent,
+              createdAt: note.createdAt ? new Date(note.createdAt.toNumber() * 1000).toISOString() : new Date().toISOString(),
+              updatedAt: note.updatedAt ? new Date(note.updatedAt.toNumber() * 1000).toISOString() : new Date().toISOString(),
+              files: parsed.files || [],
             });
           } catch (e) {
             console.error("Failed to fetch or decrypt note", e);
@@ -719,6 +743,8 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
             template: "List",
             isPermanent: note.isPermanent,
             completionTimestamps: {},
+            createdAt: note.createdAt ? new Date(note.createdAt.toNumber() * 1000).toISOString() : new Date().toISOString(),
+            updatedAt: note.updatedAt ? new Date(note.updatedAt.toNumber() * 1000).toISOString() : new Date().toISOString(),
           });
         }
       }
@@ -905,18 +931,29 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
       let isChecked = false;
       let timestamp =
         notes.find((n) => n.id === noteId)?.completionTimestamps?.[index] || "";
-      if (trimmed.startsWith("-") || trimmed.startsWith(".")) {
-        itemText = trimmed.slice(1).trim();
-        if (itemText.startsWith("[x]") || itemText.startsWith("[X]")) {
-          isChecked = true;
-          itemText = itemText
-            .slice(3)
-            .trim()
-            .replace(/\(Done at .*\)/, "");
-        } else if (itemText.startsWith("[ ]")) {
-          itemText = itemText.slice(3).trim();
+      
+      // Handle different template types
+      if (template === "List") {
+        // For List template: just bullet points, no checkboxes
+        if (trimmed.startsWith("-") || trimmed.startsWith(".")) {
+          itemText = trimmed.slice(1).trim();
+        }
+      } else if (template === "To-Do List" || template === "Checklist") {
+        // For To-Do List/ Checklist: handle checkboxes
+        if (trimmed.startsWith("*")) {
+          itemText = trimmed.slice(1).trim();
+          if (itemText.startsWith("[x]") || itemText.startsWith("[X]")) {
+            isChecked = true;
+            itemText = itemText
+              .slice(3)
+              .trim()
+              .replace(/\(Done at .*\)/, "");
+          } else if (itemText.startsWith("[ ]")) {
+            itemText = itemText.slice(3).trim();
+          }
         }
       }
+      
       const handleToggleCheck = async () => {
         if (!isChecked && (mode !== "web3" || publicKey)) {
           const newTimestamp = new Date().toISOString();
@@ -932,11 +969,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     .split("\n")
                     .map((l, i) =>
                       i === index
-                        ? `${
-                            trimmed.startsWith("-") || trimmed.startsWith(".")
-                              ? trimmed[0]
-                              : ""
-                          } [x] ${itemText} (Done at ${newTimestamp})`
+                        ? `* [x] ${itemText} (Done at ${newTimestamp})`
                         : l
                     )
                     .join("\n"),
@@ -967,8 +1000,45 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           }
         }
       };
+      
       const handleRemoveItem = async () => {
-        if (!isChecked && (mode !== "web3" || publicKey)) {
+        if (template === "List") {
+          // For List template: remove the item entirely
+          const updatedNotes = notes.map((n) =>
+            n.id === noteId
+              ? {
+                  ...n,
+                  content: n.content
+                    .split("\n")
+                    .filter((l, i) => i !== index)
+                    .join("\n"),
+                }
+              : n
+          );
+          setNotes(updatedNotes);
+          if (mode === "db" && user) {
+            const session = (await supabase.auth.getSession()).data.session;
+            if (session) {
+              const key = await deriveKey(session.access_token);
+              const encContent = await encryptData(
+                updatedNotes.find((n) => n.id === noteId)!.content,
+                key
+              );
+              console.log("Updating note content in Supabase:", encContent);
+              const { error } = await supabase
+                .from("notes")
+                .update({ content: JSON.stringify(encContent) })
+                .eq("id", noteId);
+              if (error) console.error("Supabase update error:", error);
+            }
+          } else if (mode === "cloud") {
+            localStorage.setItem(
+              `elysium_notes_${mode}`,
+              JSON.stringify(updatedNotes)
+            );
+          }
+        } else if (!isChecked && (mode !== "web3" || publicKey)) {
+          // For To-Do List/ Checklist: mark as completed
           const newTimestamp = new Date().toISOString();
           const updatedNotes = notes.map((n) =>
             n.id === noteId
@@ -982,11 +1052,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     .split("\n")
                     .map((l, i) =>
                       i === index
-                        ? `${
-                            trimmed.startsWith("-") || trimmed.startsWith(".")
-                              ? trimmed[0]
-                              : ""
-                          } [x] ${itemText} (Done at ${newTimestamp})`
+                        ? `* [x] ${itemText} (Done at ${newTimestamp})`
                         : l
                     )
                     .join("\n"),
@@ -1017,12 +1083,27 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           }
         }
       };
+      
       return (
         <div key={index} className="flex items-center mb-2">
-          {(itemText.trim() ||
-            template === "To-Do List" ||
-            template === "Checklist" ||
-            template === "List") && (
+          {template === "List" ? (
+            // List template: bullet points
+            <>
+              <span className="mr-2 text-indigo-400 text-lg">•</span>
+              <span className="text-silver-200 flex-1 text-base md:text-sm">
+                {itemText}
+              </span>
+              {!isPermanent && (
+                <button
+                  onClick={handleRemoveItem}
+                  className="ml-2 text-red-400 hover:text-red-300 transition-colors duration-200 text-sm md:text-base"
+                >
+                  Remove
+                </button>
+              )}
+            </>
+          ) : (template === "To-Do List" || template === "Checklist") && (itemText.trim() || template === "To-Do List" || template === "Checklist") ? (
+            // To-Do List/ Checklist template: checkboxes
             <>
               <input
                 type="checkbox"
@@ -1043,25 +1124,21 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                   </span>
                 )}
               </span>
-              {(template === "Checklist" || template === "List") &&
-                !isChecked &&
-                !isPermanent && (
-                  <button
-                    onClick={handleRemoveItem}
-                    className="ml-2 text-red-400 hover:text-red-300 transition-colors duration-200 text-sm md:text-base"
-                  >
-                    Remove
-                  </button>
-                )}
+              {!isChecked && !isPermanent && (
+                <button
+                  onClick={handleRemoveItem}
+                  className="ml-2 text-red-400 hover:text-red-300 transition-colors duration-200 text-sm md:text-base"
+                >
+                  Remove
+                </button>
+              )}
             </>
+          ) : (
+            // Other templates or empty lines
+            <span className="text-silver-200 flex-1 text-base md:text-sm">
+              {itemText}
+            </span>
           )}
-          {template !== "To-Do List" &&
-            template !== "Checklist" &&
-            template !== "List" && (
-              <span className="text-silver-200 flex-1 text-base md:text-sm">
-                {itemText}
-              </span>
-            )}
         </div>
       );
     });
@@ -1243,7 +1320,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
       ) : (
         <div className="min-h-screen h-screen flex flex-col bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
-          <Drawer onNavigate={handlePageChange} />
+          <Drawer onNavigate={handlePageChange} onSearch={(query) => setSearchQuery(query)} />
           <button onClick={handleLogoButton}>
             <div className="fixed top-4 sm:top-6 left-1/2 transform -translate-x-1/2 z-40">
               <ElysiumLogo className="w-12 h-12 sm:w-16 sm:h-16" />
@@ -1506,6 +1583,144 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     setActivePage("recent");
                   }}
                 />
+              )}
+              {activePage === "search" && (
+                <>
+                  <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 text-gold-100 font-serif">
+                    Search Notes
+                  </h1>
+                  <div className="mb-6">
+                    <input
+                      type="text"
+                      placeholder="Search notes by title or content..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200"
+                    />
+                  </div>
+                  {(() => {
+                    const filteredNotes = notes.filter(note => 
+                      mode !== "db" || !note.isPermanent
+                    ).filter(note =>
+                      note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      note.content.toLowerCase().includes(searchQuery.toLowerCase())
+                    );
+                    
+                    return filteredNotes.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                        {filteredNotes.map((note) => (
+                          <animated.div
+                            key={note.id}
+                            style={noteSpring}
+                            className="group bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:scale-105 transition-all duration-300 border border-indigo-600/30 h-48 sm:h-52"
+                            onClick={() => setViewingNote(note)}
+                          >
+                            <div className="flex-1 overflow-hidden">
+                              <h3 className="text-lg sm:text-xl font-semibold text-gold-100 mb-2 font-serif line-clamp-2 leading-tight">
+                                {note.title}
+                                {note.isPermanent && (
+                                  <span className="text-xs text-amber-400 ml-1">⛓️</span>
+                                )}
+                              </h3>
+                              <div className="text-gray-300 text-sm mb-2 line-clamp-3 leading-relaxed">
+                                {note.content.split('\n')[0].substring(0, 120)}
+                                {note.content.length > 120 ? '...' : ''}
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <span className="bg-indigo-900/50 px-2 py-1 rounded-full">
+                                  {note.template}
+                                </span>
+                                <span className="text-gray-500">
+                                  Click to view
+                                </span>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex justify-end">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (note.isPermanent) {
+                                    if (
+                                      window.confirm(
+                                        "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
+                                      )
+                                    ) {
+                                      const updatedNotes = notes.filter(
+                                        (n) => n.id !== note.id
+                                      );
+                                      setNotes(updatedNotes);
+                                      if (mode === "db" && user) {
+                                        console.log(
+                                          "Deleting note from Supabase:",
+                                          note.id
+                                        );
+                                        const { error } = await supabase
+                                          .from("notes")
+                                          .delete()
+                                          .eq("id", note.id);
+                                        if (error)
+                                          console.error(
+                                            "Supabase delete error:",
+                                            error
+                                          );
+                                      } else if (mode === "cloud") {
+                                        localStorage.setItem(
+                                          `elysium_notes_${mode}`,
+                                          JSON.stringify(updatedNotes)
+                                        );
+                                      }
+                                    }
+                                  } else {
+                                    const updatedNotes = notes.filter(
+                                      (n) => n.id !== note.id
+                                    );
+                                    setNotes(updatedNotes);
+                                    if (mode === "db" && user) {
+                                      console.log(
+                                        "Deleting note from Supabase:",
+                                        note.id
+                                      );
+                                      const { error } = await supabase
+                                        .from("notes")
+                                        .delete()
+                                        .eq("id", note.id);
+                                      if (error)
+                                        console.error(
+                                          "Supabase delete error:",
+                                          error
+                                        );
+                                      } else if (mode === "cloud") {
+                                        localStorage.setItem(
+                                          `elysium_notes_${mode}`,
+                                          JSON.stringify(updatedNotes)
+                                        );
+                                      }
+                                    }
+                                }}
+                                className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
+                                disabled={false}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </animated.div>
+                        ))}
+                      </div>
+                    ) : searchQuery ? (
+                      <div className="text-center py-12">
+                        <p className="text-gray-400 text-sm">
+                          No notes found matching "{searchQuery}"
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-gray-400 text-sm">
+                          Enter a search term to find notes
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </>
               )}
             </animated.div>
             {showCreateModal && (

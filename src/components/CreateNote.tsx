@@ -17,15 +17,44 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
   const [template, setTemplate] = useState("Auto");
   const [files, setFiles] = useState<File[]>([]);
 
-  useEffect(() => {
-    const firstLine = content.trim().split("\n")[0] || "";
-    if (
-      (firstLine.startsWith("-") || firstLine.startsWith(".")) &&
-      template === "Auto"
-    ) {
-      setTemplate("List");
+  const getPlaceholderText = () => {
+    switch (template) {
+      case "To-Do List":
+        return "Create your to-do list:\n* Task 1\n* Task 2\n* Task 3\n\nUse * to create checkbox items";
+      case "List":
+        return "Create your list:\n- Item 1\n- Item 2\n- Item 3\n\nUse - or . to create bullet points";
+      case "Canvas":
+        return "Free-form canvas - write, draw ideas, brainstorm...\n\nIdeas:\nConnections:\nNotes:";
+      case "Auto":
+        return "Welcome to Elysium! Here's how to use templates:\n\n📝 List: Use - or . for bullet points\n✅ To-Do List: Use * for checkboxes\n🎨 Canvas: Free-form writing\n\nStart typing to automatically detect your template!";
+      default:
+        return "Type your note here (e.g., * Task or - Item)...";
     }
-  }, [content]);
+  };
+
+  const getTextareaClass = () => {
+    const baseClass = "w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 resize-none hover:shadow-[inset_0_0_10px_rgba(79,70,229,0.2)]";
+    
+    if (template === "Canvas") {
+      return baseClass + " h-80 font-mono text-sm";
+    }
+    return baseClass + " h-64";
+  };
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setContent(newContent);
+
+    // Auto-template detection for "Auto" mode
+    if (template === "Auto") {
+      const firstLine = newContent.trim().split("\n")[0] || "";
+      if (firstLine.startsWith("* ")) {
+        setTemplate("To-Do List");
+      } else if (firstLine.startsWith("-") || firstLine.startsWith(".")) {
+        setTemplate("List");
+      }
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) setFiles(Array.from(e.target.files));
@@ -75,22 +104,14 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
                 aria-required="true"
               />
             </div>
-            <div className="relative">
+            <div>
               <label
                 htmlFor="content"
                 className="block text-sm font-medium text-gray-200 mb-1"
               >
                 Note Content
               </label>
-              <textarea
-                id="content"
-                placeholder="Type your note here (e.g., - Task or . Item)..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 h-64 resize-none hover:shadow-[inset_0_0_10px_rgba(79,70,229,0.2)]"
-                aria-required="true"
-              />
-              <div className="absolute top-0 right-0 mt-9 mr-4 flex flex-row items-center space-x-3">
+              <div className="flex items-center justify-between mb-2">
                 <select
                   value={template}
                   onChange={(e) => setTemplate(e.target.value)}
@@ -99,7 +120,6 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
                 >
                   <option value="Auto">Auto</option>
                   <option value="To-Do List">To-Do List</option>
-                  <option value="Checklist">Checklist</option>
                   <option value="List">List</option>
                   <option value="Canvas">Canvas</option>
                 </select>
@@ -126,12 +146,20 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
                     aria-label="Attach files"
                   />
                 </label>
-                {files.length > 0 && (
-                  <p className="text-xs text-gray-400">
-                    {files.length} file(s) selected
-                  </p>
-                )}
               </div>
+              <textarea
+                id="content"
+                placeholder={getPlaceholderText()}
+                value={content}
+                onChange={handleContentChange}
+                className={getTextareaClass()}
+                aria-required="true"
+              />
+              {files.length > 0 && (
+                <p className="text-xs text-gray-400 mt-2">
+                  {files.length} file(s) selected
+                </p>
+              )}
             </div>
             <div className="flex justify-end space-x-4">
               <button
