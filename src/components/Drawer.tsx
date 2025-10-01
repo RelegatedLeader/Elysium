@@ -4,9 +4,10 @@ import { supabase } from "../SUPABASE/supabaseClient";
 interface DrawerProps {
   onNavigate: (page: "recent" | "create" | "settings" | "logout" | "search") => void;
   onSearch: (query: string) => void;
+  theme?: string;
 }
 
-const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch }) => {
+const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch, theme = "Dark" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'online' | 'offline' | 'syncing'>('online');
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
@@ -95,8 +96,12 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch }) => {
       </button>
 
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white transform transition-transform duration-300 ease-in-out shadow-2xl z-40 ${
+        className={`fixed top-0 left-0 h-full w-64 text-white transform transition-transform duration-300 ease-in-out shadow-2xl z-40 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
+        } ${
+          theme === "Light"
+            ? "bg-gradient-to-br from-white/95 via-purple-50/95 to-indigo-50/95 border-r border-purple-200/50"
+            : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
         }`}
       >
         <button
@@ -121,7 +126,11 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch }) => {
         <nav className="mt-20 px-6 space-y-4">
           <button
             onClick={() => handleNavigate("search")}
-            className="w-full py-3 px-4 rounded-lg bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 transition-all duration-300 ease-in-out text-left flex items-center space-x-2"
+            className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left flex items-center space-x-2 ${
+              theme === "Light"
+                ? "bg-gradient-to-br from-purple-100 to-indigo-100 hover:from-purple-200 hover:to-indigo-200 text-gray-800 border border-purple-200/50"
+                : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
+            }`}
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -130,21 +139,37 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch }) => {
           </button>
           <button
             onClick={() => handleNavigate("recent")}
-            className="w-full py-3 px-4 rounded-lg bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 transition-all duration-300 ease-in-out text-left"
+            className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left ${
+              theme === "Light"
+                ? "bg-gradient-to-br from-purple-100 to-indigo-100 hover:from-purple-200 hover:to-indigo-200 text-gray-800 border border-purple-200/50"
+                : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
+            }`}
           >
             Recent Notes
           </button>
           <button
             onClick={() => handleNavigate("create")}
-            className="w-full py-3 px-4 rounded-lg bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 transition-all duration-300 ease-in-out text-left"
+            className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left ${
+              theme === "Light"
+                ? "bg-gradient-to-br from-purple-100 to-indigo-100 hover:from-purple-200 hover:to-indigo-200 text-gray-800 border border-purple-200/50"
+                : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
+            }`}
           >
             Create Note
           </button>
-          <div className="w-full py-3 px-4 rounded-lg bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 flex items-center space-x-2">
+          <div className={`w-full py-3 px-4 rounded-lg flex items-center space-x-2 ${
+            theme === "Light"
+              ? "bg-gradient-to-br from-purple-100 to-indigo-100 text-gray-800 border border-purple-200/50"
+              : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 text-white"
+          }`}>
             Sync Status: <span className="text-green-400">Online</span>
             <span className="w-2 h-2 rounded-full bg-green-400"></span>
           </div>
-          <div className="w-full py-3 px-4 rounded-lg bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70">
+          <div className={`w-full py-3 px-4 rounded-lg ${
+            theme === "Light"
+              ? "bg-gradient-to-br from-purple-100 to-indigo-100 text-gray-800 border border-purple-200/50"
+              : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 text-white"
+          }`}>
             <div className="flex items-center justify-between mb-1">
               <span className="text-sm">Database Sync</span>
               <button
@@ -180,13 +205,21 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch }) => {
           </div>
           <button
             onClick={() => handleNavigate("settings")}
-            className="w-full py-3 px-4 rounded-lg bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 transition-all duration-300 ease-in-out text-left"
+            className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left ${
+              theme === "Light"
+                ? "bg-gradient-to-br from-purple-100 to-indigo-100 hover:from-purple-200 hover:to-indigo-200 text-gray-800 border border-purple-200/50"
+                : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
+            }`}
           >
             Settings
           </button>
           <button
             onClick={() => handleNavigate("logout")}
-            className="w-full py-3 px-4 rounded-lg bg-gradient-to-br from-red-800 to-red-900 bg-opacity-70 hover:bg-opacity-90 transition-all duration-300 ease-in-out text-left"
+            className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left ${
+              theme === "Light"
+                ? "bg-gradient-to-br from-red-100 to-pink-100 hover:from-red-200 hover:to-pink-200 text-red-800 border border-red-200/50"
+                : "bg-gradient-to-br from-red-800 to-red-900 bg-opacity-70 hover:bg-opacity-90 text-white"
+            }`}
           >
             Logout
           </button>
@@ -196,7 +229,11 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch }) => {
       {isOpen && (
         <div
           onClick={toggleDrawer}
-          className="fixed inset-0 bg-gradient-to-br from-black via-indigo-900 to-black bg-opacity-70 z-30 transition-opacity duration-300 ease-in-out"
+          className={`fixed inset-0 z-30 transition-opacity duration-300 ease-in-out ${
+            theme === "Light"
+              ? "bg-gradient-to-br from-purple-900/20 via-indigo-900/20 to-black/20"
+              : "bg-gradient-to-br from-black via-indigo-900 to-black bg-opacity-70"
+          }`}
         ></div>
       )}
     </>

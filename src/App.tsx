@@ -2506,7 +2506,11 @@ function WelcomePage({
   if (!selectedMode) {
     return (
       <div
-        className="min-h-screen h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden px-4 sm:px-6"
+        className={`min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 ${
+          settings.theme === "Light"
+            ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
+            : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
+        }`}
         style={{
           backgroundImage: `url(${mainMenuGif})`,
           backgroundSize: "cover",
@@ -2603,7 +2607,11 @@ function WelcomePage({
   return (
     <>
       {mode === "db" && !user ? (
-        <div className="min-h-screen h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden px-4 sm:px-6">
+        <div className={`min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 ${
+          settings.theme === "Light"
+            ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
+            : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
+        }`}>
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
           <animated.div style={logoSpring}>
             <ElysiumLogo className="mb-6 w-20 h-20 sm:w-24 sm:h-24" />
@@ -2645,7 +2653,11 @@ function WelcomePage({
           </animated.div>
         </div>
       ) : mode === "web3" && !connected ? (
-        <div className="min-h-screen h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden px-4 sm:px-6">
+        <div className={`min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 ${
+          settings.theme === "Light"
+            ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
+            : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
+        }`}>
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
           <animated.div style={logoSpring}>
             <ElysiumLogo className="mb-6 w-20 h-20 sm:w-24 sm:h-24" />
@@ -2678,11 +2690,16 @@ function WelcomePage({
           </animated.div>
         </div>
       ) : (
-        <div className="min-h-screen h-screen flex flex-col bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden">
+        <div className={`min-h-screen h-screen flex flex-col text-white relative overflow-hidden ${
+          settings.theme === "Light"
+            ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
+            : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
+        }`}>
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
           <Drawer
             onNavigate={handlePageChange}
             onSearch={(query) => setSearchQuery(query)}
+            theme={settings.theme}
           />
           <button onClick={handleLogoButton}>
             <div className="fixed top-4 sm:top-6 left-1/2 transform -translate-x-1/2 z-40">
@@ -2820,7 +2837,11 @@ function WelcomePage({
                             <animated.div
                               key={note.id}
                               style={noteSpring}
-                              className="group bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:scale-105 transition-all duration-300 border border-indigo-600/30 h-48 sm:h-52"
+                              className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
+                                settings.theme === "Light"
+                                  ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 hover:shadow-[0_0_15px_rgba(139,92,246,0.2)] border-purple-200/50"
+                                  : "bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] border-indigo-600/30"
+                              }`}
                               onClick={() => setViewingNote(note)}
                             >
                               <div className="flex-1 overflow-hidden">
@@ -3007,6 +3028,7 @@ function WelcomePage({
                     setIsCloudButtonClicked(false);
                     setActivePage("recent");
                   }}
+                  theme={settings.theme}
                 />
               )}
               {activePage === "search" && (
@@ -3052,7 +3074,11 @@ function WelcomePage({
                           <animated.div
                             key={note.id}
                             style={noteSpring}
-                            className="group bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:scale-105 transition-all duration-300 border border-indigo-600/30 h-48 sm:h-52"
+                            className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
+                              settings.theme === "Light"
+                                ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 hover:shadow-[0_0_15px_rgba(139,92,246,0.2)] border-purple-200/50"
+                                : "bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] border-indigo-600/30"
+                            }`}
                             onClick={() => setViewingNote(note)}
                           >
                             <div className="flex-1 overflow-hidden">
@@ -3193,6 +3219,7 @@ function WelcomePage({
                       setActivePage("recent");
                     }}
                     mode={mode}
+                    theme={settings.theme}
                   />
                 </div>
               </div>
@@ -3398,7 +3425,7 @@ function WelcomePage({
                           viewingNote.template === "List" ? (
                             <div className="space-y-1">
                               {renderList(
-                                viewingNote.id,
+                                viewingNote.id, 
                                 viewingNote.content,
                                 viewingNote.template,
                                 notes,

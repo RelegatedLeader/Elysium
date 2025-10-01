@@ -10,9 +10,10 @@ interface CreateNoteProps {
   }) => void;
   onCancel: () => void;
   mode: "web3" | "db" | "cloud";
+  theme?: string;
 }
 
-const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode }) => {
+const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme = "Dark" }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [template, setTemplate] = useState("Auto");
@@ -306,7 +307,11 @@ Please provide a helpful, friendly response. Be conversational and focus on help
   return (
     <div className="flex items-center justify-center">
       <div className="relative w-[32rem] max-w-full mx-4">
-        <div className="rounded-xl p-8 bg-gradient-to-br from-indigo-900/80 via-indigo-800/80 to-purple-700/80 backdrop-blur-lg border border-indigo-500/50 shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all duration-300 ease-in-out transform hover:scale-105">
+        <div className={`rounded-xl p-8 backdrop-blur-lg border shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all duration-300 ease-in-out transform hover:scale-105 ${
+          theme === "Light"
+            ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 border-purple-200/50"
+            : "bg-gradient-to-br from-indigo-900/80 via-indigo-800/80 to-purple-700/80 border-indigo-500/50"
+        }`}>
           <h2 className="text-2xl font-semibold text-gold-100 mb-6 text-center tracking-tight text-shadow-md">
             Create New Note
           </h2>
