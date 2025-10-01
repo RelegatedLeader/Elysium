@@ -14,6 +14,7 @@ interface SettingsProps {
     syncInterval: number;
   }) => void;
   onCancel?: () => void;
+  onCleanupOrphanedNotes?: () => void;
   initialTheme?: string;
   initialNotifications?: boolean;
   initialSyncInterval?: number;
@@ -22,6 +23,7 @@ interface SettingsProps {
 const Settings: React.FC<SettingsProps> = ({
   onSave,
   onCancel,
+  onCleanupOrphanedNotes,
   initialTheme = "Dark",
   initialNotifications = false,
   initialSyncInterval = 15,
@@ -152,18 +154,18 @@ const Settings: React.FC<SettingsProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black text-white relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
-      <div className="p-8 bg-gradient-to-br from-indigo-900/80 via-indigo-800/80 to-purple-700/80 backdrop-blur-lg border border-indigo-500/30 rounded-2xl shadow-2xl w-[30rem] h-[30rem] max-w-full max-h-full flex items-center justify-center transform transition-all duration-300 ease-in-out hover:shadow-[0_0_20px_rgba(79,70,229,0.5)]">
+    <div className={`min-h-screen flex items-center justify-center text-white relative overflow-hidden ${theme === 'Light' ? 'bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100' : 'bg-gradient-to-br from-purple-900 via-indigo-900 to-black'}`}>
+      <div className={`absolute inset-0 ${theme === 'Light' ? 'bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.05)_0%,transparent_70%)]' : 'bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)]'} pointer-events-none`}></div>
+      <div className={`p-8 ${theme === 'Light' ? 'bg-gradient-to-br from-white/90 via-purple-50/90 to-pink-50/90 border-purple-200/50' : 'bg-gradient-to-br from-indigo-900/80 via-indigo-800/80 to-purple-700/80 border-indigo-500/30'} backdrop-blur-lg border rounded-2xl shadow-2xl w-[32rem] h-auto max-w-full max-h-full flex items-center justify-center transform transition-all duration-300 ease-in-out hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]`}>
         <div className="text-center space-y-6 w-full">
-          <h2 className="text-3xl font-bold text-gold-100 mb-6 tracking-tight text-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">
+          <h2 className={`text-3xl font-bold mb-6 tracking-tight text-shadow-[0_2px_4px_rgba(0,0,0,0.3)] ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
             Settings
           </h2>
           <div className="space-y-4">
             <div>
               <label
                 htmlFor="theme"
-                className="block text-sm font-medium text-gray-200 mb-1"
+                className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
               >
                 Theme
               </label>
@@ -171,17 +173,17 @@ const Settings: React.FC<SettingsProps> = ({
                 id="theme"
                 value={theme}
                 onChange={(e) => setTheme(e.target.value)}
-                className="w-full p-3 bg-indigo-950/90 border border-indigo-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-300 hover:bg-indigo-900/90"
+                className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
                 aria-label="Select theme"
               >
-                <option>Dark</option>
-                <option>Light</option>
+                <option value="Dark">Dark</option>
+                <option value="Light">Light</option>
               </select>
             </div>
             <div>
               <label
                 htmlFor="notifications"
-                className="block text-sm font-medium text-gray-200 mb-2"
+                className={`block text-sm font-medium mb-2 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
               >
                 Notification Preferences
               </label>
@@ -191,10 +193,10 @@ const Settings: React.FC<SettingsProps> = ({
                   type="checkbox"
                   checked={notifications}
                   onChange={(e) => setNotifications(e.target.checked)}
-                  className="h-4 w-4 text-indigo-400 focus:ring-indigo-400 border-indigo-600 rounded bg-indigo-950/90 transition-all duration-200"
+                  className={`h-4 w-4 focus:ring-purple-400 border-purple-300 rounded transition-all duration-200 ${theme === 'Light' ? 'text-purple-600 bg-white border-purple-300' : 'text-indigo-400 bg-indigo-950/90 border-indigo-600'}`}
                   aria-label="Enable notifications"
                 />
-                <span className="text-sm text-gray-200">
+                <span className={`text-sm ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
                   Enable Notifications
                 </span>
               </div>
@@ -202,27 +204,56 @@ const Settings: React.FC<SettingsProps> = ({
             <div>
               <label
                 htmlFor="sync-interval"
-                className="block text-sm font-medium text-gray-200 mb-1"
+                className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
               >
-                Sync Interval (minutes)
+                Auto-Sync Interval (minutes)
               </label>
               <input
                 id="sync-interval"
                 type="number"
+                min="5"
+                max="120"
                 value={syncInterval}
-                onChange={(e) => setSyncInterval(parseInt(e.target.value) || 0)}
-                className="w-full p-3 bg-indigo-950/90 border border-indigo-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-300 hover:bg-indigo-900/90"
+                onChange={(e) => setSyncInterval(parseInt(e.target.value) || 15)}
+                className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
                 aria-label="Set sync interval"
               />
+              <p className={`text-xs mt-1 ${theme === 'Light' ? 'text-purple-600' : 'text-gray-400'}`}>
+                How often to automatically sync your notes (5-120 minutes)
+              </p>
             </div>
+            {onCleanupOrphanedNotes && (
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
+                  Database Maintenance
+                </label>
+                <div className="text-center space-y-2">
+                  <p className={`text-xs ${theme === 'Light' ? 'text-purple-600' : 'text-yellow-300'}`}>
+                    Clean up notes that were encrypted with an old method and cannot be recovered
+                  </p>
+                  <button
+                    onClick={onCleanupOrphanedNotes}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'Light' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+                  >
+                    Clean Up Orphaned Notes
+                  </button>
+                </div>
+              </div>
+            )}
             <div>
-              <label className="block text-sm font-medium text-gray-200 mb-2">
-                Donate to Support Elysium (SOL)
+              <label className={`block text-sm font-medium mb-2 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
+                Support Elysium
               </label>
-              <div className="flex items-center justify-center space-x-4">
-                <p className="text-xs text-yellow-300 break-all font-mono">
-                  7utEYstQZSbmei5SoUjBbrNSqzV2q1ZUgUpWwQKFeWxv
+              <div className="text-center space-y-2">
+                <p className={`text-xs ${theme === 'Light' ? 'text-purple-600' : 'text-yellow-300'} break-all font-mono bg-opacity-50 p-2 rounded ${theme === 'Light' ? 'bg-purple-100 text-purple-800' : 'bg-indigo-950/50'}`}>
+                  Donate SOL to: 7utEYstQZSbmei5SoUjBbrNSqzV2q1ZUgUpWwQKFeWxv
                 </p>
+                <button
+                  onClick={handleDonateClick}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'Light' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}
+                >
+                  Donate SOL
+                </button>
               </div>
             </div>
           </div>
@@ -230,15 +261,15 @@ const Settings: React.FC<SettingsProps> = ({
             <div className="flex justify-center space-x-4 mt-6">
               <button
                 onClick={handleCancel}
-                className="bg-gray-700 hover:bg-gray-800 text-white py-2 px-6 rounded-lg transition-all duration-200"
+                className={`py-2 px-6 rounded-lg transition-all duration-200 ${theme === 'Light' ? 'bg-gray-200 hover:bg-gray-300 text-purple-800' : 'bg-gray-700 hover:bg-gray-800 text-white'}`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="bg-green-700 hover:bg-green-800 text-white py-2 px-6 rounded-lg transition-all duration-200"
+                className={`py-2 px-6 rounded-lg transition-all duration-200 ${theme === 'Light' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-green-700 hover:bg-green-800 text-white'}`}
               >
-                Save
+                Save Settings
               </button>
             </div>
           )}

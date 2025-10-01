@@ -247,6 +247,119 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
   const [editContent, setEditContent] = useState("");
   const [editTemplate, setEditTemplate] = useState("Auto");
 
+  // Settings state
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem("elysium_settings");
+    return saved ? JSON.parse(saved) : {
+      theme: "Dark",
+      notifications: false,
+      syncInterval: 15,
+    };
+  });
+
+  // Apply theme to document
+  useEffect(() => {
+    if (settings.theme === "Light") {
+      document.documentElement.classList.add("light-theme");
+    } else {
+      document.documentElement.classList.remove("light-theme");
+    }
+  }, [settings.theme]);
+
+  // Auto-sync functionality
+  useEffect(() => {
+    if (!settings.notifications || settings.syncInterval <= 0) return;
+
+    const interval = setInterval(() => {
+      if (user && notes.length > 0) {
+        // Trigger a sync operation
+        fetchNotes();
+      }
+    }, settings.syncInterval * 60 * 1000); // Convert minutes to milliseconds
+
+    return () => clearInterval(interval);
+  }, [settings.notifications, settings.syncInterval, user, notes.length]);
+
+  const handleSettingsSave = (newSettings: { theme: string; notifications: boolean; syncInterval: number }) => {
+    setSettings(newSettings);
+    localStorage.setItem("elysium_settings", JSON.stringify(newSettings));
+    
+    // Show notification if enabled
+    if (newSettings.notifications && !settings.notifications) {
+      // Request notification permission
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  };
+
+  // Notification utility function
+  const showNotification = (title: string, body: string) => {
+    if (settings.notifications && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico'
+      });
+    }
+  };
+
+  // Clean up orphaned notes that can't be decrypted
+  const cleanupOrphanedNotes = async () => {
+    if (mode !== "db" || !user) return;
+    
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) return;
+
+      const key = await deriveKey(session.user.id);
+      const { data, error } = await supabase
+        .from("notes")
+        .select("*")
+        .eq("user_id", session.user.id);
+
+      if (error) {
+        console.error("Error fetching notes for cleanup:", error);
+        return;
+      }
+
+      const orphanedNoteIds: string[] = [];
+
+      for (const note of data) {
+        try {
+          const title = await decryptData(JSON.parse(note.title), key);
+          const content = await decryptData(JSON.parse(note.content), key);
+          if (!title || !content) {
+            orphanedNoteIds.push(note.id);
+          }
+        } catch (error) {
+          orphanedNoteIds.push(note.id);
+        }
+      }
+
+      if (orphanedNoteIds.length > 0) {
+        const { error: deleteError } = await supabase
+          .from("notes")
+          .delete()
+          .in("id", orphanedNoteIds);
+
+        if (deleteError) {
+          console.error("Error deleting orphaned notes:", deleteError);
+          alert("Failed to clean up orphaned notes. Please try again.");
+        } else {
+          alert(`Successfully cleaned up ${orphanedNoteIds.length} orphaned note${orphanedNoteIds.length === 1 ? '' : 's'}.`);
+          // Refresh notes
+          fetchNotes();
+        }
+      } else {
+        alert("No orphaned notes found to clean up.");
+      }
+    } catch (error) {
+      console.error("Error during cleanup:", error);
+      alert("An error occurred during cleanup. Please try again.");
+    }
+  };
+
   const mainMenuGif =
     "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExaDF1NzNmZmlkaGd6cXRtem42ZXptMmV6cHQwMXVobWY5eWdrazU0eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ewwd4xlxeSrM4aDDpL/giphy.gif";
   const databaseGif =
@@ -324,11 +437,11 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
     setNotes([]);
   };
 
-  async function deriveKey(token: string): Promise<CryptoKey> {
+  async function deriveKey(userId: string): Promise<CryptoKey> {
     const encoder = new TextEncoder();
     const keyMaterial = await crypto.subtle.importKey(
       "raw",
-      encoder.encode(token),
+      encoder.encode(userId + "elysium-persistent-key"),
       "PBKDF2",
       false,
       ["deriveKey"]
@@ -336,7 +449,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
     return crypto.subtle.deriveKey(
       {
         name: "PBKDF2",
-        salt: encoder.encode("elysium-salt"),
+        salt: encoder.encode("elysium-eternal-salt"),
         iterations: 100000,
         hash: "SHA-256",
       },
@@ -409,7 +522,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
       } else if (mode === "db") {
         const session = (await supabase.auth.getSession()).data.session;
         if (session) {
-          const key = await deriveKey(session.access_token);
+          const key = await deriveKey(session.user.id);
           const encTitle = await encryptData(note.title, key);
           const encContent = await encryptData(note.content, key);
           console.log("Saving note to Supabase:", {
@@ -467,6 +580,9 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
         );
       }
       setIsCloudButtonClicked(false);
+      
+      // Show notification for successful note creation
+      showNotification("Note Created", `"${note.title}" has been saved successfully`);
     } else if (mode === "web3") {
       alert("Please connect your wallet to create a note.");
     }
@@ -668,7 +784,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
       const session = (await supabase.auth.getSession()).data.session;
       if (session) {
         console.log("Fetching notes for user:", session.user.id);
-        const key = await deriveKey(session.access_token);
+        const key = await deriveKey(session.user.id);
         const { data, error } = await supabase
           .from("notes")
           .select("*")
@@ -679,20 +795,48 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
         }
         console.log("Raw notes from Supabase:", data);
         const decryptedNotes = await Promise.all(
-          data.map(async (n: SupabaseNote) => ({
-            id: n.id,
-            title: await decryptData(JSON.parse(n.title), key),
-            content: await decryptData(JSON.parse(n.content), key),
-            template: n.template || "To-Do List",
-            isPermanent: false,
-            completionTimestamps: {},
-          }))
+          data.map(async (n: SupabaseNote): Promise<Note | null> => {
+            try {
+              const title = await decryptData(JSON.parse(n.title), key);
+              const content = await decryptData(JSON.parse(n.content), key);
+              if (title && content) {
+                return {
+                  id: n.id,
+                  title,
+                  content,
+                  template: n.template || "To-Do List",
+                  isPermanent: false,
+                  completionTimestamps: {},
+                } as Note;
+              } else {
+                console.warn(`Note ${n.id} failed to decrypt properly - title or content empty`);
+                return null;
+              }
+            } catch (error) {
+              console.error(`Failed to decrypt note ${n.id}:`, error);
+              return null;
+            }
+          })
         );
-        const validNotes = decryptedNotes.filter(
-          (n: Note) => n.title && n.content
-        );
+        const validNotes = decryptedNotes.filter((note): note is Note => note !== null);
+        
+        // Handle orphaned notes (encrypted with old method)
+        const orphanedCount = decryptedNotes.filter(note => note === null).length;
+        if (orphanedCount > 0) {
+          console.warn(`Found ${orphanedCount} orphaned notes that were encrypted with the old method. These cannot be recovered.`);
+          // Show user notification about orphaned notes
+          setTimeout(() => {
+            alert(`Warning: ${orphanedCount} of your notes were encrypted with an old method and cannot be recovered. These notes will not appear in your list. New notes will work correctly.`);
+          }, 1000);
+        }
+        
         console.log("Decrypted notes:", validNotes);
         setNotes(validNotes);
+        
+        // Show notification for successful sync
+        if (validNotes.length > 0) {
+          showNotification("Elysium Notes Synced", `Successfully synced ${validNotes.length} note${validNotes.length === 1 ? '' : 's'}`);
+        }
       }
     }, 5000),
     [mode, user]
@@ -1340,7 +1484,15 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                   mode={mode}
                 />
               )}
-              {activePage === "settings" && <Settings />}
+              {activePage === "settings" && (
+                <Settings
+                  onSave={handleSettingsSave}
+                  onCleanupOrphanedNotes={cleanupOrphanedNotes}
+                  initialTheme={settings.theme}
+                  initialNotifications={settings.notifications}
+                  initialSyncInterval={settings.syncInterval}
+                />
+              )}
               {activePage === "logout" && (
                 <Logout
                   onConfirm={handleLogout}
