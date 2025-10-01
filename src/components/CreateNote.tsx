@@ -11,12 +11,13 @@ interface CreateNoteProps {
   onCancel: () => void;
   mode: "web3" | "db" | "cloud";
   theme?: string;
+  defaultTemplate?: string;
 }
 
-const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme = "Dark" }) => {
+const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme = "Dark", defaultTemplate = "Blank" }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [template, setTemplate] = useState("Auto");
+  const [template, setTemplate] = useState(defaultTemplate);
   const [files, setFiles] = useState<File[]>([]);
   const [showAIPopup, setShowAIPopup] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);

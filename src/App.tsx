@@ -80,6 +80,30 @@ async function deriveKey(userId: string, customSalt?: string): Promise<CryptoKey
   );
 }
 
+function getSortedNotes(notes: Note[], sorting: string) {
+  return [...notes].sort((a, b) => {
+    switch (sorting) {
+      case "Date Modified":
+        const aModified = new Date(a.updatedAt || a.createdAt).getTime();
+        const bModified = new Date(b.updatedAt || b.createdAt).getTime();
+        return bModified - aModified; // Newest first
+      case "Date Created":
+        const aCreated = new Date(a.createdAt).getTime();
+        const bCreated = new Date(b.createdAt).getTime();
+        return bCreated - aCreated; // Newest first
+      case "Alphabetical":
+        return a.title.localeCompare(b.title); // A-Z
+      case "Custom":
+        // For now, fall back to date modified
+        const aCustom = new Date(a.updatedAt || a.createdAt).getTime();
+        const bCustom = new Date(b.updatedAt || b.createdAt).getTime();
+        return bCustom - aCustom;
+      default:
+        return 0;
+    }
+  });
+}
+
 function App() {
   const wallets = useMemo(() => [], []);
   const [user, setUser] = useState<any>(null);
@@ -1548,13 +1572,18 @@ function WelcomePage({
 
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem("elysium_settings");
-    return saved
-      ? JSON.parse(saved)
-      : {
-          theme: "Dark",
-          notifications: false,
-          syncInterval: 15,
-        };
+    const defaults = {
+      theme: "Dark",
+      notifications: false,
+      syncInterval: 15,
+      aiResponseStyle: "Balanced",
+      aiPersonality: "Professional",
+      autoSave: true,
+      defaultTemplate: "Blank",
+      noteSorting: "Date Created",
+      dataRetention: 365,
+    };
+    return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
   });
 
   // Apply theme to document
@@ -1580,10 +1609,29 @@ function WelcomePage({
     return () => clearInterval(interval);
   }, [settings.notifications, settings.syncInterval, user, notes.length]);
 
+  // Auto-save functionality
+  useEffect(() => {
+    if (!settings.autoSave || !user) return;
+
+    const autoSaveInterval = setInterval(() => {
+      // Auto-save logic would go here - for now just log
+      console.log("Auto-saving notes...");
+      // In a real implementation, this would save any unsaved changes
+    }, 30000); // Auto-save every 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [settings.autoSave, user]);
+
   const handleSettingsSave = (newSettings: {
     theme: string;
     notifications: boolean;
     syncInterval: number;
+    aiResponseStyle: string;
+    aiPersonality: string;
+    autoSave: boolean;
+    defaultTemplate: string;
+    noteSorting: string;
+    dataRetention: number;
   }) => {
     setSettings(newSettings);
     localStorage.setItem("elysium_settings", JSON.stringify(newSettings));
@@ -2821,20 +2869,11 @@ function WelcomePage({
                         </div>
                       )}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                        {notes
-                          .filter((note) => mode !== "db" || !note.isPermanent)
-                          .sort((a, b) => {
-                            // Sort by updatedAt first, then by createdAt if updatedAt is not available
-                            const aTime = new Date(
-                              a.updatedAt || a.createdAt
-                            ).getTime();
-                            const bTime = new Date(
-                              b.updatedAt || b.createdAt
-                            ).getTime();
-                            return bTime - aTime; // Most recent first
-                          })
-                          .map((note) => (
-                            <animated.div
+                        {getSortedNotes(
+                          notes.filter((note) => mode !== "db" || !note.isPermanent),
+                          settings.noteSorting
+                        ).map((note) => (
+                          <animated.div
                               key={note.id}
                               style={noteSpring}
                               className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
@@ -3018,6 +3057,12 @@ function WelcomePage({
                   initialTheme={settings.theme}
                   initialNotifications={settings.notifications}
                   initialSyncInterval={settings.syncInterval}
+                  initialAiResponseStyle={settings.aiResponseStyle}
+                  initialAiPersonality={settings.aiPersonality}
+                  initialAutoSave={settings.autoSave}
+                  initialDefaultTemplate={settings.defaultTemplate}
+                  initialNoteSorting={settings.noteSorting}
+                  initialDataRetention={settings.dataRetention}
                 />
               )}
               {activePage === "logout" && (
@@ -3046,27 +3091,20 @@ function WelcomePage({
                     />
                   </div>
                   {(() => {
-                    const filteredNotes = notes
-                      .filter((note) => mode !== "db" || !note.isPermanent)
-                      .filter(
-                        (note) =>
-                          note.title
-                            .toLowerCase()
-                            .includes(searchQuery.toLowerCase()) ||
-                          note.content
-                            .toLowerCase()
-                            .includes(searchQuery.toLowerCase())
-                      )
-                      .sort((a, b) => {
-                        // Sort by updatedAt first, then by createdAt if updatedAt is not available
-                        const aTime = new Date(
-                          a.updatedAt || a.createdAt
-                        ).getTime();
-                        const bTime = new Date(
-                          b.updatedAt || b.createdAt
-                        ).getTime();
-                        return bTime - aTime; // Most recent first
-                      });
+                    const filteredNotes = getSortedNotes(
+                      notes
+                        .filter((note) => mode !== "db" || !note.isPermanent)
+                        .filter(
+                          (note) =>
+                            note.title
+                              .toLowerCase()
+                              .includes(searchQuery.toLowerCase()) ||
+                            note.content
+                              .toLowerCase()
+                              .includes(searchQuery.toLowerCase())
+                        ),
+                      settings.noteSorting
+                    );
 
                     return filteredNotes.length > 0 ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
@@ -3220,6 +3258,7 @@ function WelcomePage({
                     }}
                     mode={mode}
                     theme={settings.theme}
+                    defaultTemplate={settings.defaultTemplate}
                   />
                 </div>
               </div>
@@ -3251,6 +3290,8 @@ function WelcomePage({
                           ?
                         </button>
                       </div>
+
+                      
 
                       <div className="space-y-4">
                         <div>

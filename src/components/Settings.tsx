@@ -12,12 +12,24 @@ interface SettingsProps {
     theme: string;
     notifications: boolean;
     syncInterval: number;
+    aiResponseStyle: string;
+    aiPersonality: string;
+    autoSave: boolean;
+    defaultTemplate: string;
+    noteSorting: string;
+    dataRetention: number;
   }) => void;
   onCancel?: () => void;
   onCleanupOrphanedNotes?: () => void;
   initialTheme?: string;
   initialNotifications?: boolean;
   initialSyncInterval?: number;
+  initialAiResponseStyle?: string;
+  initialAiPersonality?: string;
+  initialAutoSave?: boolean;
+  initialDefaultTemplate?: string;
+  initialNoteSorting?: string;
+  initialDataRetention?: number;
 }
 
 const Settings: React.FC<SettingsProps> = ({
@@ -27,10 +39,22 @@ const Settings: React.FC<SettingsProps> = ({
   initialTheme = "Dark",
   initialNotifications = false,
   initialSyncInterval = 15,
+  initialAiResponseStyle = "Balanced",
+  initialAiPersonality = "Professional",
+  initialAutoSave = true,
+  initialDefaultTemplate = "Blank",
+  initialNoteSorting = "Date Created",
+  initialDataRetention = 365,
 }) => {
   const [theme, setTheme] = useState(initialTheme);
   const [notifications, setNotifications] = useState(initialNotifications);
   const [syncInterval, setSyncInterval] = useState(initialSyncInterval);
+  const [aiResponseStyle, setAiResponseStyle] = useState(initialAiResponseStyle);
+  const [aiPersonality, setAiPersonality] = useState(initialAiPersonality);
+  const [autoSave, setAutoSave] = useState(initialAutoSave);
+  const [defaultTemplate, setDefaultTemplate] = useState(initialDefaultTemplate);
+  const [noteSorting, setNoteSorting] = useState(initialNoteSorting);
+  const [dataRetention, setDataRetention] = useState(initialDataRetention);
   const [hasChanges, setHasChanges] = useState(false);
   const [donateAmount, setDonateAmount] = useState<number | null>(null);
   const [showDonateModal, setShowDonateModal] = useState(false);
@@ -47,7 +71,13 @@ const Settings: React.FC<SettingsProps> = ({
     const settingsChanged =
       theme !== initialTheme ||
       notifications !== initialNotifications ||
-      syncInterval !== initialSyncInterval;
+      syncInterval !== initialSyncInterval ||
+      aiResponseStyle !== initialAiResponseStyle ||
+      aiPersonality !== initialAiPersonality ||
+      autoSave !== initialAutoSave ||
+      defaultTemplate !== initialDefaultTemplate ||
+      noteSorting !== initialNoteSorting ||
+      dataRetention !== initialDataRetention;
     setHasChanges(settingsChanged);
   }, [
     theme,
@@ -60,7 +90,7 @@ const Settings: React.FC<SettingsProps> = ({
 
   const handleSave = () => {
     if (onSave && hasChanges) {
-      onSave({ theme, notifications, syncInterval });
+      onSave({ theme, notifications, syncInterval, aiResponseStyle, aiPersonality, autoSave, defaultTemplate, noteSorting, dataRetention });
       setHasChanges(false); // Reset after saving
     }
   };
@@ -222,6 +252,158 @@ const Settings: React.FC<SettingsProps> = ({
                 How often to automatically sync your notes (5-120 minutes)
               </p>
             </div>
+
+            {/* AI Agent Settings */}
+            <div className={`border-t pt-4 ${theme === 'Light' ? 'border-purple-200' : 'border-indigo-600'}`}>
+              <h3 className={`text-lg font-semibold mb-3 ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
+                🤖 AI Agent Settings
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label
+                    htmlFor="ai-response-style"
+                    className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
+                  >
+                    Response Style
+                  </label>
+                  <select
+                    id="ai-response-style"
+                    value={aiResponseStyle}
+                    onChange={(e) => setAiResponseStyle(e.target.value)}
+                    className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
+                    aria-label="Select AI response style"
+                  >
+                    <option value="Concise">Concise</option>
+                    <option value="Balanced">Balanced</option>
+                    <option value="Detailed">Detailed</option>
+                    <option value="Creative">Creative</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="ai-personality"
+                    className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
+                  >
+                    AI Personality
+                  </label>
+                  <select
+                    id="ai-personality"
+                    value={aiPersonality}
+                    onChange={(e) => setAiPersonality(e.target.value)}
+                    className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
+                    aria-label="Select AI personality"
+                  >
+                    <option value="Professional">Professional</option>
+                    <option value="Friendly">Friendly</option>
+                    <option value="Technical">Technical</option>
+                    <option value="Creative">Creative</option>
+                    <option value="Minimalist">Minimalist</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Note Management Settings */}
+            <div className={`border-t pt-4 ${theme === 'Light' ? 'border-purple-200' : 'border-indigo-600'}`}>
+              <h3 className={`text-lg font-semibold mb-3 ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
+                📝 Note Management
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
+                    Auto-Save
+                  </label>
+                  <div className="flex items-center justify-center space-x-2">
+                    <input
+                      id="auto-save"
+                      type="checkbox"
+                      checked={autoSave}
+                      onChange={(e) => setAutoSave(e.target.checked)}
+                      className={`h-4 w-4 focus:ring-purple-400 border-purple-300 rounded transition-all duration-200 ${theme === 'Light' ? 'text-purple-600 bg-white border-purple-300' : 'text-indigo-400 bg-indigo-950/90 border-indigo-600'}`}
+                      aria-label="Enable auto-save"
+                    />
+                    <span className={`text-sm ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
+                      Auto-save notes as you type
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <label
+                    htmlFor="default-template"
+                    className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
+                  >
+                    Default Template
+                  </label>
+                  <select
+                    id="default-template"
+                    value={defaultTemplate}
+                    onChange={(e) => setDefaultTemplate(e.target.value)}
+                    className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
+                    aria-label="Select default template"
+                  >
+                    <option value="Blank">Blank</option>
+                    <option value="Meeting Notes">Meeting Notes</option>
+                    <option value="Project Plan">Project Plan</option>
+                    <option value="Journal Entry">Journal Entry</option>
+                    <option value="Code Snippet">Code Snippet</option>
+                    <option value="Research Notes">Research Notes</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="note-sorting"
+                    className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
+                  >
+                    Note Sorting
+                  </label>
+                  <select
+                    id="note-sorting"
+                    value={noteSorting}
+                    onChange={(e) => setNoteSorting(e.target.value)}
+                    className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
+                    aria-label="Select note sorting"
+                  >
+                    <option value="Date Modified">Date Modified (Newest First)</option>
+                    <option value="Date Created">Date Created (Newest First)</option>
+                    <option value="Alphabetical">Alphabetical (A-Z)</option>
+                    <option value="Custom">Custom Order</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Privacy & Security Settings */}
+            <div className={`border-t pt-4 ${theme === 'Light' ? 'border-purple-200' : 'border-indigo-600'}`}>
+              <h3 className={`text-lg font-semibold mb-3 ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
+                🔒 Privacy & Security
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label
+                    htmlFor="data-retention"
+                    className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
+                  >
+                    Data Retention (days)
+                  </label>
+                  <select
+                    id="data-retention"
+                    value={dataRetention}
+                    onChange={(e) => setDataRetention(parseInt(e.target.value))}
+                    className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
+                    aria-label="Select data retention period"
+                  >
+                    <option value={30}>30 days</option>
+                    <option value={90}>90 days</option>
+                    <option value={365}>1 year</option>
+                    <option value={-1}>Forever</option>
+                  </select>
+                  <p className={`text-xs mt-1 ${theme === 'Light' ? 'text-purple-600' : 'text-gray-400'}`}>
+                    How long to keep deleted notes before permanent removal
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {onCleanupOrphanedNotes && (
               <div>
                 <label className={`block text-sm font-medium mb-2 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
