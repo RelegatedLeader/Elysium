@@ -1355,31 +1355,35 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                           </p>
                         </div>
                       )}
-                      <div className="grid grid-cols-1 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                         {notes.map((note) => (
                           <animated.div
                             key={note.id}
                             style={noteSpring}
-                            className="bg-gradient-to-br from-indigo-800 to-indigo-700 p-4 sm:p-6 rounded-lg shadow-2xl flex flex-col justify-between cursor-pointer hover:shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all duration-300"
+                            className="group bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:scale-105 transition-all duration-300 border border-indigo-600/30 h-48 sm:h-52"
                             onClick={() => setViewingNote(note)}
                           >
-                            <div>
-                              <h2 className="text-xl sm:text-2xl font-semibold text-gold-100 mb-4 font-serif">
-                                {note.title}{" "}
-                                {note.isPermanent && "(Blockchain Saved)"}
-                              </h2>
-                              <div className="text-gray-300 text-sm mb-2">
-                                {note.content.split('\n')[0].substring(0, 100)}
-                                {note.content.length > 100 ? '...' : ''}
+                            <div className="flex-1 overflow-hidden">
+                              <h3 className="text-lg sm:text-xl font-semibold text-gold-100 mb-2 font-serif line-clamp-2 leading-tight">
+                                {note.title}
+                                {note.isPermanent && (
+                                  <span className="text-xs text-amber-400 ml-1">⛓️</span>
+                                )}
+                              </h3>
+                              <div className="text-gray-300 text-sm mb-2 line-clamp-3 leading-relaxed">
+                                {note.content.split('\n')[0].substring(0, 120)}
+                                {note.content.length > 120 ? '...' : ''}
                               </div>
-                              <div className="text-xs text-gray-400">
-                                Template: {note.template}
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <span className="bg-indigo-900/50 px-2 py-1 rounded-full">
+                                  {note.template}
+                                </span>
+                                <span className="text-gray-500">
+                                  Click to view
+                                </span>
                               </div>
                             </div>
-                            <div className="mt-4 flex justify-between items-center">
-                              <span className="text-xs text-gray-500">
-                                Click to view/edit
-                              </span>
+                            <div className="mt-3 flex justify-end">
                               <button
                                 onClick={async (e) => {
                                   e.stopPropagation(); // Prevent triggering the view
@@ -1441,7 +1445,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                                     }
                                   }
                                 }}
-                                className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm"
+                                className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
                                 disabled={false}
                               >
                                 Delete
