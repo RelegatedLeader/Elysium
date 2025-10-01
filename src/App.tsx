@@ -1330,7 +1330,7 @@ function WelcomePage({
                 Blockchain Version (SOL + Arweave)
               </h2>
               <p className="text-silver-200 text-sm sm:text-base">
-                <strong>? PREMIUM:</strong> Eternal, censorship-resistant
+                <strong>₿ PREMIUM:</strong> Eternal, censorship-resistant
                 storage on Solana + Arweave. Your notes become immutable digital
                 artifacts, preserved forever in the decentralized web. True
                 ownership, zero data loss, maximum security.
@@ -1501,10 +1501,10 @@ function WelcomePage({
                   </h1>
                   <p className="text-gray-300 text-sm mb-4">
                     {mode === "db"
-                      ? "?? Classic encrypted database: Simple, secure, and fully tied to your account with enterprise-grade protection."
+                      ? "🗄️Classic encrypted database: Simple, secure, and fully tied to your account with enterprise-grade protection."
                       : mode === "cloud"
-                      ? "?? Lightning-fast cloud storage: Encrypted, downloadable data access with advanced cloud security and instant offline access."
-                      : "?? Eternal blockchain vault: Immutable, censorship-resistant storage where your notes become permanent digital artifacts."}
+                      ? "⚡Lightning-fast cloud storage: Encrypted, downloadable data access with advanced cloud security and instant offline access."
+                      : "⛓️ Eternal blockchain vault: Immutable, censorship-resistant storage where your notes become permanent digital artifacts."}
                   </p>
                   <div className="flex space-x-4 mb-6 sm:mb-8">
                     <button
@@ -1992,9 +1992,7 @@ function WelcomePage({
                                   await supabase.auth.getSession()
                                 ).data.session;
                                 if (session) {
-                                  const key = await deriveKey(
-                                    session.user.id
-                                  );
+                                  const key = await deriveKey(session.user.id);
                                   const encTitle = await encryptData(
                                     editTitle,
                                     key
@@ -2079,7 +2077,7 @@ function WelcomePage({
                               }}
                               className="text-gray-400 hover:text-white transition-colors text-xl p-2"
                             >
-                              ?
+                              ❌
                             </button>
                           </div>
                         </div>
