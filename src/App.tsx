@@ -1346,7 +1346,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                         : "Create Note"}
                     </button>
                   </div>
-                  {notes.length > 0 ? (
+                  {notes.filter(note => mode !== "db" || !note.isPermanent).length > 0 ? (
                     <>
                       {mode === "db" && (
                         <div className="mb-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
@@ -1356,7 +1356,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                         </div>
                       )}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                        {notes.map((note) => (
+                        {notes.filter(note => mode !== "db" || !note.isPermanent).map((note) => (
                           <animated.div
                             key={note.id}
                             style={noteSpring}
@@ -1528,11 +1528,11 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           {/* Note Viewing/Editing Modal */}
           {viewingNote && (
             <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-              <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                <div className="bg-gradient-to-br from-indigo-900/95 via-indigo-800/95 to-purple-700/95 backdrop-blur-lg border border-indigo-500/50 rounded-xl p-6 shadow-[0_0_30px_rgba(79,70,229,0.3)]">
+              <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
+                <div className="bg-gradient-to-br from-indigo-900/95 via-indigo-800/95 to-purple-700/95 backdrop-blur-lg border border-indigo-500/50 rounded-xl shadow-[0_0_30px_rgba(79,70,229,0.3)] overflow-hidden">
                   {editingNote ? (
                     // Edit Mode
-                    <div className="space-y-6">
+                    <div className="p-6 space-y-6 max-h-[90vh] overflow-y-auto">
                       <div className="flex justify-between items-center">
                         <h2 className="text-2xl font-semibold text-gold-100">Edit Note</h2>
                         <button
@@ -1662,46 +1662,66 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     </div>
                   ) : (
                     // View Mode
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center">
-                        <h2 className="text-3xl font-semibold text-gold-100 font-serif">
-                          {viewingNote.title}
-                        </h2>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => {
-                              setEditingNote(viewingNote);
-                              setEditTitle(viewingNote.title);
-                              setEditContent(viewingNote.content);
-                              setEditTemplate(viewingNote.template);
-                            }}
-                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              setViewingNote(null);
-                            }}
-                            className="text-gray-400 hover:text-white transition-colors text-xl"
-                          >
-                            ✕
-                          </button>
+                    <div className="max-h-[90vh] overflow-hidden flex flex-col">
+                      <div className="p-6 border-b border-indigo-600/30">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h2 className="text-2xl sm:text-3xl font-semibold text-gold-100 font-serif mb-2 leading-tight">
+                              {viewingNote.title}
+                            </h2>
+                            <div className="flex items-center space-x-4 text-sm text-gray-400">
+                              <span className="bg-indigo-900/50 px-3 py-1 rounded-full">
+                                {viewingNote.template}
+                              </span>
+                              {viewingNote.isPermanent && (
+                                <span className="bg-amber-900/50 px-3 py-1 rounded-full text-amber-300">
+                                  ⛓️ Blockchain Stored
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex space-x-2 ml-4">
+                            <button
+                              onClick={() => {
+                                setEditingNote(viewingNote);
+                                setEditTitle(viewingNote.title);
+                                setEditContent(viewingNote.content);
+                                setEditTemplate(viewingNote.template);
+                              }}
+                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                setViewingNote(null);
+                              }}
+                              className="text-gray-400 hover:text-white transition-colors text-xl p-2"
+                            >
+                              ✕
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      
-                      <div className="bg-indigo-950/50 rounded-lg p-4">
-                        <div className="text-sm text-gray-400 mb-2">
-                          Template: {viewingNote.template}
-                        </div>
-                        <div className="text-white whitespace-pre-wrap">
-                          {renderList(
-                            viewingNote.id,
-                            viewingNote.content,
-                            viewingNote.template,
-                            [viewingNote],
-                            () => {},
-                            viewingNote.isPermanent || false
+                      <div className="flex-1 overflow-y-auto p-6">
+                        <div className="text-white text-base leading-relaxed">
+                          {(viewingNote.template === "To-Do List" || 
+                            viewingNote.template === "Checklist" || 
+                            viewingNote.template === "List") ? (
+                            <div className="space-y-1">
+                              {renderList(
+                                viewingNote.id,
+                                viewingNote.content,
+                                viewingNote.template,
+                                [viewingNote],
+                                () => {},
+                                viewingNote.isPermanent || false
+                              )}
+                            </div>
+                          ) : (
+                            <div className="whitespace-pre-wrap">
+                              {viewingNote.content}
+                            </div>
                           )}
                         </div>
                       </div>
