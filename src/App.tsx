@@ -325,7 +325,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) return;
 
-      const key = await deriveKey(session.user.id);
+      const key = await deriveKey(session.access_token);
       const { data, error } = await supabase
         .from("notes")
         .select("*")
@@ -537,7 +537,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
       } else if (mode === "db") {
         const session = (await supabase.auth.getSession()).data.session;
         if (session) {
-          const key = await deriveKey(session.user.id);
+          const key = await deriveKey(session.access_token);
           const encTitle = await encryptData(note.title, key);
           const encContent = await encryptData(note.content, key);
           console.log("Saving note to Supabase:", {
@@ -810,7 +810,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
       const session = (await supabase.auth.getSession()).data.session;
       if (session) {
         console.log("Fetching notes for user:", session.user.id);
-        const key = await deriveKey(session.user.id);
+        const key = await deriveKey(session.access_token);
         const { data, error } = await supabase
           .from("notes")
           .select("*")
@@ -833,6 +833,8 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                   template: n.template || "To-Do List",
                   isPermanent: false,
                   completionTimestamps: {},
+                  createdAt: n.created_at,
+                  updatedAt: n.created_at,
                 } as Note;
               } else {
                 console.warn(`Note ${n.id} failed to decrypt properly - title or content empty`);
@@ -977,6 +979,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     ...n.completionTimestamps,
                     [index]: newTimestamp,
                   },
+                  updatedAt: new Date().toISOString(),
                   content: n.content
                     .split("\n")
                     .map((l, i) =>
@@ -1024,6 +1027,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     ...n.completionTimestamps,
                     [index]: newTimestamp,
                   },
+                  updatedAt: new Date().toISOString(),
                   content: n.content
                     .split("\n")
                     .map((l, i) =>
@@ -1067,6 +1071,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
             n.id === noteId
               ? {
                   ...n,
+                  updatedAt: new Date().toISOString(),
                   content: n.content
                     .split("\n")
                     .filter((l, i) => i !== index)
@@ -1204,7 +1209,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                 Database Version (Supabase)
               </h2>
               <p className="text-silver-200 text-sm sm:text-base">
-                Store notes in a classic database system.
+                Secure, private notes with user authentication. Perfect for personal organization with reliable cloud backup and instant sync across devices.
               </p>
             </div>
           </div>
@@ -1223,7 +1228,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                 Cloud Version
               </h2>
               <p className="text-silver-200 text-sm sm:text-base">
-                Store notes in the cloud (simulated with local storage).
+                Fast, offline-capable note storage with seamless device synchronization. Ideal for quick notes and collaborative work with automatic backup.
               </p>
             </div>
           </div>
@@ -1242,7 +1247,7 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                 Blockchain Version (SOL + Arweave)
               </h2>
               <p className="text-silver-200 text-sm sm:text-base">
-                Store notes permanently on the blockchain.
+                <strong>✨ PREMIUM:</strong> Eternal, censorship-resistant storage on Solana + Arweave. Your notes become immutable digital artifacts, preserved forever in the decentralized web. True ownership, zero data loss, maximum security.
               </p>
             </div>
           </div>
