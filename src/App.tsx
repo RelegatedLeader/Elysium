@@ -951,6 +951,18 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
           } else if (itemText.startsWith("[ ]")) {
             itemText = itemText.slice(3).trim();
           }
+        } else if (trimmed.startsWith("-") || trimmed.startsWith(".")) {
+          // Also handle - [ ] and . [ ] format for backward compatibility
+          itemText = trimmed.slice(1).trim();
+          if (itemText.startsWith("[x]") || itemText.startsWith("[X]")) {
+            isChecked = true;
+            itemText = itemText
+              .slice(3)
+              .trim()
+              .replace(/\(Done at .*\)/, "");
+          } else if (itemText.startsWith("[ ]")) {
+            itemText = itemText.slice(3).trim();
+          }
         }
       }
       
@@ -969,7 +981,54 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     .split("\n")
                     .map((l, i) =>
                       i === index
-                        ? `* [x] ${itemText} (Done at ${newTimestamp})`
+                        ? `${trimmed.startsWith("*") ? "*" : trimmed.startsWith("-") ? "-" : trimmed.startsWith(".") ? "." : "*"} [x] ${itemText} (Done at ${newTimestamp})`
+                        : l
+                    )
+                    .join("\n"),
+                }
+              : n
+          );
+          setNotes(updatedNotes);
+          if (mode === "db" && user) {
+            const session = (await supabase.auth.getSession()).data.session;
+            if (session) {
+              const key = await deriveKey(session.access_token);
+              const encContent = await encryptData(
+                updatedNotes.find((n) => n.id === noteId)!.content,
+                key
+              );
+              console.log("Updating note content in Supabase:", encContent);
+              const { error } = await supabase
+                .from("notes")
+                .update({ content: JSON.stringify(encContent) })
+                .eq("id", noteId);
+              if (error) console.error("Supabase update error:", error);
+            }
+          } else if (mode === "cloud") {
+            localStorage.setItem(
+              `elysium_notes_${mode}`,
+              JSON.stringify(updatedNotes)
+            );
+          }
+        }
+      };
+      
+      const handleTimestampClick = async () => {
+        if (isChecked && (mode !== "web3" || publicKey)) {
+          const newTimestamp = new Date().toISOString();
+          const updatedNotes = notes.map((n) =>
+            n.id === noteId
+              ? {
+                  ...n,
+                  completionTimestamps: {
+                    ...n.completionTimestamps,
+                    [index]: newTimestamp,
+                  },
+                  content: n.content
+                    .split("\n")
+                    .map((l, i) =>
+                      i === index
+                        ? `${trimmed.startsWith("*") ? "*" : trimmed.startsWith("-") ? "-" : trimmed.startsWith(".") ? "." : "*"} [x] ${itemText.replace(/\(Done at .*\)/, "")} (Done at ${newTimestamp})`
                         : l
                     )
                     .join("\n"),
@@ -1037,50 +1096,6 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
               JSON.stringify(updatedNotes)
             );
           }
-        } else if (!isChecked && (mode !== "web3" || publicKey)) {
-          // For To-Do List/ Checklist: mark as completed
-          const newTimestamp = new Date().toISOString();
-          const updatedNotes = notes.map((n) =>
-            n.id === noteId
-              ? {
-                  ...n,
-                  completionTimestamps: {
-                    ...n.completionTimestamps,
-                    [index]: newTimestamp,
-                  },
-                  content: n.content
-                    .split("\n")
-                    .map((l, i) =>
-                      i === index
-                        ? `* [x] ${itemText} (Done at ${newTimestamp})`
-                        : l
-                    )
-                    .join("\n"),
-                }
-              : n
-          );
-          setNotes(updatedNotes);
-          if (mode === "db" && user) {
-            const session = (await supabase.auth.getSession()).data.session;
-            if (session) {
-              const key = await deriveKey(session.access_token);
-              const encContent = await encryptData(
-                updatedNotes.find((n) => n.id === noteId)!.content,
-                key
-              );
-              console.log("Updating note content in Supabase:", encContent);
-              const { error } = await supabase
-                .from("notes")
-                .update({ content: JSON.stringify(encContent) })
-                .eq("id", noteId);
-              if (error) console.error("Supabase update error:", error);
-            }
-          } else if (mode === "cloud") {
-            localStorage.setItem(
-              `elysium_notes_${mode}`,
-              JSON.stringify(updatedNotes)
-            );
-          }
         }
       };
       
@@ -1118,20 +1133,16 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                 }`}
               >
                 {itemText}{" "}
-                {timestamp && (
-                  <span className="text-gray-500 text-xs md:text-sm ml-2">
-                    {timestamp}
+                {isChecked && (
+                  <span 
+                    className="text-gray-500 text-xs md:text-sm ml-2 cursor-pointer hover:text-indigo-400 transition-colors bg-gray-800/50 px-2 py-1 rounded"
+                    onClick={handleTimestampClick}
+                    title="Click to update timestamp"
+                  >
+                    {timestamp ? new Date(timestamp).toLocaleString() : "Click to set timestamp"}
                   </span>
                 )}
               </span>
-              {!isChecked && !isPermanent && (
-                <button
-                  onClick={handleRemoveItem}
-                  className="ml-2 text-red-400 hover:text-red-300 transition-colors duration-200 text-sm md:text-base"
-                >
-                  Remove
-                </button>
-              )}
             </>
           ) : (
             // Other templates or empty lines
@@ -1433,7 +1444,15 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                         </div>
                       )}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                        {notes.filter(note => mode !== "db" || !note.isPermanent).map((note) => (
+                        {notes
+                          .filter(note => mode !== "db" || !note.isPermanent)
+                          .sort((a, b) => {
+                            // Sort by updatedAt first, then by createdAt if updatedAt is not available
+                            const aTime = new Date(a.updatedAt || a.createdAt).getTime();
+                            const bTime = new Date(b.updatedAt || b.createdAt).getTime();
+                            return bTime - aTime; // Most recent first
+                          })
+                          .map((note) => (
                           <animated.div
                             key={note.id}
                             style={noteSpring}
@@ -1599,12 +1618,18 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                     />
                   </div>
                   {(() => {
-                    const filteredNotes = notes.filter(note => 
-                      mode !== "db" || !note.isPermanent
-                    ).filter(note =>
-                      note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      note.content.toLowerCase().includes(searchQuery.toLowerCase())
-                    );
+                    const filteredNotes = notes
+                      .filter(note => mode !== "db" || !note.isPermanent)
+                      .filter(note =>
+                        note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        note.content.toLowerCase().includes(searchQuery.toLowerCase())
+                      )
+                      .sort((a, b) => {
+                        // Sort by updatedAt first, then by createdAt if updatedAt is not available
+                        const aTime = new Date(a.updatedAt || a.createdAt).getTime();
+                        const bTime = new Date(b.updatedAt || b.createdAt).getTime();
+                        return bTime - aTime; // Most recent first
+                      });
                     
                     return filteredNotes.length > 0 ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
@@ -1929,7 +1954,15 @@ function WelcomePage({ user, setUser }: { user: any; setUser: (user: any) => voi
                                 viewingNote.content,
                                 viewingNote.template,
                                 [viewingNote],
-                                () => {},
+                                (updatedNotes) => {
+                                  // Update the viewing note when changes are made
+                                  const notesArray = Array.isArray(updatedNotes) ? updatedNotes : updatedNotes(notes);
+                                  const updatedViewingNote = notesArray.find(n => n.id === viewingNote.id);
+                                  if (updatedViewingNote) {
+                                    setViewingNote(updatedViewingNote);
+                                  }
+                                  setNotes(updatedNotes);
+                                },
                                 viewingNote.isPermanent || false
                               )}
                             </div>
