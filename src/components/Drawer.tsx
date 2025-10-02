@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../SUPABASE/supabaseClient";
 
 interface DrawerProps {
-  onNavigate: (page: "recent" | "create" | "settings" | "logout" | "search") => void;
+  onNavigate: (page: "recent" | "create" | "settings" | "logout" | "search" | "api-test") => void;
   onSearch: (query: string) => void;
   theme?: string;
 }
@@ -68,7 +68,7 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch, theme = "Dark" })
   };
 
   const handleNavigate = (
-    page: "recent" | "create" | "settings" | "logout" | "search"
+    page: "recent" | "create" | "settings" | "logout" | "search" | "api-test"
   ) => {
     onNavigate(page);
     setIsOpen(false); // Close the drawer after navigation
@@ -212,6 +212,19 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch, theme = "Dark" })
             }`}
           >
             Settings
+          </button>
+          <button
+            onClick={() => handleNavigate("api-test")}
+            className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left flex items-center space-x-2 ${
+              theme === "Light"
+                ? "bg-gradient-to-br from-yellow-100 to-orange-100 hover:from-yellow-200 hover:to-orange-200 text-gray-800 border border-yellow-200/50"
+                : "bg-gradient-to-br from-yellow-800 to-orange-900 bg-opacity-70 hover:bg-opacity-90 text-white"
+            }`}
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span>API Test</span>
           </button>
           <button
             onClick={() => handleNavigate("logout")}

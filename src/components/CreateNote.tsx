@@ -85,18 +85,17 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
     }, 30000); // 30 second timeout
 
     try {
-      console.log('Sending request to OpenRouter for', type);
+      console.log('Sending request to Mistral AI for', type);
+      console.log('API Key available:', !!process.env.REACT_APP_MISTRAL_API_KEY);
 
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.REACT_APP_OPENROUTER_API_KEY}`,
+          'Authorization': `Bearer ${process.env.REACT_APP_MISTRAL_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'Elysium Note Assistant',
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-3.2-3b-instruct:free',
+          model: 'mistral-small',
           messages: [{
             role: 'user',
             content: getPromptForType(type, context)
@@ -115,9 +114,10 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
       }
 
       const data = await response.json();
-      console.log('Received response from OpenRouter:', data);
+      console.log('Received response from Mistral AI:', data);
 
       const suggestion = data.choices?.[0]?.message?.content;
+      console.log('Extracted suggestion:', suggestion);
 
       if (!suggestion) {
         throw new Error('No response content received from API');
@@ -125,7 +125,7 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
 
       setAiSuggestions([suggestion]);
     } catch (error) {
-      console.error("OpenRouter API error:", error);
+      console.error("Mistral AI API error:", error);
       clearTimeout(timeoutId); // Clear timeout on error
       setIsGenerating(false); // Ensure generating state is reset immediately
 
@@ -180,6 +180,10 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
     }, 30000); // 30 second timeout
 
     try {
+      console.log('Starting chat request to Mistral AI');
+      console.log('API Key available:', !!process.env.REACT_APP_MISTRAL_API_KEY);
+      console.log('User message:', userMessage);
+
       const conversationContext = messageHistory.slice(-4).map(msg =>
         `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
       ).join('\n\n');
@@ -193,18 +197,16 @@ User's new question: ${userMessage}
 
 Please provide a helpful, friendly response. Be conversational and focus on helping with their note-taking needs.`;
 
-      console.log('Sending request to OpenRouter...');
+      console.log('Sending chat request to Mistral AI...');
 
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.REACT_APP_OPENROUTER_API_KEY}`,
+          'Authorization': `Bearer ${process.env.REACT_APP_MISTRAL_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'Elysium Note Assistant',
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-3.2-3b-instruct:free',
+          model: 'mistral-small',
           messages: [{
             role: 'user',
             content: fullPrompt
@@ -218,14 +220,15 @@ Please provide a helpful, friendly response. Be conversational and focus on help
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('OpenRouter Chat API Error:', response.status, errorText);
+        console.error('Mistral AI Chat API Error:', response.status, errorText);
         throw new Error(`API request failed: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('Received response from OpenRouter:', data);
+      console.log('Received response from Mistral AI:', data);
 
       const aiResponse = data.choices?.[0]?.message?.content;
+      console.log('Extracted AI response:', aiResponse);
 
       if (!aiResponse) {
         throw new Error('No response content received from API');
