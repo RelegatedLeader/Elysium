@@ -20,11 +20,13 @@ import Drawer from "./components/Drawer";
 import CreateNote from "./components/CreateNote";
 import Settings from "./components/Settings";
 import Logout from "./components/Logout";
+import CloudAuth from "./components/CloudAuth";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
 import { uploadToArweave, setWallet } from "./utils/arweave-utils";
 import idlJson from "./idl.json";
 import { supabase } from "./SUPABASE/supabaseClient";
 import { Session } from "@supabase/supabase-js";
+import { useCloudStorage } from "./hooks/useCloudStorage";
 
 interface Note {
   id: string;
@@ -1557,6 +1559,7 @@ function WelcomePage({
     "recent" | "create" | "settings" | "logout" | "search"
   >("recent");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCloudAuthModal, setShowCloudAuthModal] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [isCloudButtonClicked, setIsCloudButtonClicked] = useState(false);
 
@@ -1569,6 +1572,9 @@ function WelcomePage({
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editTemplate, setEditTemplate] = useState("Auto");
+
+  // Cloud storage hook
+  const cloudStorage = useCloudStorage();
 
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem("elysium_settings");
@@ -1907,6 +1913,24 @@ function WelcomePage({
           alert("Please log in to save a note.");
           return;
         }
+      } else if (mode === "cloud" && cloudStorage.user) {
+        // Create note in Firebase
+        await cloudStorage.createNote({
+          title: note.title,
+          content: note.content,
+          template: note.template,
+        });
+        newNote = {
+          id: Date.now().toString(), // Temporary ID until we get it from Firebase
+          title: note.title,
+          content: note.content,
+          template: note.template,
+          isPermanent: false,
+          completionTimestamps: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          files: note.files,
+        };
       } else {
         newNote = {
           id: Date.now().toString(),
@@ -1924,7 +1948,8 @@ function WelcomePage({
       setFiles(note.files);
       setShowCreateModal(false);
       setActivePage("recent");
-      if (mode === "cloud") {
+      if (mode === "cloud" && !cloudStorage.user) {
+        // Only save to localStorage if not authenticated
         localStorage.setItem(
           `elysium_notes_${mode}`,
           JSON.stringify([...notes, newNote])
@@ -2238,21 +2263,37 @@ function WelcomePage({
     if (mode === "db" && user) {
       fetchNotes();
     } else if (mode === "cloud") {
-      const stored = localStorage.getItem(`elysium_notes_${mode}`);
-      console.log("Cloud notes from localStorage:", stored);
-      setNotes(stored ? JSON.parse(stored) : getDefaultNotes(mode));
+      if (cloudStorage.user) {
+        // Load notes from Firebase
+        setNotes(cloudStorage.notes.map(cloudNote => ({
+          id: cloudNote.id!,
+          title: cloudNote.title,
+          content: cloudNote.content,
+          template: cloudNote.template || 'Auto',
+          isPermanent: false,
+          completionTimestamps: {},
+          createdAt: cloudNote.createdAt.toDate().toISOString(),
+          updatedAt: cloudNote.updatedAt.toDate().toISOString(),
+        })));
+      } else {
+        // Load from localStorage if not authenticated
+        const stored = localStorage.getItem(`elysium_notes_${mode}`);
+        console.log("Cloud notes from localStorage:", stored);
+        setNotes(stored ? JSON.parse(stored) : getDefaultNotes(mode));
+      }
     } else if (mode === "web3") {
       setNotes(getDefaultNotes(mode));
       if (connected) loadFromBlockchain();
     }
-  }, [mode, user, connected, fetchNotes]);
+  }, [mode, user, connected, fetchNotes, cloudStorage.user, cloudStorage.notes]);
 
   useEffect(() => {
-    if (mode !== "web3" && mode !== "db") {
+    if (mode === "cloud" && !cloudStorage.user) {
+      // Only save to localStorage if not authenticated
       console.log("Saving cloud notes to localStorage:", notes);
       localStorage.setItem(`elysium_notes_${mode}`, JSON.stringify(notes));
     }
-  }, [notes, mode]);
+  }, [notes, mode, cloudStorage.user]);
 
   useEffect(() => {
     if (connected && mode === "web3") {
@@ -2844,7 +2885,13 @@ function WelcomePage({
                           : "bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white font-bold py-3 px-6 sm:px-8 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg"
                       }
                       onClickCapture={() => {
-                        if (mode === "cloud") setIsCloudButtonClicked(true);
+                        if (mode === "cloud") {
+                          if (cloudStorage.user) {
+                            setIsCloudButtonClicked(true);
+                          } else {
+                            setShowCloudAuthModal(true);
+                          }
+                        }
                       }}
                     >
                       {mode === "db"
@@ -3266,6 +3313,18 @@ function WelcomePage({
                   />
                 </div>
               </div>
+            )}
+            {showCloudAuthModal && (
+              <CloudAuth
+                onAuthenticated={() => {
+                  setShowCloudAuthModal(false);
+                  setIsCloudButtonClicked(true);
+                }}
+                onCancel={() => {
+                  setShowCloudAuthModal(false);
+                  setMode("web3"); // Fall back to web3 mode if auth is cancelled
+                }}
+              />
             )}
           </div>
 
