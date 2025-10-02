@@ -26,8 +26,9 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [messageHistory, setMessageHistory] = useState<Array<{type: 'user' | 'ai', content: string}>>([]);
+  const [completionTimestamps, setCompletionTimestamps] = useState<{[key: number]: string}>({});
 
-  // Ref for auto-scrolling to bottom of messages
+  // Refs for auto-scrolling
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages are added
@@ -56,9 +57,9 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
     const baseClass = "w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 resize-none hover:shadow-[inset_0_0_10px_rgba(79,70,229,0.2)]";
     
     if (template === "Canvas") {
-      return baseClass + " h-80 font-mono text-sm";
+      return baseClass + " font-mono text-sm";
     }
-    return baseClass + " h-64";
+    return baseClass;
   };
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -74,6 +75,149 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
         setTemplate("List");
       }
     }
+  };
+
+  const renderLiveContent = () => {
+    const lines = content.split("\n");
+    const items = lines.map((line, index) => {
+      const trimmed = line.trim();
+      let itemText = trimmed;
+      let isChecked = false;
+      let timestamp = completionTimestamps[index] || "";
+
+      // Handle different template types
+      if (template === "List") {
+        // For List template: just bullet points, no checkboxes
+        if (trimmed.startsWith("-") || trimmed.startsWith(".")) {
+          itemText = trimmed.slice(1).trim();
+        }
+      } else if (template === "To-Do List" || template === "Checklist") {
+        // For To-Do List/ Checklist: handle checkboxes
+        if (trimmed.startsWith("*")) {
+          itemText = trimmed.slice(1).trim();
+          if (itemText.startsWith("[x]") || itemText.startsWith("[X]")) {
+            isChecked = true;
+            itemText = itemText
+              .slice(3)
+              .trim()
+              .replace(/\(Done at .*\)/, "");
+          } else if (itemText.startsWith("[ ]")) {
+            itemText = itemText.slice(3).trim();
+          }
+        } else if (trimmed.startsWith("-") || trimmed.startsWith(".")) {
+          // Also handle - [ ] and . [ ] format for backward compatibility
+          itemText = trimmed.slice(1).trim();
+          if (itemText.startsWith("[x]") || itemText.startsWith("[X]")) {
+            isChecked = true;
+            itemText = itemText
+              .slice(3)
+              .trim()
+              .replace(/\(Done at .*\)/, "");
+          } else if (itemText.startsWith("[ ]")) {
+            itemText = itemText.slice(3).trim();
+          }
+        }
+      }
+
+      const handleToggleCheck = () => {
+        if (!isChecked) {
+          const newTimestamp = new Date().toISOString();
+          setCompletionTimestamps(prev => ({
+            ...prev,
+            [index]: newTimestamp,
+          }));
+          // Update content with checked state
+          const updatedContent = content
+            .split("\n")
+            .map((l, i) =>
+              i === index
+                ? `${trimmed.startsWith("*") ? "*" : trimmed.startsWith("-") ? "-" : trimmed.startsWith(".") ? "." : "*"} [x] ${itemText} (Done at ${newTimestamp})`
+                : l
+            )
+            .join("\n");
+          setContent(updatedContent);
+        }
+      };
+
+      const handleTimestampClick = () => {
+        if (isChecked) {
+          // Ask for confirmation since changing timestamp is irreversible
+          const confirmChange = window.confirm(
+            "Are you sure you want to change the completion timestamp? This action cannot be undone."
+          );
+
+          if (!confirmChange) return;
+
+          const newTimestamp = new Date().toISOString();
+          setCompletionTimestamps(prev => ({
+            ...prev,
+            [index]: newTimestamp,
+          }));
+          // Update content with new timestamp
+          const updatedContent = content
+            .split("\n")
+            .map((l, i) =>
+              i === index
+                ? `${trimmed.startsWith("*") ? "*" : trimmed.startsWith("-") ? "-" : trimmed.startsWith(".") ? "." : "*"} [x] ${itemText.replace(/\s*\(Done at .*\)/, "")} (Done at ${newTimestamp})`
+                : l
+            )
+            .join("\n");
+          setContent(updatedContent);
+        }
+      };
+
+      return (
+        <div key={index} className="flex items-center mb-2">
+          {template === "List" ? (
+            // List template: bullet points
+            <>
+              <span className="mr-2 text-indigo-400 text-lg">•</span>
+              <span className="text-silver-200 flex-1 text-base md:text-sm">
+                {itemText}
+              </span>
+            </>
+          ) : (template === "To-Do List" || template === "Checklist") &&
+            (itemText.trim() ||
+              template === "To-Do List" ||
+              template === "Checklist") ? (
+            // To-Do List/ Checklist template: checkboxes
+            <>
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={handleToggleCheck}
+                className="mr-2 h-6 w-6 md:h-5 md:w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors duration-200 pointer-events-auto"
+                disabled={isChecked}
+              />
+              <span
+                className={`text-silver-200 flex-1 text-base md:text-sm ${
+                  isChecked ? "line-through text-gray-500" : ""
+                }`}
+              >
+                {itemText}{" "}
+                {isChecked && (
+                  <span
+                    className="text-gray-500 text-xs md:text-sm ml-2 cursor-pointer hover:text-indigo-400 transition-colors bg-gray-800/50 px-2 py-1 rounded pointer-events-auto"
+                    onClick={handleTimestampClick}
+                    title="Click to update timestamp"
+                  >
+                    {timestamp
+                      ? new Date(timestamp).toLocaleString()
+                      : "Click to set timestamp"}
+                  </span>
+                )}
+              </span>
+            </>
+          ) : (
+            // Other templates or empty lines
+            <span className="text-silver-200 flex-1 text-base md:text-sm">
+              {itemText}
+            </span>
+          )}
+        </div>
+      );
+    });
+    return items;
   };
 
   // AI Assistant Functions
@@ -461,14 +605,31 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   />
                 </label>
               </div>
-              <textarea
-                id="content"
-                placeholder={getPlaceholderText()}
-                value={content}
-                onChange={handleContentChange}
-                className={getTextareaClass()}
-                aria-required="true"
-              />
+              <div className="relative" style={{ height: template === "Canvas" ? "320px" : "256px" }}>
+                <textarea
+                  id="content"
+                  placeholder={getPlaceholderText()}
+                  value={content}
+                  onChange={handleContentChange}
+                  className={`${getTextareaClass()} absolute inset-0 z-10 bg-transparent text-transparent caret-white resize-none`}
+                  style={{
+                    color: 'transparent',
+                    backgroundColor: 'transparent',
+                    WebkitTextFillColor: 'transparent'
+                  }}
+                  aria-required="true"
+                />
+                {/* Live inline preview overlay */}
+                <div className="absolute inset-0 z-20 pointer-events-none p-4 text-white whitespace-pre-wrap leading-relaxed overflow-hidden">
+                  {content ? (
+                    <div className="space-y-1">
+                      {renderLiveContent()}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">{getPlaceholderText()}</span>
+                  )}
+                </div>
+              </div>
               {files.length > 0 && (
                 <p className="text-xs text-gray-400 mt-2">
                   {files.length} file(s) selected
