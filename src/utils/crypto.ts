@@ -7,7 +7,11 @@ export const deriveKeyPair = (publicKey: Uint8Array): nacl.BoxKeyPair => {
   const seed = nacl.hash(publicKey).slice(0, 32); // 32 bytes for seed
   const keyPair = nacl.box.keyPair(); // Generate a new key pair
   // Overwrite secret key with a deterministic derivation (for demo; replace with secure method later)
-  keyPair.secretKey = nacl.hash(Buffer.concat([seed, publicKey])).slice(0, 32);
+  // Browser-compatible concatenation of Uint8Arrays
+  const combined = new Uint8Array(seed.length + publicKey.length);
+  combined.set(seed);
+  combined.set(publicKey, seed.length);
+  keyPair.secretKey = nacl.hash(combined).slice(0, 32);
   return keyPair;
 };
 

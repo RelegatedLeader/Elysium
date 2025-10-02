@@ -16,7 +16,7 @@ import {
   DocumentData
 } from 'firebase/firestore';
 import { db } from './config';
-import { encryptAndCompress, decryptNote } from '../utils/crypto';
+import { encryptAndCompress, decryptNote, encryptNote } from '../utils/crypto';
 
 export interface CloudNote {
   id?: string;
@@ -65,22 +65,30 @@ export class FirebaseFirestoreService {
   } {
     const publicKey = this.getUserPublicKey(note.userId);
 
-    // Encrypt each field using encryptAndCompress which generates its own nonce
-    const titleResult = encryptAndCompress(note.title, publicKey);
-    const contentResult = encryptAndCompress(note.content, publicKey);
-    const templateResult = note.template ? encryptAndCompress(note.template, publicKey) : null;
-    const tagsResult = note.tags ? encryptAndCompress(JSON.stringify(note.tags), publicKey) : null;
+    // Generate one nonce for all fields
+    const nonce = crypto.getRandomValues(new Uint8Array(24)); // 24 bytes for NaCl nonce
 
-    // Use the nonce from the first encryption for all fields (simplified approach)
-    const nonce = titleResult.nonce;
+    // Encrypt each field using the same nonce
+    const titleResult = encryptNote(note.title, publicKey, nonce);
+    const contentResult = encryptNote(note.content, publicKey, nonce);
+    const templateResult = note.template ? encryptNote(note.template, publicKey, nonce) : null;
+    const tagsResult = note.tags && note.tags.length > 0 ? encryptNote(JSON.stringify(note.tags), publicKey, nonce) : null;
 
-    return {
-      encryptedTitle: btoa(String.fromCharCode.apply(null, Array.from(titleResult.encrypted))),
-      encryptedContent: btoa(String.fromCharCode.apply(null, Array.from(contentResult.encrypted))),
-      encryptedTemplate: templateResult ? btoa(String.fromCharCode.apply(null, Array.from(templateResult.encrypted))) : undefined,
-      encryptedTags: tagsResult ? btoa(String.fromCharCode.apply(null, Array.from(tagsResult.encrypted))) : undefined,
+    const result: any = {
+      encryptedTitle: btoa(String.fromCharCode.apply(null, Array.from(titleResult))),
+      encryptedContent: btoa(String.fromCharCode.apply(null, Array.from(contentResult))),
       nonce: btoa(String.fromCharCode.apply(null, Array.from(nonce)))
     };
+
+    // Only include optional encrypted fields if they exist
+    if (templateResult) {
+      result.encryptedTemplate = btoa(String.fromCharCode.apply(null, Array.from(templateResult)));
+    }
+    if (tagsResult) {
+      result.encryptedTags = btoa(String.fromCharCode.apply(null, Array.from(tagsResult)));
+    }
+
+    return result;
   }
 
   // Decrypt note data after retrieving
