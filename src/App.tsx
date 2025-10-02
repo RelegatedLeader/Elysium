@@ -20,7 +20,6 @@ import Drawer from "./components/Drawer";
 import CreateNote from "./components/CreateNote";
 import Settings from "./components/Settings";
 import Logout from "./components/Logout";
-import APITest from "./components/APITest";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
 import { uploadToArweave, setWallet } from "./utils/arweave-utils";
 import idlJson from "./idl.json";
@@ -1555,7 +1554,7 @@ function WelcomePage({
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
 
   const [activePage, setActivePage] = useState<
-    "recent" | "create" | "settings" | "logout" | "search" | "api-test"
+    "recent" | "create" | "settings" | "logout" | "search"
   >("recent");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -1944,7 +1943,7 @@ function WelcomePage({
   };
 
   const handlePageChange = (
-    page: "recent" | "create" | "settings" | "logout" | "search" | "api-test"
+    page: "recent" | "create" | "settings" | "logout" | "search"
   ) => {
     setActivePage(page);
   };
@@ -3069,9 +3068,6 @@ function WelcomePage({
                   initialNoteSorting={settings.noteSorting}
                   initialDataRetention={settings.dataRetention}
                 />
-              )}
-              {activePage === "api-test" && (
-                <APITest />
               )}
               {activePage === "logout" && (
                 <Logout

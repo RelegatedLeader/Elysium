@@ -55,6 +55,9 @@ const Settings: React.FC<SettingsProps> = ({
   const [defaultTemplate, setDefaultTemplate] = useState(initialDefaultTemplate);
   const [noteSorting, setNoteSorting] = useState(initialNoteSorting);
   const [dataRetention, setDataRetention] = useState(initialDataRetention);
+  const [showApiTest, setShowApiTest] = useState(false);
+  const [apiTestResult, setApiTestResult] = useState<string>('');
+  const [isTestingApi, setIsTestingApi] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [donateAmount, setDonateAmount] = useState<number | null>(null);
   const [showDonateModal, setShowDonateModal] = useState(false);
@@ -183,6 +186,65 @@ const Settings: React.FC<SettingsProps> = ({
     }
   };
 
+  const testApiConnection = async () => {
+    setIsTestingApi(true);
+    setApiTestResult('Testing Mistral AI API key and models...\n');
+
+    const apiKey = process.env.REACT_APP_MISTRAL_API_KEY;
+
+    if (!apiKey) {
+      setApiTestResult('❌ No Mistral AI API key found in environment variables');
+      setIsTestingApi(false);
+      return;
+    }
+
+    setApiTestResult(prev => prev + `✅ Mistral AI API key found: ${apiKey.substring(0, 20)}...\n\n`);
+
+    const models = [
+      'mistral-tiny',        // Fast and free
+      'mistral-small',       // Good balance of speed/quality
+      'mistral-medium',      // More capable
+      'mistral-large-latest' // Most capable (still free tier)
+    ];
+
+    for (const model of models) {
+      try {
+        setApiTestResult(prev => prev + `🔄 Testing ${model}...\n`);
+
+        const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [{
+              role: 'user',
+              content: 'Say "Hello from Elysium test!" and nothing else.'
+            }],
+            max_tokens: 50,
+            temperature: 0.1,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const content = data.choices?.[0]?.message?.content;
+          setApiTestResult(prev => prev + `✅ ${model}: ${content}\n\n`);
+        } else {
+          const errorText = await response.text();
+          setApiTestResult(prev => prev + `❌ ${model}: ${response.status} - ${errorText}\n\n`);
+        }
+      } catch (error) {
+        setApiTestResult(prev => prev + `💥 ${model}: ${error instanceof Error ? error.message : String(error)}\n\n`);
+      }
+    }
+
+    setApiTestResult(prev => prev + 'Test completed.');
+    setIsTestingApi(false);
+  };
+
   return (
     <div className={`min-h-screen flex items-center justify-center text-white relative overflow-hidden ${theme === 'Light' ? 'bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100' : 'bg-gradient-to-br from-purple-900 via-indigo-900 to-black'}`}>
       <div className={`absolute inset-0 ${theme === 'Light' ? 'bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.05)_0%,transparent_70%)]' : 'bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)]'} pointer-events-none`}></div>
@@ -191,24 +253,33 @@ const Settings: React.FC<SettingsProps> = ({
           <h2 className={`text-3xl font-bold mb-6 tracking-tight text-shadow-[0_2px_4px_rgba(0,0,0,0.3)] ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
             Settings
           </h2>
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor="theme"
-                className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
-              >
-                Theme
-              </label>
-              <select
-                id="theme"
-                value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
-                aria-label="Select theme"
-              >
-                <option value="Dark">Dark</option>
-                <option value="Light">Light</option>
-              </select>
+          <div className="space-y-6">
+            {/* Appearance Settings */}
+            <div className={`border-b pb-6 ${theme === 'Light' ? 'border-purple-200' : 'border-indigo-600'}`}>
+              <div className="flex items-center mb-4">
+                <span className="text-2xl mr-3">🎨</span>
+                <h3 className={`text-xl font-bold ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
+                  Appearance
+                </h3>
+              </div>
+              <div>
+                <label
+                  htmlFor="theme"
+                  className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
+                >
+                  Theme
+                </label>
+                <select
+                  id="theme"
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                  className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
+                  aria-label="Select theme"
+                >
+                  <option value="Dark">Dark</option>
+                  <option value="Light">Light</option>
+                </select>
+              </div>
             </div>
             <div>
               <label
@@ -253,23 +324,23 @@ const Settings: React.FC<SettingsProps> = ({
               </p>
             </div>
 
-            {/* AI Agent Settings - Prominent Section */}
-            <div className={`border-t-2 pt-6 mt-6 ${theme === 'Light' ? 'border-purple-300' : 'border-indigo-500'}`}>
+            {/* AI Assistant Settings */}
+            <div className={`border-b pb-6 ${theme === 'Light' ? 'border-purple-200' : 'border-indigo-600'}`}>
               <div className="flex items-center mb-4">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 mr-3">
                   <span className="text-white text-lg">🤖</span>
                 </div>
                 <div>
                   <h3 className={`text-xl font-bold ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
-                    AI Assistant Settings
+                    AI Assistant
                   </h3>
                   <p className={`text-sm ${theme === 'Light' ? 'text-purple-600' : 'text-gray-400'}`}>
-                    Customize how your AI assistant responds
+                    Customize your AI assistant and test connections
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 {/* Response Style */}
                 <div className={`p-4 rounded-lg border-2 transition-all duration-300 ${theme === 'Light' ? 'bg-purple-50/50 border-purple-200 hover:border-purple-400' : 'bg-indigo-950/30 border-indigo-600 hover:border-indigo-400'}`}>
                   <div className="flex items-center mb-3">
@@ -343,6 +414,44 @@ const Settings: React.FC<SettingsProps> = ({
                 </div>
               </div>
 
+              {/* API Test Section */}
+              <div className={`p-4 rounded-lg border-2 transition-all duration-300 ${theme === 'Light' ? 'bg-yellow-50/50 border-yellow-200' : 'bg-yellow-950/20 border-yellow-600'}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center">
+                    <span className="text-2xl mr-2">🔧</span>
+                    <div>
+                      <label className={`text-sm font-semibold ${theme === 'Light' ? 'text-yellow-800' : 'text-yellow-200'}`}>
+                        API Connection Test
+                      </label>
+                      <p className={`text-xs ${theme === 'Light' ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                        Test your Mistral AI API key and available models
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={testApiConnection}
+                    disabled={isTestingApi}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                      theme === 'Light'
+                        ? 'bg-yellow-600 hover:bg-yellow-700 text-white disabled:bg-yellow-400'
+                        : 'bg-yellow-600 hover:bg-yellow-700 text-white disabled:bg-yellow-800'
+                    } disabled:cursor-not-allowed`}
+                  >
+                    {isTestingApi ? 'Testing...' : 'Test API'}
+                  </button>
+                </div>
+
+                {apiTestResult && (
+                  <div className={`mt-3 p-3 rounded border text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto ${
+                    theme === 'Light'
+                      ? 'bg-gray-100 border-gray-300 text-gray-800'
+                      : 'bg-gray-900 border-gray-600 text-gray-200'
+                  }`}>
+                    {apiTestResult}
+                  </div>
+                )}
+              </div>
+
               {/* Live Preview */}
               <div className={`mt-6 p-4 rounded-lg ${theme === 'Light' ? 'bg-purple-100/50 border border-purple-300' : 'bg-indigo-900/30 border border-indigo-600'}`}>
                 <h4 className={`text-sm font-semibold mb-2 ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
@@ -368,12 +477,34 @@ const Settings: React.FC<SettingsProps> = ({
               </div>
             </div>
 
-            {/* Note Management Settings */}
-            <div className={`border-t pt-4 ${theme === 'Light' ? 'border-purple-200' : 'border-indigo-600'}`}>
-              <h3 className={`text-lg font-semibold mb-3 ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
-                📝 Note Management
-              </h3>
-              <div className="space-y-3">
+            {/* Behavior Settings */}
+            <div className={`border-b pb-6 ${theme === 'Light' ? 'border-purple-200' : 'border-indigo-600'}`}>
+              <div className="flex items-center mb-4">
+                <span className="text-2xl mr-3">⚙️</span>
+                <h3 className={`text-xl font-bold ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
+                  Behavior
+                </h3>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
+                    Notifications
+                  </label>
+                  <div className="flex items-center justify-center space-x-2">
+                    <input
+                      id="notifications"
+                      type="checkbox"
+                      checked={notifications}
+                      onChange={(e) => setNotifications(e.target.checked)}
+                      className={`h-4 w-4 focus:ring-purple-400 border-purple-300 rounded transition-all duration-200 ${theme === 'Light' ? 'text-purple-600 bg-white border-purple-300' : 'text-indigo-400 bg-indigo-950/90 border-indigo-600'}`}
+                      aria-label="Enable notifications"
+                    />
+                    <span className={`text-sm ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
+                      Enable Notifications
+                    </span>
+                  </div>
+                </div>
+
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
                     Auto-Save
@@ -392,6 +523,7 @@ const Settings: React.FC<SettingsProps> = ({
                     </span>
                   </div>
                 </div>
+
                 <div>
                   <label
                     htmlFor="default-template"
@@ -414,6 +546,7 @@ const Settings: React.FC<SettingsProps> = ({
                     <option value="Research Notes">Research Notes</option>
                   </select>
                 </div>
+
                 <div>
                   <label
                     htmlFor="note-sorting"
@@ -437,12 +570,37 @@ const Settings: React.FC<SettingsProps> = ({
               </div>
             </div>
 
-            {/* Privacy & Security Settings */}
-            <div className={`border-t pt-4 ${theme === 'Light' ? 'border-purple-200' : 'border-indigo-600'}`}>
-              <h3 className={`text-lg font-semibold mb-3 ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
-                🔒 Privacy & Security
-              </h3>
-              <div className="space-y-3">
+            {/* Data & Sync Settings */}
+            <div className={`border-b pb-6 ${theme === 'Light' ? 'border-purple-200' : 'border-indigo-600'}`}>
+              <div className="flex items-center mb-4">
+                <span className="text-2xl mr-3">💾</span>
+                <h3 className={`text-xl font-bold ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
+                  Data & Sync
+                </h3>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="sync-interval"
+                    className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
+                  >
+                    Auto-Sync Interval (minutes)
+                  </label>
+                  <input
+                    id="sync-interval"
+                    type="number"
+                    min="5"
+                    max="120"
+                    value={syncInterval}
+                    onChange={(e) => setSyncInterval(parseInt(e.target.value) || 15)}
+                    className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
+                    aria-label="Set sync interval"
+                  />
+                  <p className={`text-xs mt-1 ${theme === 'Light' ? 'text-purple-600' : 'text-gray-400'}`}>
+                    How often to automatically sync your notes (5-120 minutes)
+                  </p>
+                </div>
+
                 <div>
                   <label
                     htmlFor="data-retention"
@@ -466,27 +624,28 @@ const Settings: React.FC<SettingsProps> = ({
                     How long to keep deleted notes before permanent removal
                   </p>
                 </div>
+
+                {onCleanupOrphanedNotes && (
+                  <div className={`p-4 rounded-lg border-2 ${theme === 'Light' ? 'bg-red-50/50 border-red-200' : 'bg-red-950/20 border-red-600'}`}>
+                    <div className="flex items-center mb-2">
+                      <span className="text-2xl mr-2">🧹</span>
+                      <label className={`text-sm font-semibold ${theme === 'Light' ? 'text-red-800' : 'text-red-200'}`}>
+                        Database Maintenance
+                      </label>
+                    </div>
+                    <p className={`text-xs mb-3 ${theme === 'Light' ? 'text-red-600' : 'text-red-400'}`}>
+                      Clean up notes that were encrypted with an old method and cannot be recovered
+                    </p>
+                    <button
+                      onClick={onCleanupOrphanedNotes}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'Light' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+                    >
+                      Clean Up Orphaned Notes
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-
-            {onCleanupOrphanedNotes && (
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
-                  Database Maintenance
-                </label>
-                <div className="text-center space-y-2">
-                  <p className={`text-xs ${theme === 'Light' ? 'text-purple-600' : 'text-yellow-300'}`}>
-                    Clean up notes that were encrypted with an old method and cannot be recovered
-                  </p>
-                  <button
-                    onClick={onCleanupOrphanedNotes}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'Light' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-                  >
-                    Clean Up Orphaned Notes
-                  </button>
-                </div>
-              </div>
-            )}
             <div>
               <label className={`block text-sm font-medium mb-2 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}>
                 Support Elysium
