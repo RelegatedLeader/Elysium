@@ -16,7 +16,7 @@ interface CreateNoteProps {
   aiPersonality?: string;
 }
 
-const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme = "Dark", defaultTemplate = "Blank" }) => {
+const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme = "Dark", defaultTemplate = "Blank", aiResponseStyle = "Balanced", aiPersonality = "Professional" }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [template, setTemplate] = useState(defaultTemplate);
@@ -90,6 +90,24 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
       console.log('Sending request to Mistral AI for', type);
       console.log('API Key available:', !!process.env.REACT_APP_MISTRAL_API_KEY);
 
+      // Adjust parameters based on AI response style
+      const getAIParameters = () => {
+        switch (aiResponseStyle) {
+          case "Concise":
+            return { max_tokens: 150, temperature: 0.1 };
+          case "Balanced":
+            return { max_tokens: 300, temperature: 0.3 };
+          case "Detailed":
+            return { max_tokens: 500, temperature: 0.4 };
+          case "Creative":
+            return { max_tokens: 400, temperature: 0.7 };
+          default:
+            return { max_tokens: 300, temperature: 0.3 };
+        }
+      };
+
+      const { max_tokens, temperature } = getAIParameters();
+
       const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -100,10 +118,10 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
           model: 'mistral-small',
           messages: [{
             role: 'user',
-            content: getPromptForType(type, context)
+            content: getPromptForType(type, context, aiPersonality)
           }],
-          max_tokens: 300,
-          temperature: 0.3,
+          max_tokens: max_tokens,
+          temperature: temperature,
         }),
       });
 
@@ -125,6 +143,8 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
         throw new Error('No response content received from API');
       }
 
+      // Add the AI suggestion to message history so it appears in chat
+      setMessageHistory(prev => [...prev, { type: 'ai', content: suggestion }]);
       setAiSuggestions([suggestion]);
     } catch (error) {
       console.error("Mistral AI API error:", error);
@@ -154,14 +174,34 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
     }
   };
 
-  const getPromptForType = (type: string, context: string) => {
-    const prompts = {
-      summarize: `Please provide a clear and concise summary of this note in 2-3 sentences:\n\n${context}`,
-      list: `Extract the main points and create a numbered list from this note:\n\n${context}`,
-      todo: `Convert this note into a checklist of actionable tasks. Use * for each checkbox item:\n\n${context}`,
-      improve: `Please improve and enhance this note by making it clearer, more organized, and more professional:\n\n${context}`
+  const getPromptForType = (type: string, context: string, personality?: string) => {
+    // Get personality-specific instructions
+    const getPersonalityInstructions = () => {
+      switch (personality) {
+        case "Professional":
+          return "Respond in a professional, business-like manner with clear, structured communication.";
+        case "Friendly":
+          return "Respond in a warm, friendly, and approachable manner, like a helpful colleague.";
+        case "Technical":
+          return "Respond with technical precision, using appropriate terminology and detailed explanations.";
+        case "Creative":
+          return "Respond creatively and engagingly, with innovative ideas and unique perspectives.";
+        case "Minimalist":
+          return "Respond concisely and directly, focusing only on essential information without unnecessary details.";
+        default:
+          return "Respond helpfully and professionally.";
+      }
     };
-    return prompts[type as keyof typeof prompts] || `Please help me with this note: ${context}`;
+
+    const personalityInstruction = personality ? `\n\n${getPersonalityInstructions()}` : '';
+
+    const prompts = {
+      summarize: `Please provide a clear and concise summary of this note in 2-3 sentences:\n\n${context}${personalityInstruction}`,
+      list: `Extract the main points and create a numbered list from this note:\n\n${context}${personalityInstruction}`,
+      todo: `Convert this note into a checklist of actionable tasks. Use * for each checkbox item:\n\n${context}${personalityInstruction}`,
+      improve: `Please improve and enhance this note by making it clearer, more organized, and more professional:\n\n${context}${personalityInstruction}`
+    };
+    return prompts[type as keyof typeof prompts] || `Please help me with this note: ${context}${personalityInstruction}`;
   };
 
   const handleChatSubmit = async () => {
@@ -190,14 +230,53 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
         `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
       ).join('\n\n');
 
+      // Adjust parameters based on AI response style
+      const getChatParameters = () => {
+        switch (aiResponseStyle) {
+          case "Concise":
+            return { max_tokens: 150, temperature: 0.1 };
+          case "Balanced":
+            return { max_tokens: 300, temperature: 0.3 };
+          case "Detailed":
+            return { max_tokens: 500, temperature: 0.4 };
+          case "Creative":
+            return { max_tokens: 400, temperature: 0.7 };
+          default:
+            return { max_tokens: 300, temperature: 0.3 };
+        }
+      };
+
+      // Get personality-specific instructions for chat
+      const getPersonalityInstructions = () => {
+        switch (aiPersonality) {
+          case "Professional":
+            return "Respond in a professional, business-like manner with clear, structured communication.";
+          case "Friendly":
+            return "Respond in a warm, friendly, and approachable manner, like a helpful colleague.";
+          case "Technical":
+            return "Respond with technical precision, using appropriate terminology and detailed explanations.";
+          case "Creative":
+            return "Respond creatively and engagingly, with innovative ideas and unique perspectives.";
+          case "Minimalist":
+            return "Respond concisely and directly, focusing only on essential information without unnecessary details.";
+          default:
+            return "Respond helpfully and professionally.";
+        }
+      };
+
+      const personalityInstruction = getPersonalityInstructions();
+      const { max_tokens, temperature } = getChatParameters();
+
       const fullPrompt = `You are a helpful AI assistant for note-taking. The user is working with this note: "${content}"
+
+${personalityInstruction}
 
 Previous conversation:
 ${conversationContext}
 
 User's new question: ${userMessage}
 
-Please provide a helpful, friendly response. Be conversational and focus on helping with their note-taking needs.`;
+Please provide a helpful response. Be conversational and focus on helping with their note-taking needs.`;
 
       console.log('Sending chat request to Mistral AI...');
 
@@ -213,8 +292,8 @@ Please provide a helpful, friendly response. Be conversational and focus on help
             role: 'user',
             content: fullPrompt
           }],
-          max_tokens: 300,
-          temperature: 0.7,
+          max_tokens: max_tokens,
+          temperature: temperature,
         }),
       });
 

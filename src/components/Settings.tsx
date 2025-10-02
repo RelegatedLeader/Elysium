@@ -253,53 +253,118 @@ const Settings: React.FC<SettingsProps> = ({
               </p>
             </div>
 
-            {/* AI Agent Settings */}
-            <div className={`border-t pt-4 ${theme === 'Light' ? 'border-purple-200' : 'border-indigo-600'}`}>
-              <h3 className={`text-lg font-semibold mb-3 ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
-                🤖 AI Agent Settings
-              </h3>
-              <div className="space-y-3">
+            {/* AI Agent Settings - Prominent Section */}
+            <div className={`border-t-2 pt-6 mt-6 ${theme === 'Light' ? 'border-purple-300' : 'border-indigo-500'}`}>
+              <div className="flex items-center mb-4">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 mr-3">
+                  <span className="text-white text-lg">🤖</span>
+                </div>
                 <div>
-                  <label
-                    htmlFor="ai-response-style"
-                    className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
-                  >
-                    Response Style
-                  </label>
+                  <h3 className={`text-xl font-bold ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
+                    AI Assistant Settings
+                  </h3>
+                  <p className={`text-sm ${theme === 'Light' ? 'text-purple-600' : 'text-gray-400'}`}>
+                    Customize how your AI assistant responds
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Response Style */}
+                <div className={`p-4 rounded-lg border-2 transition-all duration-300 ${theme === 'Light' ? 'bg-purple-50/50 border-purple-200 hover:border-purple-400' : 'bg-indigo-950/30 border-indigo-600 hover:border-indigo-400'}`}>
+                  <div className="flex items-center mb-3">
+                    <span className="text-2xl mr-2">📝</span>
+                    <label className={`text-sm font-semibold ${theme === 'Light' ? 'text-purple-800' : 'text-gray-200'}`}>
+                      Response Style
+                    </label>
+                  </div>
                   <select
                     id="ai-response-style"
                     value={aiResponseStyle}
-                    onChange={(e) => setAiResponseStyle(e.target.value)}
-                    className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
+                    onChange={(e) => {
+                      setAiResponseStyle(e.target.value);
+                      // Auto-save immediately when changed
+                      if (onSave) {
+                        onSave({
+                          theme, notifications, syncInterval,
+                          aiResponseStyle: e.target.value,
+                          aiPersonality, autoSave, defaultTemplate,
+                          noteSorting, dataRetention
+                        });
+                      }
+                    }}
+                    className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white border-purple-300 text-purple-800 hover:bg-purple-50' : 'bg-indigo-950 border-indigo-600 text-white hover:bg-indigo-900'}`}
                     aria-label="Select AI response style"
                   >
-                    <option value="Concise">Concise</option>
-                    <option value="Balanced">Balanced</option>
-                    <option value="Detailed">Detailed</option>
-                    <option value="Creative">Creative</option>
+                    <option value="Concise">⚡ Concise (1-3 sentences)</option>
+                    <option value="Balanced">⚖️ Balanced (standard)</option>
+                    <option value="Detailed">📖 Detailed (comprehensive)</option>
+                    <option value="Creative">🎨 Creative (innovative)</option>
                   </select>
+                  <p className={`text-xs mt-2 ${theme === 'Light' ? 'text-purple-600' : 'text-gray-400'}`}>
+                    Controls response length and detail level
+                  </p>
                 </div>
-                <div>
-                  <label
-                    htmlFor="ai-personality"
-                    className={`block text-sm font-medium mb-1 ${theme === 'Light' ? 'text-purple-700' : 'text-gray-200'}`}
-                  >
-                    AI Personality
-                  </label>
+
+                {/* AI Personality */}
+                <div className={`p-4 rounded-lg border-2 transition-all duration-300 ${theme === 'Light' ? 'bg-purple-50/50 border-purple-200 hover:border-purple-400' : 'bg-indigo-950/30 border-indigo-600 hover:border-indigo-400'}`}>
+                  <div className="flex items-center mb-3">
+                    <span className="text-2xl mr-2">🎭</span>
+                    <label className={`text-sm font-semibold ${theme === 'Light' ? 'text-purple-800' : 'text-gray-200'}`}>
+                      AI Personality
+                    </label>
+                  </div>
                   <select
                     id="ai-personality"
                     value={aiPersonality}
-                    onChange={(e) => setAiPersonality(e.target.value)}
-                    className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90' : 'bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90'}`}
+                    onChange={(e) => {
+                      setAiPersonality(e.target.value);
+                      // Auto-save immediately when changed
+                      if (onSave) {
+                        onSave({
+                          theme, notifications, syncInterval,
+                          aiResponseStyle, aiPersonality: e.target.value,
+                          autoSave, defaultTemplate, noteSorting, dataRetention
+                        });
+                      }
+                    }}
+                    className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${theme === 'Light' ? 'bg-white border-purple-300 text-purple-800 hover:bg-purple-50' : 'bg-indigo-950 border-indigo-600 text-white hover:bg-indigo-900'}`}
                     aria-label="Select AI personality"
                   >
-                    <option value="Professional">Professional</option>
-                    <option value="Friendly">Friendly</option>
-                    <option value="Technical">Technical</option>
-                    <option value="Creative">Creative</option>
-                    <option value="Minimalist">Minimalist</option>
+                    <option value="Professional">💼 Professional</option>
+                    <option value="Friendly">😊 Friendly</option>
+                    <option value="Technical">🔧 Technical</option>
+                    <option value="Creative">🎨 Creative</option>
+                    <option value="Minimalist">📝 Minimalist</option>
                   </select>
+                  <p className={`text-xs mt-2 ${theme === 'Light' ? 'text-purple-600' : 'text-gray-400'}`}>
+                    Defines the AI's communication style
+                  </p>
                 </div>
+              </div>
+
+              {/* Live Preview */}
+              <div className={`mt-6 p-4 rounded-lg ${theme === 'Light' ? 'bg-purple-100/50 border border-purple-300' : 'bg-indigo-900/30 border border-indigo-600'}`}>
+                <h4 className={`text-sm font-semibold mb-2 ${theme === 'Light' ? 'text-purple-800' : 'text-gold-100'}`}>
+                  🎯 Current Settings Preview
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className={`font-medium ${theme === 'Light' ? 'text-purple-700' : 'text-gray-300'}`}>Style:</span>
+                    <span className={`ml-2 px-2 py-1 rounded ${theme === 'Light' ? 'bg-purple-200 text-purple-800' : 'bg-indigo-800 text-indigo-200'}`}>
+                      {aiResponseStyle}
+                    </span>
+                  </div>
+                  <div>
+                    <span className={`font-medium ${theme === 'Light' ? 'text-purple-700' : 'text-gray-300'}`}>Personality:</span>
+                    <span className={`ml-2 px-2 py-1 rounded ${theme === 'Light' ? 'bg-purple-200 text-purple-800' : 'bg-indigo-800 text-indigo-200'}`}>
+                      {aiPersonality}
+                    </span>
+                  </div>
+                </div>
+                <p className={`text-xs mt-2 ${theme === 'Light' ? 'text-purple-600' : 'text-gray-400'}`}>
+                  💡 Changes are applied immediately - try the AI buttons to test!
+                </p>
               </div>
             </div>
 
