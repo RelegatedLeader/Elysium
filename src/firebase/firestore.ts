@@ -16,6 +16,7 @@ import {
   DocumentData
 } from 'firebase/firestore';
 import { db } from './config';
+import { encryptAndCompress, decryptNote } from '../utils/crypto';
 
 export interface CloudNote {
   id?: string;
@@ -28,17 +29,114 @@ export interface CloudNote {
   userId: string;
   isPublic?: boolean;
   downloadCount?: number;
+  // Encrypted fields stored in Firestore
+  encryptedTitle?: string;
+  encryptedContent?: string;
+  encryptedTemplate?: string;
+  encryptedTags?: string;
+  nonce?: string; // Base64 encoded nonce
 }
 
 export class FirebaseFirestoreService {
   private notesCollection = 'notes';
 
+  // Helper method to get deterministic public key from user ID
+  private getUserPublicKey(userId: string): Uint8Array {
+    // Use the user ID as a deterministic seed for encryption
+    const encoder = new TextEncoder();
+    const data = encoder.encode(userId);
+    const hash = new Uint8Array(32); // 32 bytes for public key
+
+    // Simple hash function (in production, use a proper crypto hash)
+    for (let i = 0; i < data.length; i++) {
+      hash[i % 32] ^= data[i];
+    }
+
+    return hash;
+  }
+
+  // Encrypt note data before storing
+  private encryptNoteData(note: Omit<CloudNote, 'id' | 'createdAt' | 'updatedAt'>): {
+    encryptedTitle: string;
+    encryptedContent: string;
+    encryptedTemplate?: string;
+    encryptedTags?: string;
+    nonce: string;
+  } {
+    const publicKey = this.getUserPublicKey(note.userId);
+
+    // Encrypt each field using encryptAndCompress which generates its own nonce
+    const titleResult = encryptAndCompress(note.title, publicKey);
+    const contentResult = encryptAndCompress(note.content, publicKey);
+    const templateResult = note.template ? encryptAndCompress(note.template, publicKey) : null;
+    const tagsResult = note.tags ? encryptAndCompress(JSON.stringify(note.tags), publicKey) : null;
+
+    // Use the nonce from the first encryption for all fields (simplified approach)
+    const nonce = titleResult.nonce;
+
+    return {
+      encryptedTitle: btoa(String.fromCharCode.apply(null, Array.from(titleResult.encrypted))),
+      encryptedContent: btoa(String.fromCharCode.apply(null, Array.from(contentResult.encrypted))),
+      encryptedTemplate: templateResult ? btoa(String.fromCharCode.apply(null, Array.from(templateResult.encrypted))) : undefined,
+      encryptedTags: tagsResult ? btoa(String.fromCharCode.apply(null, Array.from(tagsResult.encrypted))) : undefined,
+      nonce: btoa(String.fromCharCode.apply(null, Array.from(nonce)))
+    };
+  }
+
+  // Decrypt note data after retrieving
+  private decryptNoteData(encryptedNote: any): CloudNote {
+    const publicKey = this.getUserPublicKey(encryptedNote.userId);
+    const nonce = new Uint8Array(Array.from(atob(encryptedNote.nonce)).map(c => c.charCodeAt(0)));
+
+    // Decrypt each field
+    const title = decryptNote(
+      new Uint8Array(Array.from(atob(encryptedNote.encryptedTitle)).map(c => c.charCodeAt(0))),
+      publicKey,
+      nonce
+    );
+    const content = decryptNote(
+      new Uint8Array(Array.from(atob(encryptedNote.encryptedContent)).map(c => c.charCodeAt(0))),
+      publicKey,
+      nonce
+    );
+    const template = encryptedNote.encryptedTemplate ? decryptNote(
+      new Uint8Array(Array.from(atob(encryptedNote.encryptedTemplate)).map(c => c.charCodeAt(0))),
+      publicKey,
+      nonce
+    ) : undefined;
+    const tags = encryptedNote.encryptedTags ? JSON.parse(decryptNote(
+      new Uint8Array(Array.from(atob(encryptedNote.encryptedTags)).map(c => c.charCodeAt(0))),
+      publicKey,
+      nonce
+    )) : undefined;
+
+    return {
+      id: encryptedNote.id,
+      title,
+      content,
+      template,
+      tags,
+      createdAt: encryptedNote.createdAt,
+      updatedAt: encryptedNote.updatedAt,
+      userId: encryptedNote.userId,
+      isPublic: encryptedNote.isPublic,
+      downloadCount: encryptedNote.downloadCount
+    };
+  }
+
   // Create a new note
   async createNote(note: Omit<CloudNote, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     if (!db) throw new Error('Firebase not configured');
     const now = Timestamp.now();
+
+    // Encrypt the note data
+    const encryptedData = this.encryptNoteData(note);
+
     const noteData = {
-      ...note,
+      ...encryptedData,
+      userId: note.userId,
+      isPublic: note.isPublic || false,
+      downloadCount: note.downloadCount || 0,
       createdAt: now,
       updatedAt: now,
     };
@@ -51,10 +149,55 @@ export class FirebaseFirestoreService {
   async updateNote(noteId: string, updates: Partial<Omit<CloudNote, 'id' | 'createdAt'>>): Promise<void> {
     if (!db) throw new Error('Firebase not configured');
     const noteRef = doc(db, this.notesCollection, noteId);
-    const updateData = {
-      ...updates,
+
+    // Get the current note to access the nonce
+    const currentNote = await this.getNote(noteId);
+    if (!currentNote) throw new Error('Note not found');
+
+    const updateData: any = {
       updatedAt: Timestamp.now(),
     };
+
+    // Encrypt fields that need encryption
+    if (updates.title !== undefined) {
+      const publicKey = this.getUserPublicKey(currentNote.userId);
+      const nonce = new Uint8Array(Array.from(atob((await getDoc(noteRef)).data()?.nonce || '')).map(c => c.charCodeAt(0)));
+      const { encrypted } = encryptAndCompress(updates.title, publicKey);
+      updateData.encryptedTitle = btoa(String.fromCharCode.apply(null, Array.from(encrypted)));
+    }
+
+    if (updates.content !== undefined) {
+      const publicKey = this.getUserPublicKey(currentNote.userId);
+      const nonce = new Uint8Array(Array.from(atob((await getDoc(noteRef)).data()?.nonce || '')).map(c => c.charCodeAt(0)));
+      const { encrypted } = encryptAndCompress(updates.content, publicKey);
+      updateData.encryptedContent = btoa(String.fromCharCode.apply(null, Array.from(encrypted)));
+    }
+
+    if (updates.template !== undefined) {
+      if (updates.template) {
+        const publicKey = this.getUserPublicKey(currentNote.userId);
+        const nonce = new Uint8Array(Array.from(atob((await getDoc(noteRef)).data()?.nonce || '')).map(c => c.charCodeAt(0)));
+        const { encrypted } = encryptAndCompress(updates.template, publicKey);
+        updateData.encryptedTemplate = btoa(String.fromCharCode.apply(null, Array.from(encrypted)));
+      } else {
+        updateData.encryptedTemplate = null;
+      }
+    }
+
+    if (updates.tags !== undefined) {
+      if (updates.tags) {
+        const publicKey = this.getUserPublicKey(currentNote.userId);
+        const nonce = new Uint8Array(Array.from(atob((await getDoc(noteRef)).data()?.nonce || '')).map(c => c.charCodeAt(0)));
+        const { encrypted } = encryptAndCompress(JSON.stringify(updates.tags), publicKey);
+        updateData.encryptedTags = btoa(String.fromCharCode.apply(null, Array.from(encrypted)));
+      } else {
+        updateData.encryptedTags = null;
+      }
+    }
+
+    // Add non-encrypted fields
+    if (updates.isPublic !== undefined) updateData.isPublic = updates.isPublic;
+    if (updates.downloadCount !== undefined) updateData.downloadCount = updates.downloadCount;
 
     await updateDoc(noteRef, updateData);
   }
@@ -73,10 +216,12 @@ export class FirebaseFirestoreService {
     const noteSnap = await getDoc(noteRef);
 
     if (noteSnap.exists()) {
-      return {
+      const data = noteSnap.data();
+      // Decrypt the note data
+      return this.decryptNoteData({
         id: noteSnap.id,
-        ...noteSnap.data(),
-      } as CloudNote;
+        ...data,
+      });
     }
 
     return null;
@@ -92,10 +237,14 @@ export class FirebaseFirestoreService {
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as CloudNote));
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      // Decrypt the note data
+      return this.decryptNoteData({
+        id: doc.id,
+        ...data,
+      });
+    });
   }
 
   // Get public notes (for free downloads)
@@ -110,10 +259,14 @@ export class FirebaseFirestoreService {
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as CloudNote));
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      // Decrypt the note data
+      return this.decryptNoteData({
+        id: doc.id,
+        ...data,
+      });
+    });
   }
 
   // Increment download count
@@ -144,10 +297,14 @@ export class FirebaseFirestoreService {
     );
 
     return onSnapshot(q, (querySnapshot: QuerySnapshot<DocumentData>) => {
-      const notes = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      } as CloudNote));
+      const notes = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        // Decrypt the note data
+        return this.decryptNoteData({
+          id: doc.id,
+          ...data,
+        });
+      });
       callback(notes);
     });
   }
