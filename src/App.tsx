@@ -1914,23 +1914,20 @@ function WelcomePage({
           return;
         }
       } else if (mode === "cloud" && cloudStorage.user) {
-        // Create note in Firebase
+        // Create note in Firebase - the real-time listener will update the UI
         await cloudStorage.createNote({
           title: note.title,
           content: note.content,
           template: note.template,
         });
-        newNote = {
-          id: Date.now().toString(), // Temporary ID until we get it from Firebase
-          title: note.title,
-          content: note.content,
-          template: note.template,
-          isPermanent: false,
-          completionTimestamps: {},
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          files: note.files,
-        };
+        // Don't add to local state - let the real-time listener handle it
+        setShowCreateModal(false);
+        setActivePage("recent");
+        setIsCloudButtonClicked(false);
+
+        // Show notification for successful note creation
+        showNotification("Success", "Note created successfully in the cloud!");
+        return;
       } else {
         newNote = {
           id: Date.now().toString(),
@@ -1944,6 +1941,7 @@ function WelcomePage({
           files: note.files,
         };
       }
+
       setNotes([...notes, newNote]);
       setFiles(note.files);
       setShowCreateModal(false);
@@ -2263,9 +2261,11 @@ function WelcomePage({
     if (mode === "db" && user) {
       fetchNotes();
     } else if (mode === "cloud") {
+      console.log("Cloud mode - user authenticated:", !!cloudStorage.user);
+      console.log("Cloud storage notes count:", cloudStorage.notes.length);
       if (cloudStorage.user) {
         // Load notes from Firebase
-        setNotes(cloudStorage.notes.map(cloudNote => ({
+        const firebaseNotes = cloudStorage.notes.map(cloudNote => ({
           id: cloudNote.id!,
           title: cloudNote.title,
           content: cloudNote.content,
@@ -2274,7 +2274,9 @@ function WelcomePage({
           completionTimestamps: {},
           createdAt: cloudNote.createdAt.toDate().toISOString(),
           updatedAt: cloudNote.updatedAt.toDate().toISOString(),
-        })));
+        }));
+        console.log("Setting notes from Firebase:", firebaseNotes.length);
+        setNotes(firebaseNotes);
       } else {
         // Load from localStorage if not authenticated
         const stored = localStorage.getItem(`elysium_notes_${mode}`);

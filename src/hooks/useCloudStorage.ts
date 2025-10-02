@@ -56,16 +56,21 @@ export const useCloudStorage = (): UseCloudStorageReturn => {
   // Load user notes when user changes
   useEffect(() => {
     if (!user) {
+      console.log("useCloudStorage: No user, clearing notes");
       setNotes([]);
       return;
     }
+
+    console.log("useCloudStorage: Loading notes for user:", user.uid);
 
     const loadNotes = async () => {
       try {
         setLoading(true);
         const userNotes = await firebaseService.firestore.getUserNotes(user.uid);
+        console.log("useCloudStorage: Loaded notes from Firebase:", userNotes.length);
         setNotes(userNotes);
       } catch (err) {
+        console.error("useCloudStorage: Failed to load notes:", err);
         setError(err instanceof Error ? err.message : 'Failed to load notes');
       } finally {
         setLoading(false);
@@ -76,6 +81,7 @@ export const useCloudStorage = (): UseCloudStorageReturn => {
 
     // Set up real-time listener
     const unsubscribe = firebaseService.firestore.onUserNotesChange(user.uid, (updatedNotes) => {
+      console.log("useCloudStorage: Real-time update, notes count:", updatedNotes.length);
       setNotes(updatedNotes);
     });
 
@@ -140,13 +146,17 @@ export const useCloudStorage = (): UseCloudStorageReturn => {
     }
     if (!user) throw new Error('User must be authenticated');
 
+    console.log("useCloudStorage: Creating note for user:", user.uid);
+
     try {
       setError(null);
       await firebaseService.firestore.createNote({
         ...noteData,
         userId: user.uid,
       } as Omit<CloudNote, 'id' | 'createdAt' | 'updatedAt'>);
+      console.log("useCloudStorage: Note created successfully");
     } catch (err) {
+      console.error("useCloudStorage: Failed to create note:", err);
       setError(err instanceof Error ? err.message : 'Failed to create note');
       throw err;
     }

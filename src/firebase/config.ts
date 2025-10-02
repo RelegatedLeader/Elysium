@@ -1,6 +1,6 @@
 // Firebase configuration
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -36,6 +36,8 @@ if (isFirebaseConfigured()) {
   try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
+    // Set persistence to maintain auth state across browser sessions
+    setPersistence(auth, browserLocalPersistence);
     db = getFirestore(app);
     storage = getStorage(app);
   } catch (error) {
