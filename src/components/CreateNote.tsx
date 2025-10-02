@@ -12,6 +12,8 @@ interface CreateNoteProps {
   mode: "web3" | "db" | "cloud";
   theme?: string;
   defaultTemplate?: string;
+  aiResponseStyle?: string;
+  aiPersonality?: string;
 }
 
 const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme = "Dark", defaultTemplate = "Blank" }) => {
@@ -135,7 +137,7 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
         if (error.message.includes('429')) {
           errorMessage = "⏳ AI is busy right now. Please try again in a moment.";
         } else if (error.message.includes('401')) {
-          errorMessage = "🔑 API key issue. Please check your OpenRouter token.";
+          errorMessage = "🔑 API key issue. Please check your Mistral API key.";
         } else if (error.message.includes('403')) {
           errorMessage = "🚫 Access denied. Please verify your API permissions.";
         } else if (error.message.includes('402')) {
