@@ -42,6 +42,7 @@ interface Note {
   updatedAt: string;
   files?: File[];
   isDownloaded?: boolean;
+  isCloudOnly?: boolean;
 }
 
 interface SupabaseNote {
@@ -1954,6 +1955,55 @@ function WelcomePage({
     }
   }, [cloudStorage.user, offlineQueue.length, processOfflineQueue]);
 
+  // Sync downloaded notes with cloud changes
+  const syncDownloadedNotes = useCallback(async () => {
+    if (!cloudStorage.user || mode !== "cloud") return;
+
+    try {
+      // Get all downloaded notes
+      const downloadedNotes = notes.filter(note => note.isDownloaded);
+      
+      for (const localNote of downloadedNotes) {
+        // Find corresponding cloud note
+        const cloudNote = cloudStorage.notes.find(cn => cn.id === localNote.id);
+        
+        if (cloudNote) {
+          const cloudUpdatedAt = cloudNote.updatedAt.toDate().getTime();
+          const localUpdatedAt = new Date(localNote.updatedAt).getTime();
+          
+          // If cloud note is newer, update local note
+          if (cloudUpdatedAt > localUpdatedAt) {
+            const updatedLocalNote: Note = {
+              ...localNote,
+              title: cloudNote.title,
+              content: cloudNote.content,
+              template: cloudNote.template || "Blank",
+              updatedAt: cloudNote.updatedAt.toDate().toISOString(),
+              isDownloaded: true // Keep downloaded flag
+            };
+            
+            const updatedNotes = notes.map(n => 
+              n.id === localNote.id ? updatedLocalNote : n
+            );
+            setNotes(updatedNotes);
+            localStorage.setItem(`elysium_notes_${mode}`, JSON.stringify(updatedNotes));
+            
+            console.log(`Synced cloud changes to local note: ${localNote.title}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error syncing downloaded notes:", error);
+    }
+  }, [cloudStorage.user, cloudStorage.notes, notes, mode]);
+
+  // Sync downloaded notes when cloud notes change
+  useEffect(() => {
+    if (cloudStorage.user && mode === "cloud") {
+      syncDownloadedNotes();
+    }
+  }, [cloudStorage.notes, syncDownloadedNotes, cloudStorage.user, mode]);
+
   const handleCreateNote = async (note: {
     title: string;
     content: string;
@@ -3047,8 +3097,21 @@ function WelcomePage({
                         : "Create Note"}
                     </button>
                   </div>
-                  {notes.filter((note) => mode !== "db" || !note.isPermanent)
-                    .length > 0 ? (
+                  {(() => {
+                    let displayNotes = notes.filter((note) => mode !== "db" || !note.isPermanent);
+                    
+                    // In cloud mode, also show cloud notes that aren't downloaded yet
+                    if (mode === "cloud" && cloudStorage.user) {
+                      const cloudNotesToShow = cloudNotes
+                        .filter(cloudNote => !notes.some(localNote => 
+                          localNote.id === cloudNote.id && localNote.isDownloaded
+                        ))
+                        .map(cloudNote => ({ ...cloudNote, isCloudOnly: true }));
+                      
+                      displayNotes = [...displayNotes, ...cloudNotesToShow];
+                    }
+                    
+                    return displayNotes.length > 0 ? (
                     <>
                       {mode === "db" && isLoadingNotes && (
                         <div className="mb-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
@@ -3062,10 +3125,17 @@ function WelcomePage({
                         </div>
                       )}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                        {getSortedNotes(
-                          notes.filter((note) => mode !== "db" || !note.isPermanent),
-                          settings.noteSorting
-                        ).map((note) => (
+                        {(() => {
+                          const cloudOnlyNotes: Note[] = []; // TODO: Implement cloud-only notes fetching
+                          const displayNotes = mode === "cloud" 
+                            ? [
+                                ...notes.filter(note => !note.isCloudOnly),
+                                ...cloudOnlyNotes
+                              ]
+                            : notes.filter((note) => mode !== "db" || !note.isPermanent);
+                          
+                          return getSortedNotes(displayNotes, settings.noteSorting)
+                        .map((note) => (
                           <animated.div
                               key={note.id}
                               style={noteSpring}
@@ -3074,7 +3144,7 @@ function WelcomePage({
                                   ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 hover:shadow-[0_0_15px_rgba(139,92,246,0.2)] border-purple-200/50"
                                   : "bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] border-indigo-600/30"
                               }`}
-                              onClick={() => setViewingNote(note)}
+                              onClick={() => note.isCloudOnly ? null : setViewingNote(note)}
                             >
                               <div className="flex-1 overflow-hidden">
                                 <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${settings.theme === "Light" ? "text-purple-800" : "text-gold-100"}`}>
@@ -3082,6 +3152,11 @@ function WelcomePage({
                                   {note.isPermanent && (
                                     <span className="text-xs text-amber-400 ml-1">
                                       ??
+                                    </span>
+                                  )}
+                                  {note.isCloudOnly && (
+                                    <span className="text-xs text-cyan-400 ml-1">
+                                      ☁️
                                     </span>
                                   )}
                                 </h3>
@@ -3096,11 +3171,67 @@ function WelcomePage({
                                     {note.template}
                                   </span>
                                   <span className={settings.theme === "Light" ? "text-purple-500" : "text-gray-500"}>
-                                    Click to view
+                                    {note.isCloudOnly ? "Click download" : "Click to view"}
                                   </span>
                                 </div>
                               </div>
-                              <div className="mt-3 flex justify-end">
+                              <div className="mt-3 flex justify-between items-center">
+                                <div className="flex space-x-2">
+                                  {mode === "cloud" && !note.isDownloaded && !note.isCloudOnly && (
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation(); // Prevent triggering the view
+                                        // Download note to local storage
+                                        const updatedNotes = [...notes];
+                                        const existingIndex = updatedNotes.findIndex(n => n.id === note.id);
+                                        if (existingIndex === -1) {
+                                          const downloadedNote = { ...note, isDownloaded: true };
+                                          updatedNotes.push(downloadedNote);
+                                          setNotes(updatedNotes);
+                                          localStorage.setItem(
+                                            `elysium_notes_${mode}`,
+                                            JSON.stringify(updatedNotes)
+                                          );
+                                          showNotification("Downloaded", `"${note.title}" downloaded for offline access!`);
+                                        } else {
+                                          showNotification("Already Downloaded", `"${note.title}" is already available offline.`);
+                                        }
+                                      }}
+                                      className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
+                                      title="Download for offline access"
+                                    >
+                                      ⬇️
+                                    </button>
+                                  )}
+                                  {mode === "cloud" && note.isCloudOnly && (
+                                    <button
+                                      onClick={async (e) => {
+                                        // Download cloud-only note to local storage
+                                        const downloadedNote: Note = {
+                                          ...note,
+                                          isDownloaded: true,
+                                          isCloudOnly: false
+                                        };
+                                        const updatedNotes = [...notes, downloadedNote];
+                                        setNotes(updatedNotes);
+                                        localStorage.setItem(
+                                          `elysium_notes_${mode}`,
+                                          JSON.stringify(updatedNotes)
+                                        );
+                                        showNotification("Downloaded", `"${note.title}" downloaded for offline access!`);
+                                      }}
+                                      className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm"
+                                      title="Download for offline access"
+                                    >
+                                      ⬇️ Download
+                                    </button>
+                                  )}
+                                  {note.isDownloaded && mode === "cloud" && !note.isCloudOnly && (
+                                    <span className="text-cyan-400 text-xs opacity-0 group-hover:opacity-100" title="Available offline">
+                                      💾
+                                    </span>
+                                  )}
+                                </div>
                                 <button
                                   onClick={async (e) => {
                                     e.stopPropagation(); // Prevent triggering the view
@@ -3203,7 +3334,8 @@ function WelcomePage({
                                 </button>
                               </div>
                             </animated.div>
-                          ))}
+                          ));
+                        })()}
                       </div>
                     </>
                   ) : (
@@ -3230,6 +3362,7 @@ function WelcomePage({
                       )}
                     </div>
                   )}
+                  )()}
                 </>
               )}
 
@@ -3775,8 +3908,22 @@ function WelcomePage({
                                   JSON.stringify(updatedNotes)
                                 );
 
-                                // Add to offline queue for cloud sync
-                                if (cloudStorage.user) {
+                                // For downloaded notes, try to sync to cloud immediately
+                                if (editingNote.isDownloaded && cloudStorage.user) {
+                                  try {
+                                    await cloudStorage.updateNote(editingNote.id, {
+                                      title: editTitle,
+                                      content: editContent,
+                                      template: editTemplate
+                                    });
+                                    showNotification("Success", "Downloaded note updated and synced to cloud!");
+                                  } catch (error) {
+                                    // If cloud update fails, add to offline queue
+                                    console.log("Cloud update failed, adding to offline queue:", error);
+                                    addToOfflineQueue(updatedNote);
+                                    showNotification("Offline", "Note saved locally. Will sync to cloud when online.");
+                                  }
+                                } else if (cloudStorage.user) {
                                   try {
                                     await cloudStorage.updateNote(editingNote.id, {
                                       title: editTitle,
