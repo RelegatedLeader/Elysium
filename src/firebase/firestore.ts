@@ -242,25 +242,31 @@ export class FirebaseFirestoreService {
   // Get all notes for a user
   async getUserNotes(userId: string): Promise<CloudNote[]> {
     if (!db) throw new Error('Firebase not configured');
-    const q = query(
-      collection(db, this.notesCollection)
-      // Temporarily remove where clause to test if basic query works
-      // where('userId', '==', userId)
-      // orderBy('updatedAt', 'desc')
-    );
+
+    console.log('Getting user notes for:', userId);
+    const q = query(collection(db, this.notesCollection));
 
     const querySnapshot = await getDocs(q);
+    console.log('Query returned docs:', querySnapshot.docs.length);
+
     const allNotes = querySnapshot.docs.map(doc => {
       const data = doc.data();
-      // Decrypt the note data
-      return this.decryptNoteData({
-        id: doc.id,
-        ...data,
-      });
-    });
+      console.log('Processing doc:', doc.id, data);
+      try {
+        // Decrypt the note data
+        return this.decryptNoteData({
+          id: doc.id,
+          ...data,
+        });
+      } catch (error) {
+        console.error('Failed to decrypt note:', doc.id, error);
+        return null;
+      }
+    }).filter(note => note !== null) as CloudNote[];
 
     // Filter by userId on client side
     const userNotes = allNotes.filter(note => note.userId === userId);
+    console.log('Filtered user notes:', userNotes.length);
 
     // Sort notes by updatedAt in memory instead
     return userNotes.sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis());
@@ -312,30 +318,38 @@ export class FirebaseFirestoreService {
 
     console.log('Setting up Firestore listener for user:', userId);
 
-    const q = query(
-      collection(db, this.notesCollection),
-      where('userId', '==', userId)
-      // Temporarily remove orderBy to avoid index requirements
-      // orderBy('updatedAt', 'desc')
-    );
+    // Temporarily remove where clause to avoid any query issues
+    const q = query(collection(db, this.notesCollection));
 
-    console.log('Firestore query created:', q);
+    console.log('Firestore query created (no where clause):', q);
 
     return onSnapshot(q, (querySnapshot: QuerySnapshot<DocumentData>) => {
       console.log('Firestore snapshot received, docs count:', querySnapshot.docs.length);
-      const notes = querySnapshot.docs
+      const allNotes = querySnapshot.docs
         .map(doc => {
           const data = doc.data();
           console.log('Processing doc:', doc.id, data);
-          // Decrypt the note data
-          return this.decryptNoteData({
-            id: doc.id,
-            ...data,
-          });
+          try {
+            // Decrypt the note data
+            return this.decryptNoteData({
+              id: doc.id,
+              ...data,
+            });
+          } catch (error) {
+            console.error('Failed to decrypt note:', doc.id, error);
+            return null;
+          }
         })
-        .sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis()); // Sort in memory
-      console.log('Calling callback with notes:', notes.length);
-      callback(notes);
+        .filter(note => note !== null) as CloudNote[];
+
+      // Filter by userId on client side
+      const userNotes = allNotes.filter(note => note.userId === userId);
+      console.log('Filtered user notes:', userNotes.length);
+
+      // Sort notes by updatedAt in memory
+      const sortedNotes = userNotes.sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis());
+      console.log('Calling callback with sorted notes:', sortedNotes.length);
+      callback(sortedNotes);
     }, (error) => {
       console.error('Firestore listener error:', error);
       // If there's a permission or API error, log it but don't crash
@@ -345,6 +359,8 @@ export class FirebaseFirestoreService {
         console.warn('Firestore unavailable - API may be disabled or network issues');
       } else if (error.code === 'failed-precondition') {
         console.warn('Firestore failed precondition - index may be missing');
+      } else if (error.code === 'invalid-argument') {
+        console.warn('Firestore invalid argument - query may be malformed');
       }
       // Call callback with empty array to indicate no notes available
       callback([]);
