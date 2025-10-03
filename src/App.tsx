@@ -1583,6 +1583,9 @@ function WelcomePage({
   // Offline queue for cloud saves
   const [offlineQueue, setOfflineQueue] = useState<Note[]>([]);
 
+  // Download loading state
+  const [downloadingNotes, setDownloadingNotes] = useState<Set<string>>(new Set());
+
   // Load cloud notes
   const loadCloudNotes = async () => {
     if (cloudStorage.user) {
@@ -3181,49 +3184,88 @@ function WelcomePage({
                                     <button
                                       onClick={async (e) => {
                                         e.stopPropagation(); // Prevent triggering the view
-                                        // Download note to local storage
-                                        const updatedNotes = [...notes];
-                                        const existingIndex = updatedNotes.findIndex(n => n.id === note.id);
-                                        if (existingIndex === -1) {
-                                          const downloadedNote = { ...note, isDownloaded: true };
-                                          updatedNotes.push(downloadedNote);
+                                        
+                                        // Start download loading state
+                                        setDownloadingNotes(prev => new Set(prev).add(note.id));
+                                        
+                                        try {
+                                          // Simulate download delay for visual feedback
+                                          await new Promise(resolve => setTimeout(resolve, 500));
+                                          
+                                          // Download note to local storage
+                                          const updatedNotes = notes.map(n => 
+                                            n.id === note.id 
+                                              ? { ...n, isDownloaded: true }
+                                              : n
+                                          );
+                                          
                                           setNotes(updatedNotes);
                                           localStorage.setItem(
                                             `elysium_notes_${mode}`,
                                             JSON.stringify(updatedNotes)
                                           );
-                                          showNotification("Downloaded", `"${note.title}" downloaded for offline access!`);
-                                        } else {
-                                          showNotification("Already Downloaded", `"${note.title}" is already available offline.`);
+                                          
+                                          alert(`✅ "${note.title}" downloaded for offline access!`);
+                                        } catch (error) {
+                                          console.error('Download failed:', error);
+                                          alert(`❌ Failed to download "${note.title}". Please try again.`);
+                                        } finally {
+                                          // Remove from loading state
+                                          setDownloadingNotes(prev => {
+                                            const newSet = new Set(prev);
+                                            newSet.delete(note.id);
+                                            return newSet;
+                                          });
                                         }
                                       }}
-                                      className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
+                                      className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100 disabled:opacity-50"
                                       title="Download for offline access"
+                                      disabled={downloadingNotes.has(note.id)}
                                     >
-                                      ⬇️
+                                      {downloadingNotes.has(note.id) ? '⏳' : '⬇️'}
                                     </button>
                                   )}
                                   {mode === "cloud" && note.isCloudOnly && (
                                     <button
                                       onClick={async (e) => {
-                                        // Download cloud-only note to local storage
-                                        const downloadedNote: Note = {
-                                          ...note,
-                                          isDownloaded: true,
-                                          isCloudOnly: false
-                                        };
-                                        const updatedNotes = [...notes, downloadedNote];
-                                        setNotes(updatedNotes);
-                                        localStorage.setItem(
-                                          `elysium_notes_${mode}`,
-                                          JSON.stringify(updatedNotes)
-                                        );
-                                        showNotification("Downloaded", `"${note.title}" downloaded for offline access!`);
+                                        // Start download loading state
+                                        setDownloadingNotes(prev => new Set(prev).add(note.id));
+                                        
+                                        try {
+                                          // Simulate download delay for visual feedback
+                                          await new Promise(resolve => setTimeout(resolve, 500));
+                                          
+                                          // Download cloud-only note to local storage
+                                          const downloadedNote: Note = {
+                                            ...note,
+                                            isDownloaded: true,
+                                            isCloudOnly: false
+                                          };
+                                          const updatedNotes = [...notes, downloadedNote];
+                                          setNotes(updatedNotes);
+                                          localStorage.setItem(
+                                            `elysium_notes_${mode}`,
+                                            JSON.stringify(updatedNotes)
+                                          );
+                                          
+                                          alert(`✅ "${note.title}" downloaded for offline access!`);
+                                        } catch (error) {
+                                          console.error('Download failed:', error);
+                                          alert(`❌ Failed to download "${note.title}". Please try again.`);
+                                        } finally {
+                                          // Remove from loading state
+                                          setDownloadingNotes(prev => {
+                                            const newSet = new Set(prev);
+                                            newSet.delete(note.id);
+                                            return newSet;
+                                          });
+                                        }
                                       }}
-                                      className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm"
+                                      className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm disabled:opacity-50"
                                       title="Download for offline access"
+                                      disabled={downloadingNotes.has(note.id)}
                                     >
-                                      ⬇️ Download
+                                      {downloadingNotes.has(note.id) ? '⏳ Downloading...' : '⬇️ Download'}
                                     </button>
                                   )}
                                   {note.isDownloaded && mode === "cloud" && !note.isCloudOnly && (
