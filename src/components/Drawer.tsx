@@ -3,7 +3,7 @@ import { supabase } from "../SUPABASE/supabaseClient";
 
 interface DrawerProps {
   onNavigate: (
-    page: "recent" | "create" | "settings" | "logout" | "search" | "online" | "offline"
+    page: "recent" | "create" | "settings" | "logout" | "search" | "offline"
   ) => void;
   onSearch: (query: string) => void;
   theme?: string;
@@ -87,7 +87,7 @@ const Drawer: React.FC<DrawerProps> = ({
   };
 
   const handleNavigate = (
-    page: "recent" | "create" | "settings" | "logout" | "search" | "online" | "offline"
+    page: "recent" | "create" | "settings" | "logout" | "search" | "offline"
   ) => {
     onNavigate(page);
     setIsOpen(false); // Close the drawer after navigation
@@ -185,16 +185,6 @@ const Drawer: React.FC<DrawerProps> = ({
             }`}
           >
             Access Offline Notes
-          </button>
-          <button
-            onClick={() => handleNavigate("online")}
-            className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left ${
-              theme === "Light"
-                ? "bg-gradient-to-br from-purple-100 to-indigo-100 hover:from-purple-200 hover:to-indigo-200 text-gray-800 border border-purple-200/50"
-                : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
-            }`}
-          >
-            Access Online
           </button>
           <button
             onClick={() => handleNavigate("create")}

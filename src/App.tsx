@@ -1557,7 +1557,7 @@ function WelcomePage({
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
 
   const [activePage, setActivePage] = useState<
-    "recent" | "create" | "settings" | "logout" | "search" | "online" | "offline"
+    "recent" | "create" | "settings" | "logout" | "search" | "offline"
   >("recent");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCloudAuthModal, setShowCloudAuthModal] = useState(false);
@@ -1578,6 +1578,9 @@ function WelcomePage({
   const cloudStorage = useCloudStorage();
 
   const [cloudNotes, setCloudNotes] = useState<Note[]>([]);
+
+  // Offline queue for cloud saves
+  const [offlineQueue, setOfflineQueue] = useState<Note[]>([]);
 
   // Load cloud notes
   const loadCloudNotes = async () => {
@@ -1619,13 +1622,6 @@ function WelcomePage({
     };
     return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
   });
-
-  // Load cloud notes when accessing online page
-  useEffect(() => {
-    if (activePage === "online") {
-      loadCloudNotes();
-    }
-  }, [activePage, cloudStorage.user, cloudStorage.notes]);
 
   // Auto-sync functionality
   useEffect(() => {
@@ -1811,7 +1807,7 @@ function WelcomePage({
       await supabase.auth.signOut();
       setUser(null);
       // Stay in database mode but logged out
-      setActivePage("online");
+      setActivePage("recent");
       setNotes([]);
     }
     if (mode === "cloud" && cloudStorage.user) {
@@ -1823,7 +1819,7 @@ function WelcomePage({
         await new Promise(resolve => setTimeout(resolve, 1000));
         console.log("Auth state update delay completed");
         // Stay in cloud mode but logged out
-        setActivePage("online");
+        setActivePage("recent");
         setNotes([]);
       } catch (error) {
         console.error("Error signing out from Firebase:", error);
@@ -1833,13 +1829,13 @@ function WelcomePage({
   };
 
   const handleLogoButton = () => {
-    setActivePage("online");
+    setActivePage("recent");
   };
 
   const handleExitToMainMenu = async () => {
     console.log("handleExitToMainMenu: Resetting UI state to main menu");
     setSelectedMode(null);
-    setActivePage("online");
+    setActivePage("recent");
     setNotes([]);
     console.log("handleExitToMainMenu: UI state reset completed");
   };
@@ -1879,6 +1875,84 @@ function WelcomePage({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) setFiles(Array.from(e.target.files));
   };
+
+  // Offline queue management functions
+  const addToOfflineQueue = useCallback((note: Note) => {
+    setOfflineQueue(prev => {
+      const updated = [...prev, note];
+      localStorage.setItem('elysium_offline_queue', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const removeFromOfflineQueue = useCallback((noteId: string) => {
+    setOfflineQueue(prev => {
+      const updated = prev.filter(n => n.id !== noteId);
+      localStorage.setItem('elysium_offline_queue', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const processOfflineQueue = useCallback(async () => {
+    if (offlineQueue.length === 0 || !cloudStorage.user) return;
+
+    console.log(`Processing ${offlineQueue.length} notes from offline queue`);
+
+    for (const note of offlineQueue) {
+      try {
+        // Check if note already exists in cloud
+        const existingNotes = cloudStorage.notes;
+        const exists = existingNotes.some(n => n.id === note.id);
+
+        if (!exists) {
+          // Create new note in cloud
+          await cloudStorage.createNote({
+            title: note.title,
+            content: note.content,
+            template: note.template,
+            isPublic: false,
+            tags: []
+          });
+        } else {
+          // Update existing note in cloud
+          await cloudStorage.updateNote(note.id, {
+            title: note.title,
+            content: note.content,
+            template: note.template
+          });
+        }
+
+        removeFromOfflineQueue(note.id);
+        console.log(`Successfully synced note: ${note.title}`);
+      } catch (error) {
+        console.error(`Failed to sync note ${note.title}:`, error);
+        // Keep in queue for next attempt
+      }
+    }
+  }, [offlineQueue, cloudStorage, removeFromOfflineQueue]);
+
+  // Load offline queue from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('elysium_offline_queue');
+    if (saved) {
+      try {
+        setOfflineQueue(JSON.parse(saved));
+      } catch (error) {
+        console.error('Failed to load offline queue:', error);
+      }
+    }
+  }, []);
+
+  // Process queue when user comes online
+  useEffect(() => {
+    if (cloudStorage.user && offlineQueue.length > 0) {
+      // Small delay to ensure cloud storage is ready
+      const timer = setTimeout(() => {
+        processOfflineQueue();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [cloudStorage.user, offlineQueue.length, processOfflineQueue]);
 
   const handleCreateNote = async (note: {
     title: string;
@@ -1954,21 +2028,53 @@ function WelcomePage({
           alert("Please log in to save a note.");
           return;
         }
-      } else if (mode === "cloud" && cloudStorage.user) {
-        // Create note in Firebase - the real-time listener will update the UI
-        await cloudStorage.createNote({
+      } else if (mode === "cloud") {
+        // Create the note object first
+        const newNote: Note = {
+          id: Date.now().toString(),
           title: note.title,
           content: note.content,
           template: note.template,
-        });
-        // Don't add to local state - let the real-time listener handle it
-        setShowCreateModal(false);
-        setActivePage("online");
-        setIsCloudButtonClicked(false);
+          isPermanent: false,
+          completionTimestamps: {},
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          files: note.files,
+        };
 
-        // Show notification for successful note creation
-        showNotification("Success", "Note created successfully in the cloud!");
-        return;
+        if (cloudStorage.user) {
+          try {
+            // Create note in Firebase - the real-time listener will update the UI
+            await cloudStorage.createNote({
+              title: note.title,
+              content: note.content,
+              template: note.template,
+            });
+            // Don't add to local state - let the real-time listener handle it
+            setShowCreateModal(false);
+            setActivePage("recent");
+            setIsCloudButtonClicked(false);
+
+            // Show notification for successful note creation
+            showNotification("Success", "Note created successfully in the cloud!");
+            return;
+          } catch (error) {
+            // If cloud creation fails, save locally and add to offline queue
+            console.log("Cloud creation failed, saving locally:", error);
+            addToOfflineQueue(newNote);
+            setShowCreateModal(false);
+            setActivePage("recent");
+            setIsCloudButtonClicked(false);
+            showNotification("Offline", "Note saved locally. Will sync to cloud when online.");
+          }
+        } else {
+          // Not authenticated, save locally and add to queue
+          addToOfflineQueue(newNote);
+          setShowCreateModal(false);
+          setActivePage("recent");
+          setIsCloudButtonClicked(false);
+          showNotification("Offline", "Note saved locally. Will sync to cloud when you sign in.");
+        }
       } else {
         newNote = {
           id: Date.now().toString(),
@@ -1981,33 +2087,26 @@ function WelcomePage({
           updatedAt: new Date().toISOString(),
           files: note.files,
         };
-      }
 
-      setNotes([...notes, newNote]);
-      setFiles(note.files);
-      setShowCreateModal(false);
-      setActivePage("online");
-      if (mode === "cloud" && !cloudStorage.user) {
-        // Only save to localStorage if not authenticated
-        localStorage.setItem(
-          `elysium_notes_${mode}`,
-          JSON.stringify([...notes, newNote])
+        setNotes([...notes, newNote]);
+        setFiles(note.files);
+        setShowCreateModal(false);
+        setActivePage("recent");
+        setIsCloudButtonClicked(false);
+
+        // Show notification for successful note creation
+        showNotification(
+          "Note Created",
+          `"${note.title}" has been saved successfully`
         );
       }
-      setIsCloudButtonClicked(false);
-
-      // Show notification for successful note creation
-      showNotification(
-        "Note Created",
-        `"${note.title}" has been saved successfully`
-      );
     } else if (mode === "web3") {
       alert("Please connect your wallet to create a note.");
     }
   };
 
   const handlePageChange = (
-    page: "recent" | "create" | "settings" | "logout" | "search" | "online" | "offline"
+    page: "recent" | "create" | "settings" | "logout" | "search" | "offline"
   ) => {
     setActivePage(page);
   };
@@ -2283,7 +2382,7 @@ function WelcomePage({
       console.log("Mode selected:", selectedMode);
       setMode(selectedMode);
       localStorage.setItem("elysium_selected_mode", selectedMode);
-      setActivePage("online");
+      setActivePage("recent");
       setNotes([]);
     }
   }, [selectedMode]);
@@ -2336,7 +2435,7 @@ function WelcomePage({
     } else if (hasBeenConnected && !connected && mode === "web3") {
       setSelectedMode(null);
       setMode("web3");
-      setActivePage("online");
+      setActivePage("recent");
       setNotes([]);
       localStorage.removeItem("elysium_selected_mode");
     }
@@ -3295,124 +3394,13 @@ function WelcomePage({
                 </>
               )}
 
-              {activePage === "online" && (
-                <>
-                  <h1 className={`text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
-                    Access Online
-                  </h1>
-                  <p className={`text-sm mb-4 ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
-                    🌐 Cloud storage access: View and download notes from your online account to your current device.
-                  </p>
-                  <div className="flex space-x-4 mb-6 sm:mb-8">
-                    <button
-                      onClick={() => {
-                        if (cloudStorage.user) {
-                          // Load cloud notes
-                          setShowCloudAuthModal(false);
-                        } else {
-                          setShowCloudAuthModal(true);
-                        }
-                      }}
-                      className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 px-6 sm:px-8 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg"
-                    >
-                      {cloudStorage.user ? "Load Cloud Notes" : "Connect to Cloud"}
-                    </button>
-                  </div>
-                  {cloudStorage.user && cloudNotes.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                      {cloudNotes.map((note) => (
-                        <animated.div
-                          key={note.id}
-                          style={noteSpring}
-                          className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
-                            settings.theme === "Light"
-                              ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 hover:shadow-[0_0_15px_rgba(139,92,246,0.2)] border-purple-200/50"
-                              : "bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] border-indigo-600/30"
-                          }`}
-                          onClick={() => setViewingNote(note)}
-                        >
-                          <div className="flex-1 overflow-hidden">
-                            <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${settings.theme === "Light" ? "text-purple-800" : "text-gold-100"}`}>
-                              {note.title}
-                            </h3>
-                            <div className={`text-sm mb-2 line-clamp-3 leading-relaxed ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
-                              {note.content
-                                .split("\n")[0]
-                                .substring(0, 120)}
-                              {note.content.length > 120 ? "..." : ""}
-                            </div>
-                            <div className={`flex items-center justify-between text-xs ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                              <span className={`px-2 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50 text-gray-300"}`}>
-                                {note.template}
-                              </span>
-                              <span className={settings.theme === "Light" ? "text-purple-500" : "text-gray-500"}>
-                                Click to view
-                              </span>
-                            </div>
-                          </div>
-                          <div className="mt-3 flex justify-between items-center">
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                // Download note to local storage
-                                const updatedNotes = [...notes];
-                                const existingIndex = updatedNotes.findIndex(n => n.id === note.id);
-                                if (existingIndex === -1) {
-                                  const downloadedNote = { ...note, isDownloaded: true };
-                                  updatedNotes.push(downloadedNote);
-                                  setNotes(updatedNotes);
-                                  localStorage.setItem(
-                                    `elysium_notes_${mode}`,
-                                    JSON.stringify(updatedNotes)
-                                  );
-                                  alert(`Note "${note.title}" downloaded to your device!`);
-                                } else {
-                                  alert(`Note "${note.title}" is already on your device.`);
-                                }
-                              }}
-                              className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
-                            >
-                              Download
-                            </button>
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (window.confirm(`Delete "${note.title}" from cloud storage?`)) {
-                                  // Remove from cloud notes
-                                  setCloudNotes(cloudNotes.filter(n => n.id !== note.id));
-                                }
-                              }}
-                              className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </animated.div>
-                      ))}
-                    </div>
-                  ) : cloudStorage.user ? (
-                    <div className="text-center py-12">
-                      <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                        No notes in cloud storage. Create some notes first!
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                        Connect to your cloud account to access online notes.
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
-
               {activePage === "create" && (
                 <CreateNote
                   onSave={handleCreateNote}
                   onCancel={() => {
                     setShowCreateModal(false);
                     setIsCloudButtonClicked(false);
-                    setActivePage("online");
+                    setActivePage("recent");
                   }}
                   mode={mode}
                   theme={settings.theme}
@@ -3443,7 +3431,7 @@ function WelcomePage({
                   onCancel={() => {
                     setShowPopup(false);
                     setIsCloudButtonClicked(false);
-                    setActivePage("online");
+                    setActivePage("recent");
                   }}
                   theme={settings.theme}
                 />
@@ -3626,7 +3614,7 @@ function WelcomePage({
                     onCancel={() => {
                       setShowCreateModal(false);
                       setIsCloudButtonClicked(false);
-                      setActivePage("online");
+                      setActivePage("recent");
                     }}
                     mode={mode}
                     theme={settings.theme}
@@ -3781,10 +3769,32 @@ function WelcomePage({
                                   }
                                 }
                               } else if (mode === "cloud") {
+                                // Save to localStorage
                                 localStorage.setItem(
                                   `elysium_notes_${mode}`,
                                   JSON.stringify(updatedNotes)
                                 );
+
+                                // Add to offline queue for cloud sync
+                                if (cloudStorage.user) {
+                                  try {
+                                    await cloudStorage.updateNote(editingNote.id, {
+                                      title: editTitle,
+                                      content: editContent,
+                                      template: editTemplate
+                                    });
+                                    showNotification("Success", "Note updated in cloud!");
+                                  } catch (error) {
+                                    // If cloud update fails, add to offline queue
+                                    console.log("Cloud update failed, adding to offline queue:", error);
+                                    addToOfflineQueue(updatedNote);
+                                    showNotification("Offline", "Note saved locally. Will sync to cloud when online.");
+                                  }
+                                } else {
+                                  // Not authenticated, add to queue for when they sign in
+                                  addToOfflineQueue(updatedNote);
+                                  showNotification("Offline", "Note saved locally. Will sync to cloud when you sign in.");
+                                }
                               }
 
                               setEditingNote(null);
