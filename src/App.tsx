@@ -27,6 +27,8 @@ import idlJson from "./idl.json";
 import { supabase } from "./SUPABASE/supabaseClient";
 import { Session } from "@supabase/supabase-js";
 import { useCloudStorage } from "./hooks/useCloudStorage";
+import { initializeApp } from "firebase/app";
+import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 
 interface Note {
   id: string;
@@ -1558,7 +1560,7 @@ function WelcomePage({
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
 
   const [activePage, setActivePage] = useState<
-    "recent" | "create" | "settings" | "logout" | "search" | "offline"
+    "recent" | "create" | "settings" | "logout" | "search"
   >("recent");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCloudAuthModal, setShowCloudAuthModal] = useState(false);
@@ -1585,6 +1587,11 @@ function WelcomePage({
 
   // Download loading state
   const [downloadingNotes, setDownloadingNotes] = useState<Set<string>>(new Set());
+
+  // Connectivity state
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isLoadingOfflineData, setIsLoadingOfflineData] = useState(false);
+  const [cachedNotes, setCachedNotes] = useState<Note[]>([]);
 
   // Load cloud notes
   const loadCloudNotes = async () => {
@@ -1752,6 +1759,77 @@ function WelcomePage({
     }
   };
 
+  // Connectivity detection functions
+  const testInternetConnectivity = async (): Promise<boolean> => {
+    try {
+      // Test multiple endpoints for better reliability
+      const testUrls = [
+        'https://www.google.com/favicon.ico',
+        'https://www.cloudflare.com/favicon.ico',
+        'https://firebase.google.com/favicon.ico'
+      ];
+
+      for (const url of testUrls) {
+        try {
+          const response = await fetch(url, {
+            method: 'HEAD',
+            mode: 'no-cors',
+            cache: 'no-cache',
+            signal: AbortSignal.timeout(5000) // 5 second timeout
+          });
+          return true;
+        } catch (error) {
+          // Continue to next URL
+          continue;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.warn('Connectivity test failed:', error);
+      return false;
+    }
+  };
+
+  const checkConnectivity = async () => {
+    const online = await testInternetConnectivity();
+    console.log('Connectivity check:', online ? 'online' : 'offline');
+    setIsOnline(online);
+    return online;
+  };
+
+  const loadCachedNotes = async () => {
+    if (mode === "cloud" && cloudStorage.user) {
+      try {
+        setIsLoadingOfflineData(true);
+        
+        // Load cached notes from localStorage
+        const cached = localStorage.getItem(`elysium_cached_notes_${cloudStorage.user.uid}`);
+        if (cached) {
+          const parsedNotes: Note[] = JSON.parse(cached);
+          setCachedNotes(parsedNotes);
+          
+          // If offline, automatically switch to cached notes
+          if (!isOnline) {
+            setNotes(parsedNotes);
+            console.log(`Automatically loaded ${parsedNotes.length} cached notes (offline mode)`);
+          }
+        } else if (!isOnline) {
+          // No cached notes available offline
+          setNotes([]);
+          console.log('No cached notes available for offline mode');
+        }
+      } catch (error) {
+        console.error('Error loading cached notes:', error);
+        setCachedNotes([]);
+        if (!isOnline) {
+          setNotes([]);
+        }
+      } finally {
+        setIsLoadingOfflineData(false);
+      }
+    }
+  };
+
   const mainMenuGif =
     "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExaDF1NzNmZmlkaGd6cXRtem42ZXptMmV6cHQwMXVobWY5eWdrazU0eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ewwd4xlxeSrM4aDDpL/giphy.gif";
   const databaseGif =
@@ -1789,6 +1867,55 @@ function WelcomePage({
     delay: 200,
     reset: mode === "web3",
   });
+
+  // Connectivity monitoring
+  useEffect(() => {
+    // Initial connectivity check
+    checkConnectivity();
+
+    // Listen for online/offline events
+    const handleOnline = () => {
+      console.log('Browser reports online');
+      checkConnectivity(); // Double-check with actual connectivity test
+    };
+
+    const handleOffline = () => {
+      console.log('Browser reports offline');
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Periodic connectivity checks
+    const connectivityInterval = setInterval(checkConnectivity, 30000); // Check every 30 seconds
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(connectivityInterval);
+    };
+  }, []);
+
+  // Load cached notes when offline
+  useEffect(() => {
+    if (!isOnline && mode === "cloud" && cloudStorage.user) {
+      loadCachedNotes();
+    } else if (isOnline && mode === "cloud" && cloudStorage.user) {
+      // When back online, load fresh data and clear offline mode
+      loadCloudNotes();
+      setIsLoadingOfflineData(false);
+    }
+  }, [isOnline, mode, cloudStorage.user]);
+
+  // Cache notes when they're loaded from cloud
+  useEffect(() => {
+    if (mode === "cloud" && cloudStorage.user && cloudNotes.length > 0) {
+      // Cache the current cloud notes for offline use
+      localStorage.setItem(`elysium_cached_notes_${cloudStorage.user.uid}`, JSON.stringify(cloudNotes));
+      console.log(`Cached ${cloudNotes.length} notes for offline use`);
+    }
+  }, [cloudNotes, mode, cloudStorage.user]);
 
   const handleSelectWallet = () => {
     setVisible(true);
@@ -2159,7 +2286,7 @@ function WelcomePage({
   };
 
   const handlePageChange = (
-    page: "recent" | "create" | "settings" | "logout" | "search" | "offline"
+    page: "recent" | "create" | "settings" | "logout" | "search"
   ) => {
     setActivePage(page);
   };
@@ -2970,6 +3097,7 @@ function WelcomePage({
             onNavigate={handlePageChange}
             onSearch={(query) => setSearchQuery(query)}
             theme={settings.theme}
+            isOnline={isOnline}
           />
           <button onClick={handleLogoButton}>
             <div className="fixed top-4 sm:top-6 left-1/2 transform -translate-x-1/2 z-40">
@@ -3024,6 +3152,28 @@ function WelcomePage({
                 >
                   Logout
                 </button>
+              </div>
+            </div>
+          )}
+          {isLoadingOfflineData && (
+            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+              <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-black p-6 sm:p-8 rounded-lg shadow-2xl text-white w-11/12 max-w-md sm:w-96 transform transition-all duration-300 ease-in-out border border-indigo-700/50">
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+                  </div>
+                  <h3 className={`text-xl sm:text-2xl font-semibold mb-2 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
+                    Loading Offline Data
+                  </h3>
+                  <p className={`text-sm sm:text-base mb-4 ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
+                    Retrieving your cached notes for offline access...
+                  </p>
+                  <div className="flex justify-center space-x-1">
+                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -3408,166 +3558,7 @@ function WelcomePage({
                 </>
               )}
 
-              {activePage === "offline" && (
-                <>
-                  <h1 className={`text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
-                    Access Offline Notes
-                  </h1>
-                  <p className={`text-sm mb-4 ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
-                    📱 Downloaded Notes: Notes that have been downloaded from cloud storage to your device.
-                  </p>
-                  {notes.filter((note) => note.isDownloaded).length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                      {getSortedNotes(
-                        notes.filter((note) => note.isDownloaded),
-                        settings.noteSorting
-                      ).map((note) => (
-                        <animated.div
-                          key={note.id}
-                          style={noteSpring}
-                          className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
-                            settings.theme === "Light"
-                              ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 hover:shadow-[0_0_15px_rgba(139,92,246,0.2)] border-purple-200/50"
-                              : "bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] border-indigo-600/30"
-                          }`}
-                          onClick={() => setViewingNote(note)}
-                        >
-                          <div className="flex-1 overflow-hidden">
-                            <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${settings.theme === "Light" ? "text-purple-800" : "text-gold-100"}`}>
-                              {note.title}
-                              {note.isPermanent && (
-                                <span className="text-xs text-amber-400 ml-1">
-                                  ??
-                                </span>
-                              )}
-                            </h3>
-                            <div className={`text-sm mb-2 line-clamp-3 leading-relaxed ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
-                              {note.content
-                                .split("\n")[0]
-                                .substring(0, 120)}
-                              {note.content.length > 120 ? "..." : ""}
-                            </div>
-                            <div className={`flex items-center justify-between text-xs ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                              <span className={`px-2 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50 text-gray-300"}`}>
-                                {note.template}
-                              </span>
-                              <span className={settings.theme === "Light" ? "text-purple-500" : "text-gray-500"}>
-                                Click to view
-                              </span>
-                            </div>
-                          </div>
-                          <div className="mt-3 flex justify-end">
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (note.isPermanent) {
-                                  if (
-                                    window.confirm(
-                                      "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
-                                    )
-                                  ) {
-                                    const updatedNotes = notes.filter(
-                                      (n) => n.id !== note.id
-                                    );
-                                    setNotes(updatedNotes);
-                                    if (mode === "db" && user) {
-                                      const confirmDelete = window.confirm(
-                                        `Are you sure you want to permanently delete "${note.title}" from the database? This action cannot be undone.`
-                                      );
 
-                                      if (!confirmDelete) {
-                                        return;
-                                      }
-
-                                      console.log(
-                                        "Deleting note from Supabase:",
-                                        note.id
-                                      );
-                                      const { error } = await supabase
-                                        .from("notes")
-                                        .delete()
-                                        .eq("id", note.id);
-                                      if (error) {
-                                        console.error(
-                                          "Supabase delete error:",
-                                          error
-                                        );
-                                        alert("Failed to delete note from database. Please try again.");
-                                      } else {
-                                        console.log('Note deleted from database successfully', {
-                                          noteId: note.id,
-                                          userId: user.id,
-                                          noteTitle: note.title
-                                        });
-                                      }
-                                    } else if (mode === "cloud") {
-                                      localStorage.setItem(
-                                        `elysium_notes_${mode}`,
-                                        JSON.stringify(updatedNotes)
-                                      );
-                                    }
-                                  }
-                                } else {
-                                  const updatedNotes = notes.filter(
-                                    (n) => n.id !== note.id
-                                  );
-                                  setNotes(updatedNotes);
-                                  if (mode === "db" && user) {
-                                    const confirmDelete = window.confirm(
-                                      `Are you sure you want to permanently delete "${note.title}" from the database? This action cannot be undone.`
-                                    );
-
-                                    if (!confirmDelete) {
-                                      return;
-                                    }
-
-                                    console.log(
-                                      "Deleting note from Supabase:",
-                                      note.id
-                                    );
-                                    const { error } = await supabase
-                                      .from("notes")
-                                      .delete()
-                                      .eq("id", note.id);
-                                    if (error) {
-                                      console.error(
-                                        "Supabase delete error:",
-                                        error
-                                      );
-                                      alert("Failed to delete note from database. Please try again.");
-                                    } else {
-                                      console.log('Note deleted from database successfully', {
-                                        noteId: note.id,
-                                        userId: user.id,
-                                        noteTitle: note.title
-                                      });
-                                    }
-                                  } else if (mode === "cloud") {
-                                    localStorage.setItem(
-                                      `elysium_notes_${mode}`,
-                                      JSON.stringify(updatedNotes)
-                                    );
-                                  }
-                                }
-                              }}
-                              className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
-                              disabled={false}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </animated.div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                        No downloaded notes yet. Download some notes from cloud storage to view them here!
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
 
               {activePage === "create" && (
                 <CreateNote

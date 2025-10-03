@@ -3,16 +3,18 @@ import { supabase } from "../SUPABASE/supabaseClient";
 
 interface DrawerProps {
   onNavigate: (
-    page: "recent" | "create" | "settings" | "logout" | "search" | "offline"
+    page: "recent" | "create" | "settings" | "logout" | "search"
   ) => void;
   onSearch: (query: string) => void;
   theme?: string;
+  isOnline?: boolean;
 }
 
 const Drawer: React.FC<DrawerProps> = ({
   onNavigate,
   onSearch,
   theme = "Dark",
+  isOnline = true,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<
@@ -87,7 +89,7 @@ const Drawer: React.FC<DrawerProps> = ({
   };
 
   const handleNavigate = (
-    page: "recent" | "create" | "settings" | "logout" | "search" | "offline"
+    page: "recent" | "create" | "settings" | "logout" | "search"
   ) => {
     onNavigate(page);
     setIsOpen(false); // Close the drawer after navigation
@@ -142,6 +144,20 @@ const Drawer: React.FC<DrawerProps> = ({
           </svg>
         </button>
 
+        {!isOnline && (
+          <div className="mt-16 mx-6 mb-4">
+            <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-4 py-3 rounded-lg shadow-lg border border-orange-500/50">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                <span className="text-sm font-semibold">Offline Mode</span>
+              </div>
+              <p className="text-xs mt-1 opacity-90">
+                Using cached data - changes will sync when online
+              </p>
+            </div>
+          </div>
+        )}
+
         <nav className="mt-20 px-6 space-y-4">
           <button
             onClick={() => handleNavigate("search")}
@@ -175,16 +191,6 @@ const Drawer: React.FC<DrawerProps> = ({
             }`}
           >
             Recent Notes
-          </button>
-          <button
-            onClick={() => handleNavigate("offline")}
-            className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left ${
-              theme === "Light"
-                ? "bg-gradient-to-br from-purple-100 to-indigo-100 hover:from-purple-200 hover:to-indigo-200 text-gray-800 border border-purple-200/50"
-                : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
-            }`}
-          >
-            Access Offline Notes
           </button>
           <button
             onClick={() => handleNavigate("create")}
