@@ -2246,16 +2246,6 @@ function WelcomePage({
         console.log("Decrypted notes:", validNotes);
         setNotes(validNotes);
         setIsLoadingNotes(false);
-
-        // Show notification for successful sync
-        if (validNotes.length > 0) {
-          showNotification(
-            "Elysium Notes Synced",
-            `Successfully synced ${validNotes.length} note${
-              validNotes.length === 1 ? "" : "s"
-            }`
-          );
-        }
       }
     }, 5000),
     [mode, user]
@@ -2829,6 +2819,14 @@ function WelcomePage({
                   {cloudStorage.user.email}
                 </button>
               )}
+              {mode === "db" && user && (
+                <button
+                  onClick={() => setActivePage("settings")}
+                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl text-sm sm:text-base cursor-pointer"
+                >
+                  {user.email}
+                </button>
+              )}
               {mode !== "web3" && (
                 <button
                   onClick={handleExitToMainMenu}
@@ -3131,6 +3129,7 @@ function WelcomePage({
                 <Settings
                   onSave={handleSettingsSave}
                   onCleanupOrphanedNotes={cleanupOrphanedNotes}
+                  onLogout={handleLogout}
                   initialTheme={settings.theme}
                   initialNotifications={settings.notifications}
                   initialSyncInterval={settings.syncInterval}

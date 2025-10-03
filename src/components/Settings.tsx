@@ -21,6 +21,7 @@ interface SettingsProps {
   }) => void;
   onCancel?: () => void;
   onCleanupOrphanedNotes?: () => void;
+  onLogout?: () => void;
   initialTheme?: string;
   initialNotifications?: boolean;
   initialSyncInterval?: number;
@@ -36,6 +37,7 @@ const Settings: React.FC<SettingsProps> = ({
   onSave,
   onCancel,
   onCleanupOrphanedNotes,
+  onLogout,
   initialTheme = "Dark",
   initialNotifications = false,
   initialSyncInterval = 15,
@@ -676,6 +678,16 @@ const Settings: React.FC<SettingsProps> = ({
                 className={`py-2 px-6 rounded-lg transition-all duration-200 ${theme === 'Light' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-green-700 hover:bg-green-800 text-white'}`}
               >
                 Save Settings
+              </button>
+            </div>
+          )}
+          {onLogout && (
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={onLogout}
+                className={`py-2 px-6 rounded-lg transition-all duration-200 ${theme === 'Light' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-700 hover:bg-red-800 text-white'}`}
+              >
+                Logout
               </button>
             </div>
           )}
