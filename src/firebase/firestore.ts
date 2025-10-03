@@ -158,46 +158,50 @@ export class FirebaseFirestoreService {
     if (!db) throw new Error('Firebase not configured');
     const noteRef = doc(db, this.notesCollection, noteId);
 
-    // Get the current note to access the nonce
-    const currentNote = await this.getNote(noteId);
-    if (!currentNote) throw new Error('Note not found');
+    // Get the current note to access userId and nonce
+    const currentDoc = await getDoc(noteRef);
+    if (!currentDoc.exists()) throw new Error('Note not found');
+    const currentData = currentDoc.data();
+    const userId = currentData.userId;
+    const existingNonce = currentData.nonce;
 
     const updateData: any = {
       updatedAt: Timestamp.now(),
     };
 
-    // Encrypt fields that need encryption
-    if (updates.title !== undefined) {
-      const publicKey = this.getUserPublicKey(currentNote.userId);
-      const nonce = new Uint8Array(Array.from(atob((await getDoc(noteRef)).data()?.nonce || '')).map(c => c.charCodeAt(0)));
-      const { encrypted } = encryptAndCompress(updates.title, publicKey);
-      updateData.encryptedTitle = btoa(String.fromCharCode.apply(null, Array.from(encrypted)));
-    }
+    // If we have encrypted field updates, we need to re-encrypt everything with the same nonce
+    const hasEncryptedUpdates = updates.title !== undefined || updates.content !== undefined ||
+                               updates.template !== undefined || updates.tags !== undefined;
 
-    if (updates.content !== undefined) {
-      const publicKey = this.getUserPublicKey(currentNote.userId);
-      const nonce = new Uint8Array(Array.from(atob((await getDoc(noteRef)).data()?.nonce || '')).map(c => c.charCodeAt(0)));
-      const { encrypted } = encryptAndCompress(updates.content, publicKey);
-      updateData.encryptedContent = btoa(String.fromCharCode.apply(null, Array.from(encrypted)));
-    }
+    if (hasEncryptedUpdates) {
+      // Get existing values for fields not being updated
+      const existingTitle = updates.title !== undefined ? updates.title :
+                           this.decryptNoteData(currentData).title;
+      const existingContent = updates.content !== undefined ? updates.content :
+                             this.decryptNoteData(currentData).content;
+      const existingTemplate = updates.template !== undefined ? updates.template :
+                              this.decryptNoteData(currentData).template;
+      const existingTags = updates.tags !== undefined ? updates.tags :
+                          this.decryptNoteData(currentData).tags;
 
-    if (updates.template !== undefined) {
-      if (updates.template) {
-        const publicKey = this.getUserPublicKey(currentNote.userId);
-        const nonce = new Uint8Array(Array.from(atob((await getDoc(noteRef)).data()?.nonce || '')).map(c => c.charCodeAt(0)));
-        const { encrypted } = encryptAndCompress(updates.template, publicKey);
-        updateData.encryptedTemplate = btoa(String.fromCharCode.apply(null, Array.from(encrypted)));
+      // Re-encrypt all fields with the existing nonce
+      const publicKey = this.getUserPublicKey(userId);
+      const nonce = new Uint8Array(Array.from(atob(existingNonce)).map(c => c.charCodeAt(0)));
+
+      const titleResult = encryptNote(existingTitle, publicKey, nonce);
+      const contentResult = encryptNote(existingContent, publicKey, nonce);
+      const templateResult = existingTemplate ? encryptNote(existingTemplate, publicKey, nonce) : null;
+      const tagsResult = existingTags && existingTags.length > 0 ? encryptNote(JSON.stringify(existingTags), publicKey, nonce) : null;
+
+      updateData.encryptedTitle = btoa(String.fromCharCode.apply(null, Array.from(titleResult)));
+      updateData.encryptedContent = btoa(String.fromCharCode.apply(null, Array.from(contentResult)));
+      if (templateResult) {
+        updateData.encryptedTemplate = btoa(String.fromCharCode.apply(null, Array.from(templateResult)));
       } else {
         updateData.encryptedTemplate = null;
       }
-    }
-
-    if (updates.tags !== undefined) {
-      if (updates.tags) {
-        const publicKey = this.getUserPublicKey(currentNote.userId);
-        const nonce = new Uint8Array(Array.from(atob((await getDoc(noteRef)).data()?.nonce || '')).map(c => c.charCodeAt(0)));
-        const { encrypted } = encryptAndCompress(JSON.stringify(updates.tags), publicKey);
-        updateData.encryptedTags = btoa(String.fromCharCode.apply(null, Array.from(encrypted)));
+      if (tagsResult) {
+        updateData.encryptedTags = btoa(String.fromCharCode.apply(null, Array.from(tagsResult)));
       } else {
         updateData.encryptedTags = null;
       }
@@ -239,13 +243,14 @@ export class FirebaseFirestoreService {
   async getUserNotes(userId: string): Promise<CloudNote[]> {
     if (!db) throw new Error('Firebase not configured');
     const q = query(
-      collection(db, this.notesCollection),
-      where('userId', '==', userId),
-      orderBy('updatedAt', 'desc')
+      collection(db, this.notesCollection)
+      // Temporarily remove where clause to test if basic query works
+      // where('userId', '==', userId)
+      // orderBy('updatedAt', 'desc')
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
+    const allNotes = querySnapshot.docs.map(doc => {
       const data = doc.data();
       // Decrypt the note data
       return this.decryptNoteData({
@@ -253,6 +258,12 @@ export class FirebaseFirestoreService {
         ...data,
       });
     });
+
+    // Filter by userId on client side
+    const userNotes = allNotes.filter(note => note.userId === userId);
+
+    // Sort notes by updatedAt in memory instead
+    return userNotes.sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis());
   }
 
   // Get public notes (for free downloads)
@@ -298,22 +309,45 @@ export class FirebaseFirestoreService {
       console.warn('Firebase db not available, returning no-op listener');
       return () => {};
     }
+
+    console.log('Setting up Firestore listener for user:', userId);
+
     const q = query(
       collection(db, this.notesCollection),
-      where('userId', '==', userId),
-      orderBy('updatedAt', 'desc')
+      where('userId', '==', userId)
+      // Temporarily remove orderBy to avoid index requirements
+      // orderBy('updatedAt', 'desc')
     );
 
+    console.log('Firestore query created:', q);
+
     return onSnapshot(q, (querySnapshot: QuerySnapshot<DocumentData>) => {
-      const notes = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        // Decrypt the note data
-        return this.decryptNoteData({
-          id: doc.id,
-          ...data,
-        });
-      });
+      console.log('Firestore snapshot received, docs count:', querySnapshot.docs.length);
+      const notes = querySnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          console.log('Processing doc:', doc.id, data);
+          // Decrypt the note data
+          return this.decryptNoteData({
+            id: doc.id,
+            ...data,
+          });
+        })
+        .sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis()); // Sort in memory
+      console.log('Calling callback with notes:', notes.length);
       callback(notes);
+    }, (error) => {
+      console.error('Firestore listener error:', error);
+      // If there's a permission or API error, log it but don't crash
+      if (error.code === 'permission-denied') {
+        console.warn('Firestore permission denied - user may not be authenticated');
+      } else if (error.code === 'unavailable') {
+        console.warn('Firestore unavailable - API may be disabled or network issues');
+      } else if (error.code === 'failed-precondition') {
+        console.warn('Firestore failed precondition - index may be missing');
+      }
+      // Call callback with empty array to indicate no notes available
+      callback([]);
     });
   }
 

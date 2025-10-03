@@ -1785,6 +1785,18 @@ function WelcomePage({
       await supabase.auth.signOut();
       setUser(null);
     }
+    if (mode === "cloud" && cloudStorage.user) {
+      console.log("Logging out from Firebase");
+      try {
+        await cloudStorage.signOut();
+        console.log("Firebase signOut completed");
+        // Wait a bit for the auth state to update
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log("Auth state update delay completed");
+      } catch (error) {
+        console.error("Error signing out from Firebase:", error);
+      }
+    }
     setShowPopup(false);
     setSelectedMode(null);
     setMode("web3");
@@ -1797,10 +1809,12 @@ function WelcomePage({
     setActivePage("recent");
   };
 
-  const handleExitToMainMenu = () => {
+  const handleExitToMainMenu = async () => {
+    console.log("handleExitToMainMenu: Resetting UI state to main menu");
     setSelectedMode(null);
     setActivePage("recent");
     setNotes([]);
+    console.log("handleExitToMainMenu: UI state reset completed");
   };
 
 
@@ -2797,23 +2811,33 @@ function WelcomePage({
               <ElysiumLogo className="w-12 h-12 sm:w-16 sm:h-16" />
             </div>
           </button>
-          <header className="w-full p-2 sm:p-4 flex justify-end absolute top-0 left-0 items-center space-x-2 sm:space-x-4">
-            {connected && (
-              <button
-                onClick={handleWalletAction}
-                className="bg-gradient-to-r from-purple-600 to-blue-700 hover:from-purple-700 hover:to-blue-800 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl transition-all duration-300 text-sm sm:text-base"
-              >
-                {shortenedAddress}
-              </button>
-            )}
-            {mode !== "web3" && (
-              <button
-                onClick={handleExitToMainMenu}
-                className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl transition-all duration-300 text-sm sm:text-base"
-              >
-                Exit to Main Menu
-              </button>
-            )}
+          <header className="w-full p-2 sm:p-4 flex justify-end absolute top-0 left-0 items-center">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              {connected && (
+                <button
+                  onClick={handleWalletAction}
+                  className="bg-gradient-to-r from-purple-600 to-blue-700 hover:from-purple-700 hover:to-blue-800 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl transition-all duration-300 text-sm sm:text-base"
+                >
+                  {shortenedAddress}
+                </button>
+              )}
+              {mode === "cloud" && cloudStorage.user && (
+                <button
+                  onClick={() => setActivePage("settings")}
+                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl text-sm sm:text-base cursor-pointer"
+                >
+                  {cloudStorage.user.email}
+                </button>
+              )}
+              {mode !== "web3" && (
+                <button
+                  onClick={handleExitToMainMenu}
+                  className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl transition-all duration-300 text-sm sm:text-base"
+                >
+                  Exit to Main Menu
+                </button>
+              )}
+            </div>
           </header>
           {showPopup && mode === "web3" && (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
