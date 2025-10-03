@@ -1784,6 +1784,9 @@ function WelcomePage({
       console.log("Logging out from Supabase");
       await supabase.auth.signOut();
       setUser(null);
+      // Stay in database mode but logged out
+      setActivePage("recent");
+      setNotes([]);
     }
     if (mode === "cloud" && cloudStorage.user) {
       console.log("Logging out from Firebase");
@@ -1793,16 +1796,14 @@ function WelcomePage({
         // Wait a bit for the auth state to update
         await new Promise(resolve => setTimeout(resolve, 1000));
         console.log("Auth state update delay completed");
+        // Stay in cloud mode but logged out
+        setActivePage("recent");
+        setNotes([]);
       } catch (error) {
         console.error("Error signing out from Firebase:", error);
       }
     }
     setShowPopup(false);
-    setSelectedMode(null);
-    setMode("web3");
-    setActivePage("recent");
-    setNotes([]);
-    localStorage.removeItem("elysium_selected_mode");
   };
 
   const handleLogoButton = () => {
