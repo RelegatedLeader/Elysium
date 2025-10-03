@@ -139,9 +139,9 @@ const CloudAuth: React.FC<CloudAuthProps> = ({ onAuthenticated, onCancel }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-indigo-900/95 via-indigo-800/95 to-purple-700/95 backdrop-blur-lg border border-indigo-500/50 rounded-xl shadow-[0_0_30px_rgba(79,70,229,0.3)] max-w-md w-full">
-        <div className="p-8">
-          <div className="flex justify-between items-center mb-6">
+      <div className="bg-gradient-to-br from-indigo-900/95 via-indigo-800/95 to-purple-700/95 backdrop-blur-lg border border-indigo-500/50 rounded-xl shadow-[0_0_30px_rgba(79,70,229,0.3)] max-w-md w-full max-h-[90vh] flex flex-col">
+        <div className="p-6 pb-4 flex-shrink-0">
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold text-white">
               {isSignUp ? 'Create Cloud Account' : 'Sign In to Cloud'}
             </h2>
@@ -153,12 +153,15 @@ const CloudAuth: React.FC<CloudAuthProps> = ({ onAuthenticated, onCancel }) => {
             </button>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-4">
             <p className="text-gray-300 text-sm">
               Access your notes from anywhere with Firebase Cloud Storage.
               Free tier includes 5GB storage and unlimited notes.
             </p>
           </div>
+        </div>
+
+        <div className="px-6 pb-6 overflow-y-auto flex-1">
 
           {error && (
             <div className="mb-4 p-3 bg-red-900/50 border border-red-500/50 text-red-200 rounded-lg">
