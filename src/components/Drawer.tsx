@@ -2,39 +2,54 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "../SUPABASE/supabaseClient";
 
 interface DrawerProps {
-  onNavigate: (page: "recent" | "create" | "settings" | "logout" | "search") => void;
+  onNavigate: (
+    page: "recent" | "create" | "settings" | "logout" | "search" | "online" | "offline"
+  ) => void;
   onSearch: (query: string) => void;
   theme?: string;
 }
 
-const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch, theme = "Dark" }) => {
+const Drawer: React.FC<DrawerProps> = ({
+  onNavigate,
+  onSearch,
+  theme = "Dark",
+}) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'online' | 'offline' | 'syncing'>('online');
+  const [syncStatus, setSyncStatus] = useState<
+    "online" | "offline" | "syncing"
+  >("online");
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  const [connectionQuality, setConnectionQuality] = useState<'good' | 'slow' | 'poor'>('good');
+  const [connectionQuality, setConnectionQuality] = useState<
+    "good" | "slow" | "poor"
+  >("good");
 
   // Check connectivity and sync status
   useEffect(() => {
     const checkConnectivity = async () => {
       try {
         const startTime = Date.now();
-        const { error } = await supabase.from('notes').select('count').limit(1).single();
+        const { error } = await supabase
+          .from("notes")
+          .select("count")
+          .limit(1)
+          .single();
         const responseTime = Date.now() - startTime;
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" which is OK
-          setSyncStatus('offline');
-          setConnectionQuality('poor');
+        if (error && error.code !== "PGRST116") {
+          // PGRST116 is "no rows returned" which is OK
+          setSyncStatus("offline");
+          setConnectionQuality("poor");
         } else {
-          setSyncStatus('online');
+          setSyncStatus("online");
           setLastSyncTime(new Date());
 
-          if (responseTime < 500) setConnectionQuality('good');
-          else if (responseTime < 2000) setConnectionQuality('slow');
-          else setConnectionQuality('poor');
+          if (responseTime < 500) setConnectionQuality("good");
+          else if (responseTime < 2000) setConnectionQuality("slow");
+          else setConnectionQuality("poor");
         }
       } catch (error) {
-        setSyncStatus('offline');
-        setConnectionQuality('poor');
+        setSyncStatus("offline");
+        setConnectionQuality("poor");
       }
     };
 
@@ -48,18 +63,22 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch, theme = "Dark" })
   }, []);
 
   const handleManualSync = async () => {
-    setSyncStatus('syncing');
+    setSyncStatus("syncing");
     try {
       // Test connection with a simple query
-      const { error } = await supabase.from('notes').select('count').limit(1).single();
-      if (error && error.code !== 'PGRST116') {
+      const { error } = await supabase
+        .from("notes")
+        .select("count")
+        .limit(1)
+        .single();
+      if (error && error.code !== "PGRST116") {
         throw error;
       }
-      setSyncStatus('online');
+      setSyncStatus("online");
       setLastSyncTime(new Date());
     } catch (error) {
-      setSyncStatus('offline');
-      console.error('Manual sync failed:', error);
+      setSyncStatus("offline");
+      console.error("Manual sync failed:", error);
     }
   };
 
@@ -68,7 +87,7 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch, theme = "Dark" })
   };
 
   const handleNavigate = (
-    page: "recent" | "create" | "settings" | "logout" | "search"
+    page: "recent" | "create" | "settings" | "logout" | "search" | "online" | "offline"
   ) => {
     onNavigate(page);
     setIsOpen(false); // Close the drawer after navigation
@@ -132,8 +151,18 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch, theme = "Dark" })
                 : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
             }`}
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
             <span>Search Notes</span>
           </button>
@@ -148,6 +177,26 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch, theme = "Dark" })
             Recent Notes
           </button>
           <button
+            onClick={() => handleNavigate("offline")}
+            className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left ${
+              theme === "Light"
+                ? "bg-gradient-to-br from-purple-100 to-indigo-100 hover:from-purple-200 hover:to-indigo-200 text-gray-800 border border-purple-200/50"
+                : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
+            }`}
+          >
+            Access Offline Notes
+          </button>
+          <button
+            onClick={() => handleNavigate("online")}
+            className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left ${
+              theme === "Light"
+                ? "bg-gradient-to-br from-purple-100 to-indigo-100 hover:from-purple-200 hover:to-indigo-200 text-gray-800 border border-purple-200/50"
+                : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
+            }`}
+          >
+            Access Online
+          </button>
+          <button
             onClick={() => handleNavigate("create")}
             className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left ${
               theme === "Light"
@@ -157,44 +206,61 @@ const Drawer: React.FC<DrawerProps> = ({ onNavigate, onSearch, theme = "Dark" })
           >
             Create Note
           </button>
-          <div className={`w-full py-3 px-4 rounded-lg flex items-center space-x-2 ${
-            theme === "Light"
-              ? "bg-gradient-to-br from-purple-100 to-indigo-100 text-gray-800 border border-purple-200/50"
-              : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 text-white"
-          }`}>
+          <div
+            className={`w-full py-3 px-4 rounded-lg flex items-center space-x-2 ${
+              theme === "Light"
+                ? "bg-gradient-to-br from-purple-100 to-indigo-100 text-gray-800 border border-purple-200/50"
+                : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 text-white"
+            }`}
+          >
             Sync Status: <span className="text-green-400">Online</span>
             <span className="w-2 h-2 rounded-full bg-green-400"></span>
           </div>
-          <div className={`w-full py-3 px-4 rounded-lg ${
-            theme === "Light"
-              ? "bg-gradient-to-br from-purple-100 to-indigo-100 text-gray-800 border border-purple-200/50"
-              : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 text-white"
-          }`}>
+          <div
+            className={`w-full py-3 px-4 rounded-lg ${
+              theme === "Light"
+                ? "bg-gradient-to-br from-purple-100 to-indigo-100 text-gray-800 border border-purple-200/50"
+                : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 text-white"
+            }`}
+          >
             <div className="flex items-center justify-between mb-1">
               <span className="text-sm">Database Sync</span>
               <button
                 onClick={handleManualSync}
-                disabled={syncStatus === 'syncing'}
+                disabled={syncStatus === "syncing"}
                 className="text-xs text-indigo-300 hover:text-indigo-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                 title="Manual sync"
               >
-                {syncStatus === 'syncing' ? '⏳' : '🔄'}
+                {syncStatus === "syncing" ? "⏳" : "🔄"}
               </button>
             </div>
             <div className="flex items-center space-x-2">
-              <span className={`w-2 h-2 rounded-full ${
-                syncStatus === 'online' ? 'bg-green-400' :
-                syncStatus === 'syncing' ? 'bg-yellow-400 animate-pulse' :
-                'bg-red-400'
-              }`}></span>
-              <span className="text-xs text-silver-200 capitalize">{syncStatus}</span>
-              <span className={`text-xs ${
-                connectionQuality === 'good' ? 'text-green-400' :
-                connectionQuality === 'slow' ? 'text-yellow-400' :
-                'text-red-400'
-              }`}>
-                {connectionQuality === 'good' ? '●' :
-                 connectionQuality === 'slow' ? '○' : '●'}
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  syncStatus === "online"
+                    ? "bg-green-400"
+                    : syncStatus === "syncing"
+                    ? "bg-yellow-400 animate-pulse"
+                    : "bg-red-400"
+                }`}
+              ></span>
+              <span className="text-xs text-silver-200 capitalize">
+                {syncStatus}
+              </span>
+              <span
+                className={`text-xs ${
+                  connectionQuality === "good"
+                    ? "text-green-400"
+                    : connectionQuality === "slow"
+                    ? "text-yellow-400"
+                    : "text-red-400"
+                }`}
+              >
+                {connectionQuality === "good"
+                  ? "●"
+                  : connectionQuality === "slow"
+                  ? "○"
+                  : "●"}
               </span>
             </div>
             {lastSyncTime && (

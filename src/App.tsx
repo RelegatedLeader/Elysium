@@ -41,6 +41,7 @@ interface Note {
   createdAt: string;
   updatedAt: string;
   files?: File[];
+  isDownloaded?: boolean;
 }
 
 interface SupabaseNote {
@@ -148,7 +149,7 @@ function App() {
       ip: 'client-side', // Would be server-side in production
       sessionId: user?.id || 'anonymous'
     };
-    console.log('🔐 Security Audit:', auditEntry);
+    console.log('?? Security Audit:', auditEntry);
   };
   const checkRateLimit = (): boolean => {
     const now = new Date();
@@ -1216,7 +1217,7 @@ function App() {
         });
 
         // In production, this would send alerts to administrators
-        console.warn('🚨 Security Health Alert:', healthReport);
+        console.warn('?? Security Health Alert:', healthReport);
       }
     }, 5 * 60 * 1000); // Every 5 minutes
 
@@ -1230,7 +1231,7 @@ function App() {
           anomaliesCount: anomalyReport.anomalies.length
         });
 
-        console.warn('🚨 Anomaly Detected:', anomalyReport);
+        console.warn('?? Anomaly Detected:', anomalyReport);
       }
     }, 10 * 60 * 1000); // Every 10 minutes
 
@@ -1556,7 +1557,7 @@ function WelcomePage({
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
 
   const [activePage, setActivePage] = useState<
-    "recent" | "create" | "settings" | "logout" | "search"
+    "recent" | "create" | "settings" | "logout" | "search" | "online" | "offline"
   >("recent");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCloudAuthModal, setShowCloudAuthModal] = useState(false);
@@ -1576,6 +1577,33 @@ function WelcomePage({
   // Cloud storage hook
   const cloudStorage = useCloudStorage();
 
+  const [cloudNotes, setCloudNotes] = useState<Note[]>([]);
+
+  // Load cloud notes
+  const loadCloudNotes = async () => {
+    if (cloudStorage.user) {
+      try {
+        // Convert CloudNote to Note format
+        const convertedNotes: Note[] = cloudStorage.notes.map(cloudNote => ({
+          id: cloudNote.id || `cloud-${Date.now()}`,
+          title: cloudNote.title,
+          content: cloudNote.content,
+          template: cloudNote.template || "Blank",
+          isPermanent: false,
+          completionTimestamps: {},
+          createdAt: cloudNote.createdAt.toDate().toISOString(),
+          updatedAt: cloudNote.updatedAt.toDate().toISOString(),
+        }));
+        setCloudNotes(convertedNotes);
+      } catch (error) {
+        console.error("Error loading cloud notes:", error);
+        setCloudNotes([]);
+      }
+    } else {
+      setCloudNotes([]);
+    }
+  };
+
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem("elysium_settings");
     const defaults = {
@@ -1592,14 +1620,12 @@ function WelcomePage({
     return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
   });
 
-  // Apply theme to document
+  // Load cloud notes when accessing online page
   useEffect(() => {
-    if (settings.theme === "Light") {
-      document.documentElement.classList.add("light-theme");
-    } else {
-      document.documentElement.classList.remove("light-theme");
+    if (activePage === "online") {
+      loadCloudNotes();
     }
-  }, [settings.theme]);
+  }, [activePage, cloudStorage.user, cloudStorage.notes]);
 
   // Auto-sync functionality
   useEffect(() => {
@@ -1785,7 +1811,7 @@ function WelcomePage({
       await supabase.auth.signOut();
       setUser(null);
       // Stay in database mode but logged out
-      setActivePage("recent");
+      setActivePage("online");
       setNotes([]);
     }
     if (mode === "cloud" && cloudStorage.user) {
@@ -1797,7 +1823,7 @@ function WelcomePage({
         await new Promise(resolve => setTimeout(resolve, 1000));
         console.log("Auth state update delay completed");
         // Stay in cloud mode but logged out
-        setActivePage("recent");
+        setActivePage("online");
         setNotes([]);
       } catch (error) {
         console.error("Error signing out from Firebase:", error);
@@ -1807,13 +1833,13 @@ function WelcomePage({
   };
 
   const handleLogoButton = () => {
-    setActivePage("recent");
+    setActivePage("online");
   };
 
   const handleExitToMainMenu = async () => {
     console.log("handleExitToMainMenu: Resetting UI state to main menu");
     setSelectedMode(null);
-    setActivePage("recent");
+    setActivePage("online");
     setNotes([]);
     console.log("handleExitToMainMenu: UI state reset completed");
   };
@@ -1937,7 +1963,7 @@ function WelcomePage({
         });
         // Don't add to local state - let the real-time listener handle it
         setShowCreateModal(false);
-        setActivePage("recent");
+        setActivePage("online");
         setIsCloudButtonClicked(false);
 
         // Show notification for successful note creation
@@ -1960,7 +1986,7 @@ function WelcomePage({
       setNotes([...notes, newNote]);
       setFiles(note.files);
       setShowCreateModal(false);
-      setActivePage("recent");
+      setActivePage("online");
       if (mode === "cloud" && !cloudStorage.user) {
         // Only save to localStorage if not authenticated
         localStorage.setItem(
@@ -1981,7 +2007,7 @@ function WelcomePage({
   };
 
   const handlePageChange = (
-    page: "recent" | "create" | "settings" | "logout" | "search"
+    page: "recent" | "create" | "settings" | "logout" | "search" | "online" | "offline"
   ) => {
     setActivePage(page);
   };
@@ -2257,7 +2283,7 @@ function WelcomePage({
       console.log("Mode selected:", selectedMode);
       setMode(selectedMode);
       localStorage.setItem("elysium_selected_mode", selectedMode);
-      setActivePage("recent");
+      setActivePage("online");
       setNotes([]);
     }
   }, [selectedMode]);
@@ -2310,7 +2336,7 @@ function WelcomePage({
     } else if (hasBeenConnected && !connected && mode === "web3") {
       setSelectedMode(null);
       setMode("web3");
-      setActivePage("recent");
+      setActivePage("online");
       setNotes([]);
       localStorage.removeItem("elysium_selected_mode");
     }
@@ -2537,7 +2563,7 @@ function WelcomePage({
           {template === "List" ? (
             // List template: bullet points
             <>
-              <span className="mr-2 text-indigo-400 text-lg">�</span>
+              <span className="mr-2 text-indigo-400 text-lg">?</span>
               <span className="text-silver-200 flex-1 text-base md:text-sm">
                 {itemText}
               </span>
@@ -2684,7 +2710,7 @@ function WelcomePage({
                 Blockchain Version (SOL + Arweave)
               </h2>
               <p className="text-sm sm:text-base" style={{ color: '#e5e7eb' }}>
-                <strong>₿ PREMIUM:</strong> Eternal, censorship-resistant
+                <strong>? PREMIUM:</strong> Eternal, censorship-resistant
                 storage on Solana + Arweave. Your notes become immutable digital
                 artifacts, preserved forever in the decentralized web. True
                 ownership, zero data loss, maximum security.
@@ -3095,25 +3121,298 @@ function WelcomePage({
                             </p>
                           </div>
                           <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                            No notes yet�create one to get started!
+                            No notes yet?create one to get started!
                           </p>
                         </div>
                       ) : (
                         <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                          No notes yet�create one to get started!
+                          No notes yet?create one to get started!
                         </p>
                       )}
                     </div>
                   )}
                 </>
               )}
+
+              {activePage === "offline" && (
+                <>
+                  <h1 className={`text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
+                    Access Offline Notes
+                  </h1>
+                  <p className={`text-sm mb-4 ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
+                    📱 Downloaded Notes: Notes that have been downloaded from cloud storage to your device.
+                  </p>
+                  {notes.filter((note) => note.isDownloaded).length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                      {getSortedNotes(
+                        notes.filter((note) => note.isDownloaded),
+                        settings.noteSorting
+                      ).map((note) => (
+                        <animated.div
+                          key={note.id}
+                          style={noteSpring}
+                          className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
+                            settings.theme === "Light"
+                              ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 hover:shadow-[0_0_15px_rgba(139,92,246,0.2)] border-purple-200/50"
+                              : "bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] border-indigo-600/30"
+                          }`}
+                          onClick={() => setViewingNote(note)}
+                        >
+                          <div className="flex-1 overflow-hidden">
+                            <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${settings.theme === "Light" ? "text-purple-800" : "text-gold-100"}`}>
+                              {note.title}
+                              {note.isPermanent && (
+                                <span className="text-xs text-amber-400 ml-1">
+                                  ??
+                                </span>
+                              )}
+                            </h3>
+                            <div className={`text-sm mb-2 line-clamp-3 leading-relaxed ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
+                              {note.content
+                                .split("\n")[0]
+                                .substring(0, 120)}
+                              {note.content.length > 120 ? "..." : ""}
+                            </div>
+                            <div className={`flex items-center justify-between text-xs ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                              <span className={`px-2 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50 text-gray-300"}`}>
+                                {note.template}
+                              </span>
+                              <span className={settings.theme === "Light" ? "text-purple-500" : "text-gray-500"}>
+                                Click to view
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex justify-end">
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (note.isPermanent) {
+                                  if (
+                                    window.confirm(
+                                      "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
+                                    )
+                                  ) {
+                                    const updatedNotes = notes.filter(
+                                      (n) => n.id !== note.id
+                                    );
+                                    setNotes(updatedNotes);
+                                    if (mode === "db" && user) {
+                                      const confirmDelete = window.confirm(
+                                        `Are you sure you want to permanently delete "${note.title}" from the database? This action cannot be undone.`
+                                      );
+
+                                      if (!confirmDelete) {
+                                        return;
+                                      }
+
+                                      console.log(
+                                        "Deleting note from Supabase:",
+                                        note.id
+                                      );
+                                      const { error } = await supabase
+                                        .from("notes")
+                                        .delete()
+                                        .eq("id", note.id);
+                                      if (error) {
+                                        console.error(
+                                          "Supabase delete error:",
+                                          error
+                                        );
+                                        alert("Failed to delete note from database. Please try again.");
+                                      } else {
+                                        console.log('Note deleted from database successfully', {
+                                          noteId: note.id,
+                                          userId: user.id,
+                                          noteTitle: note.title
+                                        });
+                                      }
+                                    } else if (mode === "cloud") {
+                                      localStorage.setItem(
+                                        `elysium_notes_${mode}`,
+                                        JSON.stringify(updatedNotes)
+                                      );
+                                    }
+                                  }
+                                } else {
+                                  const updatedNotes = notes.filter(
+                                    (n) => n.id !== note.id
+                                  );
+                                  setNotes(updatedNotes);
+                                  if (mode === "db" && user) {
+                                    const confirmDelete = window.confirm(
+                                      `Are you sure you want to permanently delete "${note.title}" from the database? This action cannot be undone.`
+                                    );
+
+                                    if (!confirmDelete) {
+                                      return;
+                                    }
+
+                                    console.log(
+                                      "Deleting note from Supabase:",
+                                      note.id
+                                    );
+                                    const { error } = await supabase
+                                      .from("notes")
+                                      .delete()
+                                      .eq("id", note.id);
+                                    if (error) {
+                                      console.error(
+                                        "Supabase delete error:",
+                                        error
+                                      );
+                                      alert("Failed to delete note from database. Please try again.");
+                                    } else {
+                                      console.log('Note deleted from database successfully', {
+                                        noteId: note.id,
+                                        userId: user.id,
+                                        noteTitle: note.title
+                                      });
+                                    }
+                                  } else if (mode === "cloud") {
+                                    localStorage.setItem(
+                                      `elysium_notes_${mode}`,
+                                      JSON.stringify(updatedNotes)
+                                    );
+                                  }
+                                }
+                              }}
+                              className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
+                              disabled={false}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </animated.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                        No downloaded notes yet. Download some notes from cloud storage to view them here!
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {activePage === "online" && (
+                <>
+                  <h1 className={`text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
+                    Access Online
+                  </h1>
+                  <p className={`text-sm mb-4 ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
+                    🌐 Cloud storage access: View and download notes from your online account to your current device.
+                  </p>
+                  <div className="flex space-x-4 mb-6 sm:mb-8">
+                    <button
+                      onClick={() => {
+                        if (cloudStorage.user) {
+                          // Load cloud notes
+                          setShowCloudAuthModal(false);
+                        } else {
+                          setShowCloudAuthModal(true);
+                        }
+                      }}
+                      className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 px-6 sm:px-8 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg"
+                    >
+                      {cloudStorage.user ? "Load Cloud Notes" : "Connect to Cloud"}
+                    </button>
+                  </div>
+                  {cloudStorage.user && cloudNotes.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                      {cloudNotes.map((note) => (
+                        <animated.div
+                          key={note.id}
+                          style={noteSpring}
+                          className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
+                            settings.theme === "Light"
+                              ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 hover:shadow-[0_0_15px_rgba(139,92,246,0.2)] border-purple-200/50"
+                              : "bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] border-indigo-600/30"
+                          }`}
+                          onClick={() => setViewingNote(note)}
+                        >
+                          <div className="flex-1 overflow-hidden">
+                            <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${settings.theme === "Light" ? "text-purple-800" : "text-gold-100"}`}>
+                              {note.title}
+                            </h3>
+                            <div className={`text-sm mb-2 line-clamp-3 leading-relaxed ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
+                              {note.content
+                                .split("\n")[0]
+                                .substring(0, 120)}
+                              {note.content.length > 120 ? "..." : ""}
+                            </div>
+                            <div className={`flex items-center justify-between text-xs ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                              <span className={`px-2 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50 text-gray-300"}`}>
+                                {note.template}
+                              </span>
+                              <span className={settings.theme === "Light" ? "text-purple-500" : "text-gray-500"}>
+                                Click to view
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex justify-between items-center">
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                // Download note to local storage
+                                const updatedNotes = [...notes];
+                                const existingIndex = updatedNotes.findIndex(n => n.id === note.id);
+                                if (existingIndex === -1) {
+                                  const downloadedNote = { ...note, isDownloaded: true };
+                                  updatedNotes.push(downloadedNote);
+                                  setNotes(updatedNotes);
+                                  localStorage.setItem(
+                                    `elysium_notes_${mode}`,
+                                    JSON.stringify(updatedNotes)
+                                  );
+                                  alert(`Note "${note.title}" downloaded to your device!`);
+                                } else {
+                                  alert(`Note "${note.title}" is already on your device.`);
+                                }
+                              }}
+                              className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
+                            >
+                              Download
+                            </button>
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Delete "${note.title}" from cloud storage?`)) {
+                                  // Remove from cloud notes
+                                  setCloudNotes(cloudNotes.filter(n => n.id !== note.id));
+                                }
+                              }}
+                              className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </animated.div>
+                      ))}
+                    </div>
+                  ) : cloudStorage.user ? (
+                    <div className="text-center py-12">
+                      <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                        No notes in cloud storage. Create some notes first!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                        Connect to your cloud account to access online notes.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
               {activePage === "create" && (
                 <CreateNote
                   onSave={handleCreateNote}
                   onCancel={() => {
                     setShowCreateModal(false);
                     setIsCloudButtonClicked(false);
-                    setActivePage("recent");
+                    setActivePage("online");
                   }}
                   mode={mode}
                   theme={settings.theme}
@@ -3144,7 +3443,7 @@ function WelcomePage({
                   onCancel={() => {
                     setShowPopup(false);
                     setIsCloudButtonClicked(false);
-                    setActivePage("recent");
+                    setActivePage("online");
                   }}
                   theme={settings.theme}
                 />
@@ -3327,7 +3626,7 @@ function WelcomePage({
                     onCancel={() => {
                       setShowCreateModal(false);
                       setIsCloudButtonClicked(false);
-                      setActivePage("recent");
+                      setActivePage("online");
                     }}
                     mode={mode}
                     theme={settings.theme}
@@ -3539,7 +3838,7 @@ function WelcomePage({
                               }}
                               className="text-gray-400 hover:text-white transition-colors text-xl p-2"
                             >
-                              ❌
+                              ?
                             </button>
                           </div>
                         </div>
