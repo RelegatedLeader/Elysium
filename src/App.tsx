@@ -62,7 +62,10 @@ const connection = new Connection(endpoint, "confirmed");
 const programId = new PublicKey(idlJson.address);
 
 // Core cryptographic function - defined outside component for reuse
-async function deriveKey(userId: string, customSalt?: string): Promise<CryptoKey> {
+async function deriveKey(
+  userId: string,
+  customSalt?: string
+): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const salt = customSalt || "elysium-eternal-salt";
   const keyMaterial = await crypto.subtle.importKey(
@@ -129,7 +132,7 @@ function App() {
   }>({
     locked: false,
     lockoutUntil: null,
-    failedAttempts: 0
+    failedAttempts: 0,
   });
 
   // Security: Password strength requirements
@@ -139,7 +142,7 @@ function App() {
     requireLowercase: true,
     requireNumbers: true,
     requireSpecialChars: true,
-    preventCommonPasswords: true
+    preventCommonPasswords: true,
   });
 
   // Security: Audit logging
@@ -149,20 +152,23 @@ function App() {
       event,
       details,
       userAgent: navigator.userAgent,
-      ip: 'client-side', // Would be server-side in production
-      sessionId: user?.id || 'anonymous'
+      ip: "client-side", // Would be server-side in production
+      sessionId: user?.id || "anonymous",
     };
-    console.log('?? Security Audit:', auditEntry);
+    console.log("?? Security Audit:", auditEntry);
   };
   const checkRateLimit = (): boolean => {
     const now = new Date();
     const timeWindow = 15 * 60 * 1000; // 15 minutes
     const maxAttempts = 5;
 
-    if (lastAuthAttempt && (now.getTime() - lastAuthAttempt.getTime()) < timeWindow) {
+    if (
+      lastAuthAttempt &&
+      now.getTime() - lastAuthAttempt.getTime() < timeWindow
+    ) {
       if (authAttempts >= maxAttempts) {
         setIsRateLimited(true);
-        logSecurityEvent('RATE_LIMIT_EXCEEDED', { attempts: authAttempts });
+        logSecurityEvent("RATE_LIMIT_EXCEEDED", { attempts: authAttempts });
         setTimeout(() => setIsRateLimited(false), timeWindow);
         return false;
       }
@@ -171,28 +177,36 @@ function App() {
       setAuthAttempts(0);
     }
 
-    setAuthAttempts(prev => prev + 1);
+    setAuthAttempts((prev) => prev + 1);
     setLastAuthAttempt(now);
     return true;
   };
 
   // Security: Input validation
-  const validateInput = (input: string, type: 'email' | 'password' | 'text'): boolean => {
+  const validateInput = (
+    input: string,
+    type: "email" | "password" | "text"
+  ): boolean => {
     const patterns = {
       email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
       password: /^.{8,}$/, // Minimum 8 characters
-      text: /^.{1,1000}$/ // Reasonable text length
+      text: /^.{1,1000}$/, // Reasonable text length
     };
 
     if (!patterns[type].test(input)) {
-      logSecurityEvent('INPUT_VALIDATION_FAILED', { type, inputLength: input.length });
+      logSecurityEvent("INPUT_VALIDATION_FAILED", {
+        type,
+        inputLength: input.length,
+      });
       return false;
     }
     return true;
   };
 
   // Security: Enhanced password strength validation
-  const validatePasswordStrength = (password: string): { isValid: boolean; score: number; feedback: string[] } => {
+  const validatePasswordStrength = (
+    password: string
+  ): { isValid: boolean; score: number; feedback: string[] } => {
     const feedback: string[] = [];
     let score = 0;
 
@@ -200,42 +214,59 @@ function App() {
     if (password.length >= passwordRequirements.minLength) {
       score += 25;
     } else {
-      feedback.push(`Password must be at least ${passwordRequirements.minLength} characters long`);
+      feedback.push(
+        `Password must be at least ${passwordRequirements.minLength} characters long`
+      );
     }
 
     // Uppercase check
     if (passwordRequirements.requireUppercase && /[A-Z]/.test(password)) {
       score += 20;
     } else if (passwordRequirements.requireUppercase) {
-      feedback.push('Password must contain at least one uppercase letter');
+      feedback.push("Password must contain at least one uppercase letter");
     }
 
     // Lowercase check
     if (passwordRequirements.requireLowercase && /[a-z]/.test(password)) {
       score += 20;
     } else if (passwordRequirements.requireLowercase) {
-      feedback.push('Password must contain at least one lowercase letter');
+      feedback.push("Password must contain at least one lowercase letter");
     }
 
     // Numbers check
     if (passwordRequirements.requireNumbers && /\d/.test(password)) {
       score += 15;
     } else if (passwordRequirements.requireNumbers) {
-      feedback.push('Password must contain at least one number');
+      feedback.push("Password must contain at least one number");
     }
 
     // Special characters check
-    if (passwordRequirements.requireSpecialChars && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    if (
+      passwordRequirements.requireSpecialChars &&
+      /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+    ) {
       score += 10;
     } else if (passwordRequirements.requireSpecialChars) {
-      feedback.push('Password must contain at least one special character');
+      feedback.push("Password must contain at least one special character");
     }
 
     // Common password check
-    const commonPasswords = ['password', '123456', 'qwerty', 'admin', 'letmein', 'welcome'];
-    if (passwordRequirements.preventCommonPasswords && commonPasswords.includes(password.toLowerCase())) {
+    const commonPasswords = [
+      "password",
+      "123456",
+      "qwerty",
+      "admin",
+      "letmein",
+      "welcome",
+    ];
+    if (
+      passwordRequirements.preventCommonPasswords &&
+      commonPasswords.includes(password.toLowerCase())
+    ) {
       score = 0;
-      feedback.push('Password is too common, please choose a stronger password');
+      feedback.push(
+        "Password is too common, please choose a stronger password"
+      );
     }
 
     // Entropy check (basic)
@@ -247,7 +278,7 @@ function App() {
     return {
       isValid: score >= 70,
       score,
-      feedback
+      feedback,
     };
   };
 
@@ -258,9 +289,9 @@ function App() {
     // Check if account is currently locked
     if (accountLockout.locked && accountLockout.lockoutUntil) {
       if (now < accountLockout.lockoutUntil) {
-        logSecurityEvent('ACCOUNT_LOCKOUT_ACTIVE', {
+        logSecurityEvent("ACCOUNT_LOCKOUT_ACTIVE", {
           lockoutUntil: accountLockout.lockoutUntil.toISOString(),
-          failedAttempts: accountLockout.failedAttempts
+          failedAttempts: accountLockout.failedAttempts,
         });
         return false; // Account is locked
       } else {
@@ -268,9 +299,11 @@ function App() {
         setAccountLockout({
           locked: false,
           lockoutUntil: null,
-          failedAttempts: 0
+          failedAttempts: 0,
         });
-        logSecurityEvent('ACCOUNT_LOCKOUT_EXPIRED', { previousFailedAttempts: accountLockout.failedAttempts });
+        logSecurityEvent("ACCOUNT_LOCKOUT_EXPIRED", {
+          previousFailedAttempts: accountLockout.failedAttempts,
+        });
       }
     }
 
@@ -296,17 +329,17 @@ function App() {
       setAccountLockout({
         locked: true,
         lockoutUntil,
-        failedAttempts: newFailedAttempts
+        failedAttempts: newFailedAttempts,
       });
-      logSecurityEvent('ACCOUNT_LOCKOUT_TRIGGERED', {
+      logSecurityEvent("ACCOUNT_LOCKOUT_TRIGGERED", {
         failedAttempts: newFailedAttempts,
         lockoutDuration: lockoutDuration / 1000 / 60, // minutes
-        lockoutUntil: lockoutUntil.toISOString()
+        lockoutUntil: lockoutUntil.toISOString(),
       });
     } else {
-      setAccountLockout(prev => ({
+      setAccountLockout((prev) => ({
         ...prev,
-        failedAttempts: newFailedAttempts
+        failedAttempts: newFailedAttempts,
       }));
     }
   };
@@ -317,19 +350,19 @@ function App() {
     setAccountLockout({
       locked: false,
       lockoutUntil: null,
-      failedAttempts: 0
+      failedAttempts: 0,
     });
-    logSecurityEvent('ACCOUNT_LOCKOUT_RESET', { reason: 'successful_auth' });
+    logSecurityEvent("ACCOUNT_LOCKOUT_RESET", { reason: "successful_auth" });
   };
 
   // Security: Secure headers and CORS protection
   const setSecureHeaders = () => {
     // Note: These would be set server-side in production
     // Client-side we can only log and monitor
-    logSecurityEvent('SECURE_HEADERS_CHECK', {
+    logSecurityEvent("SECURE_HEADERS_CHECK", {
       referrerPolicy: document.referrer,
-      https: window.location.protocol === 'https:',
-      userAgent: navigator.userAgent
+      https: window.location.protocol === "https:",
+      userAgent: navigator.userAgent,
     });
   };
 
@@ -338,16 +371,20 @@ function App() {
     try {
       const { data, error } = await supabase.auth.refreshSession();
       if (error) {
-        logSecurityEvent('TOKEN_ROTATION_FAILED', { error: error instanceof Error ? error.message : String(error) });
+        logSecurityEvent("TOKEN_ROTATION_FAILED", {
+          error: error instanceof Error ? error.message : String(error),
+        });
         return false;
       }
       if (data.session) {
-        logSecurityEvent('TOKEN_ROTATION_SUCCESS', { userId: data.session.user.id });
+        logSecurityEvent("TOKEN_ROTATION_SUCCESS", {
+          userId: data.session.user.id,
+        });
         setUser(data.session.user);
         return true;
       }
     } catch (err) {
-      logSecurityEvent('TOKEN_ROTATION_ERROR', { error: err });
+      logSecurityEvent("TOKEN_ROTATION_ERROR", { error: err });
     }
     return false;
   };
@@ -356,16 +393,23 @@ function App() {
   const checkSessionIntegrity = () => {
     const session = supabase.auth.getSession();
     if (!session) {
-      logSecurityEvent('SESSION_INTEGRITY_CHECK_FAILED', { reason: 'no_session' });
+      logSecurityEvent("SESSION_INTEGRITY_CHECK_FAILED", {
+        reason: "no_session",
+      });
       return false;
     }
 
     // Check for suspicious patterns
     const now = Date.now();
-    const sessionAge = now - (user?.created_at ? new Date(user.created_at).getTime() : now);
+    const sessionAge =
+      now - (user?.created_at ? new Date(user.created_at).getTime() : now);
 
-    if (sessionAge > 24 * 60 * 60 * 1000) { // 24 hours
-      logSecurityEvent('SESSION_INTEGRITY_WARNING', { sessionAge, threshold: '24h' });
+    if (sessionAge > 24 * 60 * 60 * 1000) {
+      // 24 hours
+      logSecurityEvent("SESSION_INTEGRITY_WARNING", {
+        sessionAge,
+        threshold: "24h",
+      });
     }
 
     return true;
@@ -375,9 +419,9 @@ function App() {
   const sanitizeInput = (input: string): string => {
     // Basic sanitization - in production, use a proper library
     return input
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/javascript:/gi, '')
-      .replace(/on\w+\s*=/gi, '')
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/javascript:/gi, "")
+      .replace(/on\w+\s*=/gi, "")
       .trim();
   };
 
@@ -385,22 +429,28 @@ function App() {
   const monitorSuspiciousActivity = () => {
     // Check for rapid successive requests
     const now = Date.now();
-    const recentActivity = JSON.parse(localStorage.getItem('elysium_activity') || '[]');
-
-    // Keep only last 10 minutes of activity
-    const recentActivityFiltered = recentActivity.filter((timestamp: number) =>
-      now - timestamp < 10 * 60 * 1000
+    const recentActivity = JSON.parse(
+      localStorage.getItem("elysium_activity") || "[]"
     );
 
-    if (recentActivityFiltered.length > 50) { // More than 50 actions in 10 minutes
-      logSecurityEvent('SUSPICIOUS_ACTIVITY_DETECTED', {
+    // Keep only last 10 minutes of activity
+    const recentActivityFiltered = recentActivity.filter(
+      (timestamp: number) => now - timestamp < 10 * 60 * 1000
+    );
+
+    if (recentActivityFiltered.length > 50) {
+      // More than 50 actions in 10 minutes
+      logSecurityEvent("SUSPICIOUS_ACTIVITY_DETECTED", {
         actionCount: recentActivityFiltered.length,
-        timeWindow: '10min'
+        timeWindow: "10min",
       });
     }
 
     recentActivityFiltered.push(now);
-    localStorage.setItem('elysium_activity', JSON.stringify(recentActivityFiltered));
+    localStorage.setItem(
+      "elysium_activity",
+      JSON.stringify(recentActivityFiltered)
+    );
   };
 
   // Security: Data integrity - Checksum calculation
@@ -408,22 +458,25 @@ function App() {
     let hash = 0;
     for (let i = 0; i < data.length; i++) {
       const char = data.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return hash.toString(16);
   };
 
   // Security: Data integrity verification
-  const verifyDataIntegrity = (data: string, expectedChecksum: string): boolean => {
+  const verifyDataIntegrity = (
+    data: string,
+    expectedChecksum: string
+  ): boolean => {
     const calculatedChecksum = calculateChecksum(data);
     const isValid = calculatedChecksum === expectedChecksum;
 
     if (!isValid) {
-      logSecurityEvent('DATA_INTEGRITY_VIOLATION', {
+      logSecurityEvent("DATA_INTEGRITY_VIOLATION", {
         expectedChecksum,
         calculatedChecksum,
-        dataLength: data.length
+        dataLength: data.length,
       });
     }
 
@@ -431,10 +484,16 @@ function App() {
   };
 
   // Security: Field-level encryption for sensitive data
-  const encryptSensitiveField = async (data: string, fieldName: string): Promise<string> => {
+  const encryptSensitiveField = async (
+    data: string,
+    fieldName: string
+  ): Promise<string> => {
     try {
       // Use a different key derivation for field-level encryption
-      const fieldKey = await deriveKey(user?.id || 'anonymous', `${fieldName}_field_salt`);
+      const fieldKey = await deriveKey(
+        user?.id || "anonymous",
+        `${fieldName}_field_salt`
+      );
       const encoder = new TextEncoder();
       const dataBuffer = encoder.encode(data);
 
@@ -442,7 +501,7 @@ function App() {
       const nonce = crypto.getRandomValues(new Uint8Array(12));
 
       const encrypted = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: nonce },
+        { name: "AES-GCM", iv: nonce },
         fieldKey,
         dataBuffer
       );
@@ -452,28 +511,44 @@ function App() {
       combined.set(nonce);
       combined.set(new Uint8Array(encrypted), nonce.length);
 
-      const encryptedString = btoa(String.fromCharCode(...Array.from(combined)));
-      logSecurityEvent('FIELD_ENCRYPTION_SUCCESS', { fieldName, dataLength: data.length });
+      const encryptedString = btoa(
+        String.fromCharCode(...Array.from(combined))
+      );
+      logSecurityEvent("FIELD_ENCRYPTION_SUCCESS", {
+        fieldName,
+        dataLength: data.length,
+      });
 
       return encryptedString;
     } catch (error) {
-      logSecurityEvent('FIELD_ENCRYPTION_FAILED', { fieldName, error: error instanceof Error ? error.message : String(error) });
+      logSecurityEvent("FIELD_ENCRYPTION_FAILED", {
+        fieldName,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   };
 
   // Security: Field-level decryption
-  const decryptSensitiveField = async (encryptedData: string, fieldName: string): Promise<string> => {
+  const decryptSensitiveField = async (
+    encryptedData: string,
+    fieldName: string
+  ): Promise<string> => {
     try {
-      const fieldKey = await deriveKey(user?.id || 'anonymous', `${fieldName}_field_salt`);
-      const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+      const fieldKey = await deriveKey(
+        user?.id || "anonymous",
+        `${fieldName}_field_salt`
+      );
+      const combined = Uint8Array.from(atob(encryptedData), (c) =>
+        c.charCodeAt(0)
+      );
 
       // Extract nonce and encrypted data
       const nonce = combined.slice(0, 12);
       const encrypted = combined.slice(12);
 
       const decrypted = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: nonce },
+        { name: "AES-GCM", iv: nonce },
         fieldKey,
         encrypted
       );
@@ -481,62 +556,89 @@ function App() {
       const decoder = new TextDecoder();
       const decryptedString = decoder.decode(decrypted);
 
-      logSecurityEvent('FIELD_DECRYPTION_SUCCESS', { fieldName });
+      logSecurityEvent("FIELD_DECRYPTION_SUCCESS", { fieldName });
       return decryptedString;
     } catch (error) {
-      logSecurityEvent('FIELD_DECRYPTION_FAILED', { fieldName, error: error instanceof Error ? error.message : String(error) });
+      logSecurityEvent("FIELD_DECRYPTION_FAILED", {
+        fieldName,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   };
 
   // Security: Secure deletion with data wiping
   const secureDelete = (data: any, passes: number = 3): void => {
-    if (typeof data === 'string') {
+    if (typeof data === "string") {
       // Overwrite string multiple times with random data
       let wiped = data;
       for (let pass = 0; pass < passes; pass++) {
         wiped = crypto.getRandomValues(new Uint8Array(data.length)).toString();
       }
-      logSecurityEvent('SECURE_DELETION_COMPLETED', {
-        dataType: 'string',
+      logSecurityEvent("SECURE_DELETION_COMPLETED", {
+        dataType: "string",
         originalLength: data.length,
-        passes
+        passes,
       });
     } else if (data instanceof Uint8Array) {
       // Overwrite array buffer multiple times
       for (let pass = 0; pass < passes; pass++) {
         crypto.getRandomValues(data);
       }
-      logSecurityEvent('SECURE_DELETION_COMPLETED', {
-        dataType: 'Uint8Array',
+      logSecurityEvent("SECURE_DELETION_COMPLETED", {
+        dataType: "Uint8Array",
         arrayLength: data.length,
-        passes
+        passes,
       });
     } else {
-      logSecurityEvent('SECURE_DELETION_UNSUPPORTED', { dataType: typeof data });
+      logSecurityEvent("SECURE_DELETION_UNSUPPORTED", {
+        dataType: typeof data,
+      });
     }
   };
 
   // Security: Data classification and access control
-  const classifyDataSensitivity = (content: string): 'public' | 'internal' | 'confidential' | 'restricted' => {
-    const confidentialKeywords = ['password', 'secret', 'key', 'token', 'private', 'ssn', 'credit'];
-    const restrictedKeywords = ['medical', 'financial', 'personal', 'sensitive'];
+  const classifyDataSensitivity = (
+    content: string
+  ): "public" | "internal" | "confidential" | "restricted" => {
+    const confidentialKeywords = [
+      "password",
+      "secret",
+      "key",
+      "token",
+      "private",
+      "ssn",
+      "credit",
+    ];
+    const restrictedKeywords = [
+      "medical",
+      "financial",
+      "personal",
+      "sensitive",
+    ];
 
     const lowerContent = content.toLowerCase();
 
-    if (restrictedKeywords.some(keyword => lowerContent.includes(keyword))) {
-      return 'restricted';
-    } else if (confidentialKeywords.some(keyword => lowerContent.includes(keyword))) {
-      return 'confidential';
-    } else if (content.length > 1000 || /\b\d{3}-\d{2}-\d{4}\b/.test(content)) { // SSN pattern
-      return 'internal';
+    if (restrictedKeywords.some((keyword) => lowerContent.includes(keyword))) {
+      return "restricted";
+    } else if (
+      confidentialKeywords.some((keyword) => lowerContent.includes(keyword))
+    ) {
+      return "confidential";
+    } else if (content.length > 1000 || /\b\d{3}-\d{2}-\d{4}\b/.test(content)) {
+      // SSN pattern
+      return "internal";
     } else {
-      return 'public';
+      return "public";
     }
   };
 
   // Security: Audit trail for data modifications
-  const auditDataModification = (operation: string, noteId: string, changes: any) => {
+  const auditDataModification = (
+    operation: string,
+    noteId: string,
+    changes: any
+  ) => {
     const auditEntry = {
       timestamp: new Date().toISOString(),
       operation,
@@ -544,12 +646,14 @@ function App() {
       userId: user?.id,
       changes,
       userAgent: navigator.userAgent,
-      ip: 'client-side',
-      dataClassification: classifyDataSensitivity(JSON.stringify(changes))
+      ip: "client-side",
+      dataClassification: classifyDataSensitivity(JSON.stringify(changes)),
     };
 
     // Store audit trail (in production, this would go to a secure audit log)
-    const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]');
+    const auditTrail = JSON.parse(
+      localStorage.getItem("elysium_audit_trail") || "[]"
+    );
     auditTrail.push(auditEntry);
 
     // Keep only last 1000 entries to prevent localStorage bloat
@@ -557,19 +661,22 @@ function App() {
       auditTrail.splice(0, auditTrail.length - 1000);
     }
 
-    localStorage.setItem('elysium_audit_trail', JSON.stringify(auditTrail));
-    logSecurityEvent('DATA_MODIFICATION_AUDITED', auditEntry);
+    localStorage.setItem("elysium_audit_trail", JSON.stringify(auditTrail));
+    logSecurityEvent("DATA_MODIFICATION_AUDITED", auditEntry);
   };
 
   // Security: API request size limits
-  const validateRequestSize = (data: any, maxSizeKB: number = 1024): boolean => {
+  const validateRequestSize = (
+    data: any,
+    maxSizeKB: number = 1024
+  ): boolean => {
     const dataSize = JSON.stringify(data).length / 1024; // Size in KB
 
     if (dataSize > maxSizeKB) {
-      logSecurityEvent('REQUEST_SIZE_LIMIT_EXCEEDED', {
+      logSecurityEvent("REQUEST_SIZE_LIMIT_EXCEEDED", {
         actualSize: dataSize,
         maxSize: maxSizeKB,
-        dataType: typeof data
+        dataType: typeof data,
       });
       return false;
     }
@@ -578,14 +685,17 @@ function App() {
   };
 
   // Security: API response size limits
-  const validateResponseSize = (response: any, maxSizeKB: number = 2048): boolean => {
+  const validateResponseSize = (
+    response: any,
+    maxSizeKB: number = 2048
+  ): boolean => {
     const responseSize = JSON.stringify(response).length / 1024; // Size in KB
 
     if (responseSize > maxSizeKB) {
-      logSecurityEvent('RESPONSE_SIZE_LIMIT_EXCEEDED', {
+      logSecurityEvent("RESPONSE_SIZE_LIMIT_EXCEEDED", {
         actualSize: responseSize,
         maxSize: maxSizeKB,
-        responseType: typeof response
+        responseType: typeof response,
       });
       return false;
     }
@@ -594,11 +704,14 @@ function App() {
   };
 
   // Security: Content-Type validation
-  const validateContentType = (contentType: string, allowedTypes: string[]): boolean => {
+  const validateContentType = (
+    contentType: string,
+    allowedTypes: string[]
+  ): boolean => {
     if (!allowedTypes.includes(contentType)) {
-      logSecurityEvent('INVALID_CONTENT_TYPE', {
+      logSecurityEvent("INVALID_CONTENT_TYPE", {
         providedType: contentType,
-        allowedTypes
+        allowedTypes,
       });
       return false;
     }
@@ -607,40 +720,45 @@ function App() {
 
   // Security: API security headers validation
   const validateApiHeaders = (headers: Record<string, string>): boolean => {
-    const requiredHeaders = ['content-type', 'authorization'];
+    const requiredHeaders = ["content-type", "authorization"];
     const securityHeaders = [
-      'x-content-type-options',
-      'x-frame-options',
-      'x-xss-protection',
-      'strict-transport-security'
+      "x-content-type-options",
+      "x-frame-options",
+      "x-xss-protection",
+      "strict-transport-security",
     ];
 
     // Check for required headers
     for (const header of requiredHeaders) {
       if (!headers[header.toLowerCase()]) {
-        logSecurityEvent('MISSING_REQUIRED_HEADER', { header });
+        logSecurityEvent("MISSING_REQUIRED_HEADER", { header });
         return false;
       }
     }
 
     // Validate Content-Type
-    const contentType = headers['content-type'];
-    if (contentType && !validateContentType(contentType, [
-      'application/json',
-      'application/x-www-form-urlencoded',
-      'multipart/form-data'
-    ])) {
+    const contentType = headers["content-type"];
+    if (
+      contentType &&
+      !validateContentType(contentType, [
+        "application/json",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data",
+      ])
+    ) {
       return false;
     }
 
     // Log security headers presence
-    const presentSecurityHeaders = securityHeaders.filter(header =>
-      headers[header.toLowerCase()]
+    const presentSecurityHeaders = securityHeaders.filter(
+      (header) => headers[header.toLowerCase()]
     );
 
-    logSecurityEvent('API_HEADERS_VALIDATED', {
-      requiredHeadersPresent: requiredHeaders.every(h => headers[h.toLowerCase()]),
-      securityHeadersPresent: presentSecurityHeaders
+    logSecurityEvent("API_HEADERS_VALIDATED", {
+      requiredHeadersPresent: requiredHeaders.every(
+        (h) => headers[h.toLowerCase()]
+      ),
+      securityHeadersPresent: presentSecurityHeaders,
     });
 
     return true;
@@ -648,13 +766,13 @@ function App() {
 
   // Security: API versioning security
   const validateApiVersion = (version: string): boolean => {
-    const supportedVersions = ['v1', 'v2', 'latest'];
+    const supportedVersions = ["v1", "v2", "latest"];
     const normalizedVersion = version.toLowerCase();
 
     if (!supportedVersions.includes(normalizedVersion)) {
-      logSecurityEvent('UNSUPPORTED_API_VERSION', {
+      logSecurityEvent("UNSUPPORTED_API_VERSION", {
         requestedVersion: version,
-        supportedVersions
+        supportedVersions,
       });
       return false;
     }
@@ -663,11 +781,18 @@ function App() {
   };
 
   // Security: Rate limiting per endpoint
-  const endpointRateLimit = new Map<string, { count: number; resetTime: number }>();
+  const endpointRateLimit = new Map<
+    string,
+    { count: number; resetTime: number }
+  >();
 
-  const checkEndpointRateLimit = (endpoint: string, maxRequests: number = 100, windowMs: number = 15 * 60 * 1000): boolean => {
+  const checkEndpointRateLimit = (
+    endpoint: string,
+    maxRequests: number = 100,
+    windowMs: number = 15 * 60 * 1000
+  ): boolean => {
     const now = Date.now();
-    const key = `${endpoint}_${user?.id || 'anonymous'}`;
+    const key = `${endpoint}_${user?.id || "anonymous"}`;
 
     let limit = endpointRateLimit.get(key);
     if (!limit || now > limit.resetTime) {
@@ -676,11 +801,11 @@ function App() {
     }
 
     if (limit.count >= maxRequests) {
-      logSecurityEvent('ENDPOINT_RATE_LIMIT_EXCEEDED', {
+      logSecurityEvent("ENDPOINT_RATE_LIMIT_EXCEEDED", {
         endpoint,
         requestCount: limit.count,
         maxRequests,
-        windowMs
+        windowMs,
       });
       return false;
     }
@@ -691,15 +816,18 @@ function App() {
 
   // Security: Request throttling
   const requestThrottle = new Map<string, number>();
-  const throttleRequest = (key: string, minIntervalMs: number = 1000): boolean => {
+  const throttleRequest = (
+    key: string,
+    minIntervalMs: number = 1000
+  ): boolean => {
     const now = Date.now();
     const lastRequest = requestThrottle.get(key) || 0;
 
     if (now - lastRequest < minIntervalMs) {
-      logSecurityEvent('REQUEST_THROTTLED', {
+      logSecurityEvent("REQUEST_THROTTLED", {
         key,
         timeSinceLastRequest: now - lastRequest,
-        minInterval: minIntervalMs
+        minInterval: minIntervalMs,
       });
       return false;
     }
@@ -712,20 +840,26 @@ function App() {
   const monitorApiHealth = async (): Promise<boolean> => {
     try {
       const startTime = Date.now();
-      const { data, error } = await supabase.from('notes').select('count').limit(1).single();
+      const { data, error } = await supabase
+        .from("notes")
+        .select("count")
+        .limit(1)
+        .single();
       const responseTime = Date.now() - startTime;
 
       const isHealthy = !error && responseTime < 5000; // 5 second timeout
 
-      logSecurityEvent('API_HEALTH_CHECK', {
+      logSecurityEvent("API_HEALTH_CHECK", {
         healthy: isHealthy,
         responseTime,
-        error: error?.message
+        error: error?.message,
       });
 
       return isHealthy;
     } catch (err) {
-      logSecurityEvent('API_HEALTH_CHECK_FAILED', { error: err instanceof Error ? err.message : String(err) });
+      logSecurityEvent("API_HEALTH_CHECK_FAILED", {
+        error: err instanceof Error ? err.message : String(err),
+      });
       return false;
     }
   };
@@ -736,36 +870,47 @@ function App() {
       notes: 365 * 24 * 60 * 60 * 1000, // 1 year
       auditLogs: 90 * 24 * 60 * 60 * 1000, // 90 days
       tempFiles: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sessionData: 30 * 24 * 60 * 60 * 1000 // 30 days
+      sessionData: 30 * 24 * 60 * 60 * 1000, // 30 days
     };
 
     const now = Date.now();
 
     // Clean up old audit logs
-    const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]');
-    const filteredAuditTrail = auditTrail.filter((entry: any) =>
-      now - new Date(entry.timestamp).getTime() < retentionPolicies.auditLogs
+    const auditTrail = JSON.parse(
+      localStorage.getItem("elysium_audit_trail") || "[]"
+    );
+    const filteredAuditTrail = auditTrail.filter(
+      (entry: any) =>
+        now - new Date(entry.timestamp).getTime() < retentionPolicies.auditLogs
     );
 
     if (filteredAuditTrail.length !== auditTrail.length) {
-      localStorage.setItem('elysium_audit_trail', JSON.stringify(filteredAuditTrail));
-      logSecurityEvent('DATA_RETENTION_ENFORCED', {
-        dataType: 'audit_logs',
-        removedCount: auditTrail.length - filteredAuditTrail.length
+      localStorage.setItem(
+        "elysium_audit_trail",
+        JSON.stringify(filteredAuditTrail)
+      );
+      logSecurityEvent("DATA_RETENTION_ENFORCED", {
+        dataType: "audit_logs",
+        removedCount: auditTrail.length - filteredAuditTrail.length,
       });
     }
 
     // Clean up old activity logs
-    const activityLog = JSON.parse(localStorage.getItem('elysium_activity') || '[]');
-    const filteredActivityLog = activityLog.filter((timestamp: number) =>
-      now - timestamp < retentionPolicies.sessionData
+    const activityLog = JSON.parse(
+      localStorage.getItem("elysium_activity") || "[]"
+    );
+    const filteredActivityLog = activityLog.filter(
+      (timestamp: number) => now - timestamp < retentionPolicies.sessionData
     );
 
     if (filteredActivityLog.length !== activityLog.length) {
-      localStorage.setItem('elysium_activity', JSON.stringify(filteredActivityLog));
-      logSecurityEvent('DATA_RETENTION_ENFORCED', {
-        dataType: 'activity_logs',
-        removedCount: activityLog.length - filteredActivityLog.length
+      localStorage.setItem(
+        "elysium_activity",
+        JSON.stringify(filteredActivityLog)
+      );
+      logSecurityEvent("DATA_RETENTION_ENFORCED", {
+        dataType: "activity_logs",
+        removedCount: activityLog.length - filteredActivityLog.length,
       });
     }
   };
@@ -780,81 +925,94 @@ function App() {
     analytics: false,
     marketing: false,
     dataProcessing: true, // Required for app functionality
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
   });
 
-  const updatePrivacyConsent = (consentType: keyof typeof privacyConsent, value: boolean) => {
-    if (consentType === 'dataProcessing' && !value) {
-      logSecurityEvent('PRIVACY_CONSENT_VIOLATION', {
-        attemptedChange: 'dataProcessing',
-        newValue: false
+  const updatePrivacyConsent = (
+    consentType: keyof typeof privacyConsent,
+    value: boolean
+  ) => {
+    if (consentType === "dataProcessing" && !value) {
+      logSecurityEvent("PRIVACY_CONSENT_VIOLATION", {
+        attemptedChange: "dataProcessing",
+        newValue: false,
       });
-      alert('Data processing consent is required for the application to function.');
+      alert(
+        "Data processing consent is required for the application to function."
+      );
       return;
     }
 
-    setPrivacyConsent(prev => ({
+    setPrivacyConsent((prev) => ({
       ...prev,
       [consentType]: value,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     }));
 
-    logSecurityEvent('PRIVACY_CONSENT_UPDATED', {
+    logSecurityEvent("PRIVACY_CONSENT_UPDATED", {
       consentType,
       newValue: value,
-      userId: user?.id
+      userId: user?.id,
     });
 
     // Store consent preferences
-    localStorage.setItem('elysium_privacy_consent', JSON.stringify({
-      ...privacyConsent,
-      [consentType]: value,
-      lastUpdated: new Date().toISOString()
-    }));
+    localStorage.setItem(
+      "elysium_privacy_consent",
+      JSON.stringify({
+        ...privacyConsent,
+        [consentType]: value,
+        lastUpdated: new Date().toISOString(),
+      })
+    );
   };
 
   // Security: GDPR compliance - Right to be forgotten
   const gdprDataDeletion = async (): Promise<boolean> => {
     try {
       if (!user?.id) {
-        logSecurityEvent('GDPR_DELETION_FAILED', { reason: 'no_user' });
+        logSecurityEvent("GDPR_DELETION_FAILED", { reason: "no_user" });
         return false;
       }
 
       // Delete all user notes
       const { error: notesError } = await supabase
-        .from('notes')
+        .from("notes")
         .delete()
-        .eq('user_id', user.id);
+        .eq("user_id", user.id);
 
       if (notesError) {
-        logSecurityEvent('GDPR_DELETION_FAILED', {
-          step: 'notes_deletion',
-          error: notesError instanceof Error ? notesError.message : String(notesError)
+        logSecurityEvent("GDPR_DELETION_FAILED", {
+          step: "notes_deletion",
+          error:
+            notesError instanceof Error
+              ? notesError.message
+              : String(notesError),
         });
         return false;
       }
 
       // Clear local storage
-      const keysToRemove = Object.keys(localStorage).filter(key =>
-        key.startsWith('elysium_') || key.includes(user.id)
+      const keysToRemove = Object.keys(localStorage).filter(
+        (key) => key.startsWith("elysium_") || key.includes(user.id)
       );
 
-      keysToRemove.forEach(key => localStorage.removeItem(key));
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
 
       // Sign out user
       await supabase.auth.signOut();
 
-      logSecurityEvent('GDPR_DELETION_COMPLETED', {
+      logSecurityEvent("GDPR_DELETION_COMPLETED", {
         userId: user.id,
         notesDeleted: true,
         localStorageCleared: true,
-        signedOut: true
+        signedOut: true,
       });
 
       return true;
     } catch (error) {
-      logSecurityEvent('GDPR_DELETION_ERROR', { error: error instanceof Error ? error.message : String(error) });
+      logSecurityEvent("GDPR_DELETION_ERROR", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   };
@@ -863,35 +1021,39 @@ function App() {
   const gdprDataExport = async (): Promise<any> => {
     try {
       if (!user?.id) {
-        logSecurityEvent('GDPR_EXPORT_FAILED', { reason: 'no_user' });
+        logSecurityEvent("GDPR_EXPORT_FAILED", { reason: "no_user" });
         return null;
       }
 
       // Export user notes
       const { data: notes, error } = await supabase
-        .from('notes')
-        .select('*')
-        .eq('user_id', user.id);
+        .from("notes")
+        .select("*")
+        .eq("user_id", user.id);
 
       if (error) {
-        logSecurityEvent('GDPR_EXPORT_FAILED', {
-          step: 'notes_export',
-          error: error instanceof Error ? error.message : String(error)
+        logSecurityEvent("GDPR_EXPORT_FAILED", {
+          step: "notes_export",
+          error: error instanceof Error ? error.message : String(error),
         });
         return null;
       }
 
       // Export audit trail (anonymized)
-      const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]')
+      const auditTrail = JSON.parse(
+        localStorage.getItem("elysium_audit_trail") || "[]"
+      )
         .filter((entry: any) => entry.userId === user.id)
         .map((entry: any) => ({
           ...entry,
-          ip: '[REDACTED]', // Remove IP for privacy
-          userAgent: '[REDACTED]' // Remove user agent for privacy
+          ip: "[REDACTED]", // Remove IP for privacy
+          userAgent: "[REDACTED]", // Remove user agent for privacy
         }));
 
       // Export privacy consent
-      const consentData = JSON.parse(localStorage.getItem('elysium_privacy_consent') || '{}');
+      const consentData = JSON.parse(
+        localStorage.getItem("elysium_privacy_consent") || "{}"
+      );
 
       const exportData = {
         exportDate: new Date().toISOString(),
@@ -900,68 +1062,73 @@ function App() {
           notes,
           auditTrail,
           privacyConsent: consentData,
-          dataRetentionInfo: 'Data retained according to our privacy policy'
+          dataRetentionInfo: "Data retained according to our privacy policy",
         },
-        gdprCompliant: true
+        gdprCompliant: true,
       };
 
-      logSecurityEvent('GDPR_EXPORT_COMPLETED', {
+      logSecurityEvent("GDPR_EXPORT_COMPLETED", {
         userId: user.id,
         notesCount: notes?.length || 0,
-        auditEntriesCount: auditTrail.length
+        auditEntriesCount: auditTrail.length,
       });
 
       return exportData;
     } catch (error) {
-      logSecurityEvent('GDPR_EXPORT_ERROR', { error: error instanceof Error ? error.message : String(error) });
+      logSecurityEvent("GDPR_EXPORT_ERROR", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
   };
 
   // Security: Privacy impact assessment
-  const performPrivacyImpactAssessment = (data: any, operation: string): {
-    riskLevel: 'low' | 'medium' | 'high';
+  const performPrivacyImpactAssessment = (
+    data: any,
+    operation: string
+  ): {
+    riskLevel: "low" | "medium" | "high";
     concerns: string[];
     recommendations: string[];
   } => {
     const concerns: string[] = [];
     const recommendations: string[] = [];
-    let riskLevel: 'low' | 'medium' | 'high' = 'low';
+    let riskLevel: "low" | "medium" | "high" = "low";
 
     const dataString = JSON.stringify(data);
     const dataClassification = classifyDataSensitivity(dataString);
 
     // Assess based on data classification
-    if (dataClassification === 'restricted') {
-      riskLevel = 'high';
-      concerns.push('Data contains restricted information');
-      recommendations.push('Implement additional encryption layers');
-      recommendations.push('Require explicit user consent');
-    } else if (dataClassification === 'confidential') {
-      riskLevel = 'medium';
-      concerns.push('Data contains confidential information');
-      recommendations.push('Use field-level encryption');
+    if (dataClassification === "restricted") {
+      riskLevel = "high";
+      concerns.push("Data contains restricted information");
+      recommendations.push("Implement additional encryption layers");
+      recommendations.push("Require explicit user consent");
+    } else if (dataClassification === "confidential") {
+      riskLevel = "medium";
+      concerns.push("Data contains confidential information");
+      recommendations.push("Use field-level encryption");
     }
 
     // Assess based on operation type
-    if (operation === 'export' || operation === 'share') {
-      riskLevel = riskLevel === 'low' ? 'medium' : 'high';
-      concerns.push('Data export/sharing operation detected');
-      recommendations.push('Implement data anonymization');
-      recommendations.push('Add data usage audit trail');
+    if (operation === "export" || operation === "share") {
+      riskLevel = riskLevel === "low" ? "medium" : "high";
+      concerns.push("Data export/sharing operation detected");
+      recommendations.push("Implement data anonymization");
+      recommendations.push("Add data usage audit trail");
     }
 
     // Assess based on data volume
     if (dataString.length > 10000) {
-      concerns.push('Large data volume may increase privacy risks');
-      recommendations.push('Implement data chunking for processing');
+      concerns.push("Large data volume may increase privacy risks");
+      recommendations.push("Implement data chunking for processing");
     }
 
-    logSecurityEvent('PRIVACY_IMPACT_ASSESSMENT', {
+    logSecurityEvent("PRIVACY_IMPACT_ASSESSMENT", {
       operation,
       dataClassification,
       riskLevel,
-      concernsCount: concerns.length
+      concernsCount: concerns.length,
     });
 
     return { riskLevel, concerns, recommendations };
@@ -972,35 +1139,46 @@ function App() {
     const issues: string[] = [];
 
     // Check data retention compliance
-    const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]');
-    const oldEntries = auditTrail.filter((entry: any) =>
-      Date.now() - new Date(entry.timestamp).getTime() > 90 * 24 * 60 * 60 * 1000
+    const auditTrail = JSON.parse(
+      localStorage.getItem("elysium_audit_trail") || "[]"
+    );
+    const oldEntries = auditTrail.filter(
+      (entry: any) =>
+        Date.now() - new Date(entry.timestamp).getTime() >
+        90 * 24 * 60 * 60 * 1000
     );
 
     if (oldEntries.length > 0) {
-      issues.push(`Found ${oldEntries.length} audit entries older than 90 days`);
+      issues.push(
+        `Found ${oldEntries.length} audit entries older than 90 days`
+      );
     }
 
     // Check privacy consent
     if (!privacyConsent.dataProcessing) {
-      issues.push('Required data processing consent is missing');
+      issues.push("Required data processing consent is missing");
     }
 
     // Check for sensitive data in localStorage
-    const sensitiveKeys = Object.keys(localStorage).filter(key =>
-      key.includes('password') || key.includes('secret') || key.includes('key')
+    const sensitiveKeys = Object.keys(localStorage).filter(
+      (key) =>
+        key.includes("password") ||
+        key.includes("secret") ||
+        key.includes("key")
     );
 
     if (sensitiveKeys.length > 0) {
-      issues.push(`Found ${sensitiveKeys.length} potentially sensitive keys in localStorage`);
+      issues.push(
+        `Found ${sensitiveKeys.length} potentially sensitive keys in localStorage`
+      );
     }
 
     const compliant = issues.length === 0;
 
-    logSecurityEvent('PRIVACY_COMPLIANCE_CHECK', {
+    logSecurityEvent("PRIVACY_COMPLIANCE_CHECK", {
       compliant,
       issuesCount: issues.length,
-      issues
+      issues,
     });
 
     return compliant;
@@ -1017,13 +1195,16 @@ function App() {
       responseTime: 0,
       throughput: 0,
       errorRate: 0,
-      healthScore: 100
+      healthScore: 100,
     };
 
     try {
       // Measure response time
       const startTime = Date.now();
-      const { data, error } = await supabase.from('notes').select('count').limit(1);
+      const { data, error } = await supabase
+        .from("notes")
+        .select("count")
+        .limit(1);
       metrics.responseTime = Date.now() - startTime;
 
       if (error) {
@@ -1032,9 +1213,9 @@ function App() {
       } else {
         // Measure throughput (operations per second)
         const throughputStart = Date.now();
-        const promises = Array(5).fill(null).map(() =>
-          supabase.from('notes').select('id').limit(1)
-        );
+        const promises = Array(5)
+          .fill(null)
+          .map(() => supabase.from("notes").select("id").limit(1));
         await Promise.all(promises);
         const throughputTime = Date.now() - throughputStart;
         metrics.throughput = (5000 / throughputTime) * 1000; // ops per second
@@ -1045,12 +1226,14 @@ function App() {
         if (metrics.throughput < 10) metrics.healthScore -= 15;
       }
 
-      logSecurityEvent('DATABASE_PERFORMANCE_METRICS', metrics);
+      logSecurityEvent("DATABASE_PERFORMANCE_METRICS", metrics);
       return metrics;
     } catch (err) {
       metrics.errorRate = 100;
       metrics.healthScore = 0;
-      logSecurityEvent('DATABASE_PERFORMANCE_CHECK_FAILED', { error: err instanceof Error ? err.message : String(err) });
+      logSecurityEvent("DATABASE_PERFORMANCE_CHECK_FAILED", {
+        error: err instanceof Error ? err.message : String(err),
+      });
       return metrics;
     }
   };
@@ -1058,71 +1241,79 @@ function App() {
   // Security: Anomaly detection
   const detectAnomalies = (): {
     anomalies: string[];
-    severity: 'low' | 'medium' | 'high' | 'critical';
+    severity: "low" | "medium" | "high" | "critical";
     recommendations: string[];
   } => {
     const anomalies: string[] = [];
     const recommendations: string[] = [];
-    let severity: 'low' | 'medium' | 'high' | 'critical' = 'low';
+    let severity: "low" | "medium" | "high" | "critical" = "low";
 
     // Check for unusual login patterns
-    const recentActivity = JSON.parse(localStorage.getItem('elysium_activity') || '[]');
-    const lastHourActivity = recentActivity.filter((timestamp: number) =>
-      Date.now() - timestamp < 60 * 60 * 1000
+    const recentActivity = JSON.parse(
+      localStorage.getItem("elysium_activity") || "[]"
+    );
+    const lastHourActivity = recentActivity.filter(
+      (timestamp: number) => Date.now() - timestamp < 60 * 60 * 1000
     );
 
     if (lastHourActivity.length > 100) {
-      anomalies.push('Unusually high activity in the last hour');
-      severity = 'high';
-      recommendations.push('Investigate for potential DoS attack');
+      anomalies.push("Unusually high activity in the last hour");
+      severity = "high";
+      recommendations.push("Investigate for potential DoS attack");
     }
 
     // Check for failed authentication spikes
     if (accountLockout.failedAttempts > 3) {
-      anomalies.push('Multiple recent authentication failures');
-      severity = severity === 'low' ? 'medium' : severity;
-      recommendations.push('Monitor for brute force attempts');
+      anomalies.push("Multiple recent authentication failures");
+      severity = severity === "low" ? "medium" : severity;
+      recommendations.push("Monitor for brute force attempts");
     }
 
     // Check for data integrity issues
-    const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]');
-    const recentErrors = auditTrail.filter((entry: any) =>
-      entry.event.includes('FAILED') &&
-      Date.now() - new Date(entry.timestamp).getTime() < 60 * 60 * 1000
+    const auditTrail = JSON.parse(
+      localStorage.getItem("elysium_audit_trail") || "[]"
+    );
+    const recentErrors = auditTrail.filter(
+      (entry: any) =>
+        entry.event.includes("FAILED") &&
+        Date.now() - new Date(entry.timestamp).getTime() < 60 * 60 * 1000
     );
 
     if (recentErrors.length > 10) {
-      anomalies.push('High rate of operation failures');
-      severity = 'high';
-      recommendations.push('Check system health and connectivity');
+      anomalies.push("High rate of operation failures");
+      severity = "high";
+      recommendations.push("Check system health and connectivity");
     }
 
     // Check for unusual data access patterns
-    const dataAccessPatterns = auditTrail.filter((entry: any) =>
-      entry.operation === 'read' || entry.operation === 'update'
+    const dataAccessPatterns = auditTrail.filter(
+      (entry: any) => entry.operation === "read" || entry.operation === "update"
     );
 
-    const uniqueUsers = new Set(dataAccessPatterns.map((entry: any) => entry.userId)).size;
+    const uniqueUsers = new Set(
+      dataAccessPatterns.map((entry: any) => entry.userId)
+    ).size;
     if (uniqueUsers > 10) {
-      anomalies.push('Unusual number of users accessing data');
-      severity = severity === 'low' ? 'medium' : severity;
-      recommendations.push('Verify user access permissions');
+      anomalies.push("Unusual number of users accessing data");
+      severity = severity === "low" ? "medium" : severity;
+      recommendations.push("Verify user access permissions");
     }
 
     // Check for session anomalies
     if (user && user.created_at) {
       const sessionAge = Date.now() - new Date(user.created_at).getTime();
-      if (sessionAge > 24 * 60 * 60 * 1000) { // 24 hours
-        anomalies.push('Very old session detected');
-        severity = severity === 'low' ? 'medium' : severity;
-        recommendations.push('Recommend session refresh');
+      if (sessionAge > 24 * 60 * 60 * 1000) {
+        // 24 hours
+        anomalies.push("Very old session detected");
+        severity = severity === "low" ? "medium" : severity;
+        recommendations.push("Recommend session refresh");
       }
     }
 
-    logSecurityEvent('ANOMALY_DETECTION_COMPLETED', {
+    logSecurityEvent("ANOMALY_DETECTION_COMPLETED", {
       anomaliesCount: anomalies.length,
       severity,
-      recommendationsCount: recommendations.length
+      recommendationsCount: recommendations.length,
     });
 
     return { anomalies, severity, recommendations };
@@ -1139,51 +1330,56 @@ function App() {
       overallHealth: 100,
       checks: {} as Record<string, boolean>,
       issues: [] as string[],
-      recommendations: [] as string[]
+      recommendations: [] as string[],
     };
 
     // Check 1: Authentication security
-    healthReport.checks.authSecurity = !accountLockout.locked && accountLockout.failedAttempts === 0;
+    healthReport.checks.authSecurity =
+      !accountLockout.locked && accountLockout.failedAttempts === 0;
     if (!healthReport.checks.authSecurity) {
       healthReport.overallHealth -= 20;
-      healthReport.issues.push('Authentication security issues detected');
-      healthReport.recommendations.push('Review authentication policies');
+      healthReport.issues.push("Authentication security issues detected");
+      healthReport.recommendations.push("Review authentication policies");
     }
 
     // Check 2: Data integrity
-    const auditTrail = JSON.parse(localStorage.getItem('elysium_audit_trail') || '[]');
-    const integrityViolations = auditTrail.filter((entry: any) =>
-      entry.event === 'DATA_INTEGRITY_VIOLATION'
+    const auditTrail = JSON.parse(
+      localStorage.getItem("elysium_audit_trail") || "[]"
+    );
+    const integrityViolations = auditTrail.filter(
+      (entry: any) => entry.event === "DATA_INTEGRITY_VIOLATION"
     );
     healthReport.checks.dataIntegrity = integrityViolations.length === 0;
     if (!healthReport.checks.dataIntegrity) {
       healthReport.overallHealth -= 25;
-      healthReport.issues.push('Data integrity violations detected');
-      healthReport.recommendations.push('Verify data backup and integrity');
+      healthReport.issues.push("Data integrity violations detected");
+      healthReport.recommendations.push("Verify data backup and integrity");
     }
 
     // Check 3: Privacy compliance
     healthReport.checks.privacyCompliance = runPrivacyComplianceCheck();
     if (!healthReport.checks.privacyCompliance) {
       healthReport.overallHealth -= 15;
-      healthReport.issues.push('Privacy compliance issues found');
-      healthReport.recommendations.push('Review and update privacy policies');
+      healthReport.issues.push("Privacy compliance issues found");
+      healthReport.recommendations.push("Review and update privacy policies");
     }
 
     // Check 4: API health
     healthReport.checks.apiHealth = await monitorApiHealth();
     if (!healthReport.checks.apiHealth) {
       healthReport.overallHealth -= 30;
-      healthReport.issues.push('API health issues detected');
-      healthReport.recommendations.push('Check API connectivity and performance');
+      healthReport.issues.push("API health issues detected");
+      healthReport.recommendations.push(
+        "Check API connectivity and performance"
+      );
     }
 
     // Check 5: Rate limiting status
     healthReport.checks.rateLimiting = !isRateLimited;
     if (!healthReport.checks.rateLimiting) {
       healthReport.overallHealth -= 10;
-      healthReport.issues.push('Rate limiting is active');
-      healthReport.recommendations.push('Monitor for potential abuse');
+      healthReport.issues.push("Rate limiting is active");
+      healthReport.recommendations.push("Monitor for potential abuse");
     }
 
     // Anomaly detection
@@ -1191,16 +1387,17 @@ function App() {
     healthReport.checks.anomalyFree = anomalyReport.anomalies.length === 0;
     if (!healthReport.checks.anomalyFree) {
       const severityPenalty = { low: 5, medium: 15, high: 25, critical: 40 };
-      healthReport.overallHealth -= severityPenalty[anomalyReport.severity] || 10;
+      healthReport.overallHealth -=
+        severityPenalty[anomalyReport.severity] || 10;
       healthReport.issues.push(...anomalyReport.anomalies);
       healthReport.recommendations.push(...anomalyReport.recommendations);
     }
 
-    logSecurityEvent('SECURITY_HEALTH_CHECK_COMPLETED', {
+    logSecurityEvent("SECURITY_HEALTH_CHECK_COMPLETED", {
       overallHealth: healthReport.overallHealth,
       checksPassed: Object.values(healthReport.checks).filter(Boolean).length,
       totalChecks: Object.keys(healthReport.checks).length,
-      issuesCount: healthReport.issues.length
+      issuesCount: healthReport.issues.length,
     });
 
     return healthReport;
@@ -1213,14 +1410,14 @@ function App() {
       const healthReport = await performSecurityHealthCheck();
 
       if (healthReport.overallHealth < 70) {
-        logSecurityEvent('SECURITY_HEALTH_ALERT', {
+        logSecurityEvent("SECURITY_HEALTH_ALERT", {
           healthScore: healthReport.overallHealth,
           criticalIssues: healthReport.issues.length,
-          severity: healthReport.overallHealth < 50 ? 'critical' : 'warning'
+          severity: healthReport.overallHealth < 50 ? "critical" : "warning",
         });
 
         // In production, this would send alerts to administrators
-        console.warn('?? Security Health Alert:', healthReport);
+        console.warn("?? Security Health Alert:", healthReport);
       }
     }, 5 * 60 * 1000); // Every 5 minutes
 
@@ -1228,13 +1425,16 @@ function App() {
     const anomalyCheckInterval = setInterval(() => {
       const anomalyReport = detectAnomalies();
 
-      if (anomalyReport.severity === 'high' || anomalyReport.severity === 'critical') {
-        logSecurityEvent('ANOMALY_ALERT', {
+      if (
+        anomalyReport.severity === "high" ||
+        anomalyReport.severity === "critical"
+      ) {
+        logSecurityEvent("ANOMALY_ALERT", {
           severity: anomalyReport.severity,
-          anomaliesCount: anomalyReport.anomalies.length
+          anomaliesCount: anomalyReport.anomalies.length,
         });
 
-        console.warn('?? Anomaly Detected:', anomalyReport);
+        console.warn("?? Anomaly Detected:", anomalyReport);
       }
     }, 10 * 60 * 1000); // Every 10 minutes
 
@@ -1249,10 +1449,10 @@ function App() {
 
   // Security: Emergency security lockdown
   const initiateSecurityLockdown = (reason: string) => {
-    logSecurityEvent('SECURITY_LOCKDOWN_INITIATED', {
+    logSecurityEvent("SECURITY_LOCKDOWN_INITIATED", {
       reason,
       timestamp: new Date().toISOString(),
-      userId: user?.id
+      userId: user?.id,
     });
 
     // Disable all user operations
@@ -1262,7 +1462,9 @@ function App() {
     // 3. Enable read-only mode
     // 4. Alert administrators
 
-    alert(`Security lockdown initiated: ${reason}. Please contact administrators.`);
+    alert(
+      `Security lockdown initiated: ${reason}. Please contact administrators.`
+    );
 
     // Force logout current user
     supabase.auth.signOut();
@@ -1272,14 +1474,18 @@ function App() {
     const handleAuthRedirect = async () => {
       // Security: Check account lockout before processing auth
       if (!checkAccountLockout()) {
-        alert("Account is temporarily locked due to too many failed login attempts. Please try again later.");
+        alert(
+          "Account is temporarily locked due to too many failed login attempts. Please try again later."
+        );
         return;
       }
 
       // Security: Check rate limiting before processing auth
       if (!checkRateLimit()) {
-        logSecurityEvent('AUTH_RATE_LIMITED', { action: 'handleAuthRedirect' });
-        alert("Too many authentication attempts. Please wait before trying again.");
+        logSecurityEvent("AUTH_RATE_LIMITED", { action: "handleAuthRedirect" });
+        alert(
+          "Too many authentication attempts. Please wait before trying again."
+        );
         return;
       }
 
@@ -1300,12 +1506,15 @@ function App() {
       // Security: Validate and sanitize hash input
       const sanitizedHash = sanitizeInput(hash);
       if (sanitizedHash !== hash) {
-        logSecurityEvent('INPUT_SANITIZATION_TRIGGERED', { original: hash, sanitized: sanitizedHash });
+        logSecurityEvent("INPUT_SANITIZATION_TRIGGERED", {
+          original: hash,
+          sanitized: sanitizedHash,
+        });
       }
 
       if (hash.includes("error=access_denied")) {
         console.error("Auth error in URL:", hash);
-        logSecurityEvent('AUTH_ERROR_ACCESS_DENIED', { hash });
+        logSecurityEvent("AUTH_ERROR_ACCESS_DENIED", { hash });
         handleFailedAuthAttempt();
         alert(
           "Email link is invalid or has expired. Please request a new one."
@@ -1324,17 +1533,22 @@ function App() {
           // Security: Validate token format (basic JWT structure check)
           const isValidTokenFormat = (token: string) => {
             // JWT tokens have three parts separated by dots: header.payload.signature
-            const parts = token.split('.');
-            return parts.length === 3 && parts.every(part => part.length > 0);
+            const parts = token.split(".");
+            return parts.length === 3 && parts.every((part) => part.length > 0);
           };
 
-          if (!isValidTokenFormat(accessToken) || !isValidTokenFormat(refreshToken)) {
-            logSecurityEvent('INVALID_TOKEN_FORMAT', {
+          if (
+            !isValidTokenFormat(accessToken) ||
+            !isValidTokenFormat(refreshToken)
+          ) {
+            logSecurityEvent("INVALID_TOKEN_FORMAT", {
               accessTokenValid: isValidTokenFormat(accessToken),
-              refreshTokenValid: isValidTokenFormat(refreshToken)
+              refreshTokenValid: isValidTokenFormat(refreshToken),
             });
             // Don't show alert for format issues - let Supabase handle auth errors
-            console.warn('Token format validation failed, proceeding with Supabase auth');
+            console.warn(
+              "Token format validation failed, proceeding with Supabase auth"
+            );
           }
 
           console.log("Setting session from hash tokens");
@@ -1345,18 +1559,29 @@ function App() {
           console.log("Set session result:", { data, error });
           if (error) {
             console.error("Error setting session:", error);
-            logSecurityEvent('SESSION_SET_ERROR', { error: error instanceof Error ? error.message : String(error) });
+            logSecurityEvent("SESSION_SET_ERROR", {
+              error: error instanceof Error ? error.message : String(error),
+            });
             handleFailedAuthAttempt();
-            alert(`Authentication failed: ${error instanceof Error ? error.message : String(error)}`);
+            alert(
+              `Authentication failed: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
           } else if (data.session) {
             // Security: Check session integrity
             if (!checkSessionIntegrity()) {
-              logSecurityEvent('SESSION_INTEGRITY_FAILED', { userId: data.session.user.id });
+              logSecurityEvent("SESSION_INTEGRITY_FAILED", {
+                userId: data.session.user.id,
+              });
             }
 
             setUser(data.session.user);
             console.log("User set from session:", data.session.user);
-            logSecurityEvent('AUTH_SUCCESS', { userId: data.session.user.id, email: data.session.user.email });
+            logSecurityEvent("AUTH_SUCCESS", {
+              userId: data.session.user.id,
+              email: data.session.user.email,
+            });
             handleSuccessfulAuth();
             alert(`Logged in as ${data.session.user.email}`);
             authProcessedRef.current = true;
@@ -1365,13 +1590,13 @@ function App() {
             setTimeout(() => rotateTokens(), 30 * 60 * 1000); // Rotate after 30 minutes
           } else {
             console.log("No session returned from setSession");
-            logSecurityEvent('SESSION_SET_NO_SESSION', {});
+            logSecurityEvent("SESSION_SET_NO_SESSION", {});
             handleFailedAuthAttempt();
             alert("Authentication failed: No session returned");
           }
         } else {
           console.log("Hash contains access_token but missing tokens");
-          logSecurityEvent('MISSING_TOKENS_IN_HASH', {});
+          logSecurityEvent("MISSING_TOKENS_IN_HASH", {});
           alert("Authentication failed: Missing tokens in URL");
         }
       } else {
@@ -1385,9 +1610,13 @@ function App() {
         if (session) {
           // Security: Check session integrity for existing session
           if (!checkSessionIntegrity()) {
-            logSecurityEvent('EXISTING_SESSION_INTEGRITY_FAILED', { userId: session.user.id });
+            logSecurityEvent("EXISTING_SESSION_INTEGRITY_FAILED", {
+              userId: session.user.id,
+            });
           }
-          logSecurityEvent('EXISTING_SESSION_RESTORED', { userId: session.user.id });
+          logSecurityEvent("EXISTING_SESSION_RESTORED", {
+            userId: session.user.id,
+          });
         }
 
         setUser(session?.user ?? null);
@@ -1418,32 +1647,32 @@ function App() {
           console.log("Auth state changed:", { event, session });
 
           // Security: Log auth state changes
-          logSecurityEvent('AUTH_STATE_CHANGE', {
+          logSecurityEvent("AUTH_STATE_CHANGE", {
             event,
             hasSession: !!session,
             userId: session?.user?.id,
-            email: session?.user?.email
+            email: session?.user?.email,
           });
 
           // Security: Monitor for suspicious auth patterns
-          if (event === 'SIGNED_OUT') {
+          if (event === "SIGNED_OUT") {
             monitorSuspiciousActivity();
           }
 
           if (session) {
             // Security: Check session integrity on state change
             if (!checkSessionIntegrity()) {
-              logSecurityEvent('SESSION_INTEGRITY_FAILED_ON_CHANGE', {
+              logSecurityEvent("SESSION_INTEGRITY_FAILED_ON_CHANGE", {
                 event,
-                userId: session.user.id
+                userId: session.user.id,
               });
             }
 
             setUser(session.user);
-            logSecurityEvent('AUTH_STATE_CHANGE_SUCCESS', {
+            logSecurityEvent("AUTH_STATE_CHANGE_SUCCESS", {
               event,
               userId: session.user.id,
-              email: session.user.email
+              email: session.user.email,
             });
             handleSuccessfulAuth();
 
@@ -1451,8 +1680,8 @@ function App() {
             setTimeout(() => rotateTokens(), 45 * 60 * 1000); // Rotate after 45 minutes
           } else {
             setUser(null);
-            if (event === 'SIGNED_OUT') {
-              logSecurityEvent('USER_SIGNED_OUT', { reason: 'user_action' });
+            if (event === "SIGNED_OUT") {
+              logSecurityEvent("USER_SIGNED_OUT", { reason: "user_action" });
             }
           }
         }
@@ -1586,7 +1815,9 @@ function WelcomePage({
   const [offlineQueue, setOfflineQueue] = useState<Note[]>([]);
 
   // Download loading state
-  const [downloadingNotes, setDownloadingNotes] = useState<Set<string>>(new Set());
+  const [downloadingNotes, setDownloadingNotes] = useState<Set<string>>(
+    new Set()
+  );
 
   // Connectivity state
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -1598,7 +1829,7 @@ function WelcomePage({
     if (cloudStorage.user) {
       try {
         // Convert CloudNote to Note format
-        const convertedNotes: Note[] = cloudStorage.notes.map(cloudNote => ({
+        const convertedNotes: Note[] = cloudStorage.notes.map((cloudNote) => ({
           id: cloudNote.id || `cloud-${Date.now()}`,
           title: cloudNote.title,
           content: cloudNote.content,
@@ -1764,18 +1995,18 @@ function WelcomePage({
     try {
       // Test multiple endpoints for better reliability
       const testUrls = [
-        'https://www.google.com/favicon.ico',
-        'https://www.cloudflare.com/favicon.ico',
-        'https://firebase.google.com/favicon.ico'
+        "https://www.google.com/favicon.ico",
+        "https://www.cloudflare.com/favicon.ico",
+        "https://firebase.google.com/favicon.ico",
       ];
 
       for (const url of testUrls) {
         try {
           const response = await fetch(url, {
-            method: 'HEAD',
-            mode: 'no-cors',
-            cache: 'no-cache',
-            signal: AbortSignal.timeout(5000) // 5 second timeout
+            method: "HEAD",
+            mode: "no-cors",
+            cache: "no-cache",
+            signal: AbortSignal.timeout(5000), // 5 second timeout
           });
           return true;
         } catch (error) {
@@ -1785,14 +2016,14 @@ function WelcomePage({
       }
       return false;
     } catch (error) {
-      console.warn('Connectivity test failed:', error);
+      console.warn("Connectivity test failed:", error);
       return false;
     }
   };
 
   const checkConnectivity = async () => {
     const online = await testInternetConnectivity();
-    console.log('Connectivity check:', online ? 'online' : 'offline');
+    console.log("Connectivity check:", online ? "online" : "offline");
     setIsOnline(online);
     return online;
   };
@@ -1801,25 +2032,29 @@ function WelcomePage({
     if (mode === "cloud" && cloudStorage.user) {
       try {
         setIsLoadingOfflineData(true);
-        
+
         // Load cached notes from localStorage
-        const cached = localStorage.getItem(`elysium_cached_notes_${cloudStorage.user.uid}`);
+        const cached = localStorage.getItem(
+          `elysium_cached_notes_${cloudStorage.user.uid}`
+        );
         if (cached) {
           const parsedNotes: Note[] = JSON.parse(cached);
           setCachedNotes(parsedNotes);
-          
+
           // If offline, automatically switch to cached notes
           if (!isOnline) {
             setNotes(parsedNotes);
-            console.log(`Automatically loaded ${parsedNotes.length} cached notes (offline mode)`);
+            console.log(
+              `Automatically loaded ${parsedNotes.length} cached notes (offline mode)`
+            );
           }
         } else if (!isOnline) {
           // No cached notes available offline
           setNotes([]);
-          console.log('No cached notes available for offline mode');
+          console.log("No cached notes available for offline mode");
         }
       } catch (error) {
-        console.error('Error loading cached notes:', error);
+        console.error("Error loading cached notes:", error);
         setCachedNotes([]);
         if (!isOnline) {
           setNotes([]);
@@ -1875,24 +2110,24 @@ function WelcomePage({
 
     // Listen for online/offline events
     const handleOnline = () => {
-      console.log('Browser reports online');
+      console.log("Browser reports online");
       checkConnectivity(); // Double-check with actual connectivity test
     };
 
     const handleOffline = () => {
-      console.log('Browser reports offline');
+      console.log("Browser reports offline");
       setIsOnline(false);
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     // Periodic connectivity checks
     const connectivityInterval = setInterval(checkConnectivity, 30000); // Check every 30 seconds
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       clearInterval(connectivityInterval);
     };
   }, []);
@@ -1912,7 +2147,10 @@ function WelcomePage({
   useEffect(() => {
     if (mode === "cloud" && cloudStorage.user && cloudNotes.length > 0) {
       // Cache the current cloud notes for offline use
-      localStorage.setItem(`elysium_cached_notes_${cloudStorage.user.uid}`, JSON.stringify(cloudNotes));
+      localStorage.setItem(
+        `elysium_cached_notes_${cloudStorage.user.uid}`,
+        JSON.stringify(cloudNotes)
+      );
       console.log(`Cached ${cloudNotes.length} notes for offline use`);
     }
   }, [cloudNotes, mode, cloudStorage.user]);
@@ -1947,7 +2185,7 @@ function WelcomePage({
         await cloudStorage.signOut();
         console.log("Firebase signOut completed");
         // Wait a bit for the auth state to update
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         console.log("Auth state update delay completed");
         // Stay in cloud mode but logged out
         setActivePage("recent");
@@ -1970,8 +2208,6 @@ function WelcomePage({
     setNotes([]);
     console.log("handleExitToMainMenu: UI state reset completed");
   };
-
-
 
   async function encryptData(data: string, key: CryptoKey) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -2009,17 +2245,17 @@ function WelcomePage({
 
   // Offline queue management functions
   const addToOfflineQueue = useCallback((note: Note) => {
-    setOfflineQueue(prev => {
+    setOfflineQueue((prev) => {
       const updated = [...prev, note];
-      localStorage.setItem('elysium_offline_queue', JSON.stringify(updated));
+      localStorage.setItem("elysium_offline_queue", JSON.stringify(updated));
       return updated;
     });
   }, []);
 
   const removeFromOfflineQueue = useCallback((noteId: string) => {
-    setOfflineQueue(prev => {
-      const updated = prev.filter(n => n.id !== noteId);
-      localStorage.setItem('elysium_offline_queue', JSON.stringify(updated));
+    setOfflineQueue((prev) => {
+      const updated = prev.filter((n) => n.id !== noteId);
+      localStorage.setItem("elysium_offline_queue", JSON.stringify(updated));
       return updated;
     });
   }, []);
@@ -2033,7 +2269,7 @@ function WelcomePage({
       try {
         // Check if note already exists in cloud
         const existingNotes = cloudStorage.notes;
-        const exists = existingNotes.some(n => n.id === note.id);
+        const exists = existingNotes.some((n) => n.id === note.id);
 
         if (!exists) {
           // Create new note in cloud
@@ -2042,14 +2278,14 @@ function WelcomePage({
             content: note.content,
             template: note.template,
             isPublic: false,
-            tags: []
+            tags: [],
           });
         } else {
           // Update existing note in cloud
           await cloudStorage.updateNote(note.id, {
             title: note.title,
             content: note.content,
-            template: note.template
+            template: note.template,
           });
         }
 
@@ -2064,12 +2300,12 @@ function WelcomePage({
 
   // Load offline queue from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('elysium_offline_queue');
+    const saved = localStorage.getItem("elysium_offline_queue");
     if (saved) {
       try {
         setOfflineQueue(JSON.parse(saved));
       } catch (error) {
-        console.error('Failed to load offline queue:', error);
+        console.error("Failed to load offline queue:", error);
       }
     }
   }, []);
@@ -2091,16 +2327,18 @@ function WelcomePage({
 
     try {
       // Get all downloaded notes
-      const downloadedNotes = notes.filter(note => note.isDownloaded);
-      
+      const downloadedNotes = notes.filter((note) => note.isDownloaded);
+
       for (const localNote of downloadedNotes) {
         // Find corresponding cloud note
-        const cloudNote = cloudStorage.notes.find(cn => cn.id === localNote.id);
-        
+        const cloudNote = cloudStorage.notes.find(
+          (cn) => cn.id === localNote.id
+        );
+
         if (cloudNote) {
           const cloudUpdatedAt = cloudNote.updatedAt.toDate().getTime();
           const localUpdatedAt = new Date(localNote.updatedAt).getTime();
-          
+
           // If cloud note is newer, update local note
           if (cloudUpdatedAt > localUpdatedAt) {
             const updatedLocalNote: Note = {
@@ -2109,16 +2347,21 @@ function WelcomePage({
               content: cloudNote.content,
               template: cloudNote.template || "Blank",
               updatedAt: cloudNote.updatedAt.toDate().toISOString(),
-              isDownloaded: true // Keep downloaded flag
+              isDownloaded: true, // Keep downloaded flag
             };
-            
-            const updatedNotes = notes.map(n => 
+
+            const updatedNotes = notes.map((n) =>
               n.id === localNote.id ? updatedLocalNote : n
             );
             setNotes(updatedNotes);
-            localStorage.setItem(`elysium_notes_${mode}`, JSON.stringify(updatedNotes));
-            
-            console.log(`Synced cloud changes to local note: ${localNote.title}`);
+            localStorage.setItem(
+              `elysium_notes_${mode}`,
+              JSON.stringify(updatedNotes)
+            );
+
+            console.log(
+              `Synced cloud changes to local note: ${localNote.title}`
+            );
           }
         }
       }
@@ -2236,7 +2479,10 @@ function WelcomePage({
             setIsCloudButtonClicked(false);
 
             // Show notification for successful note creation
-            showNotification("Success", "Note created successfully in the cloud!");
+            showNotification(
+              "Success",
+              "Note created successfully in the cloud!"
+            );
             return;
           } catch (error) {
             // If cloud creation fails, save locally and add to offline queue
@@ -2245,7 +2491,10 @@ function WelcomePage({
             setShowCreateModal(false);
             setActivePage("recent");
             setIsCloudButtonClicked(false);
-            showNotification("Offline", "Note saved locally. Will sync to cloud when online.");
+            showNotification(
+              "Offline",
+              "Note saved locally. Will sync to cloud when online."
+            );
           }
         } else {
           // Not authenticated, save locally and add to queue
@@ -2253,7 +2502,10 @@ function WelcomePage({
           setShowCreateModal(false);
           setActivePage("recent");
           setIsCloudButtonClicked(false);
-          showNotification("Offline", "Note saved locally. Will sync to cloud when you sign in.");
+          showNotification(
+            "Offline",
+            "Note saved locally. Will sync to cloud when you sign in."
+          );
         }
       } else {
         newNote = {
@@ -2452,7 +2704,9 @@ function WelcomePage({
       if (error) {
         console.error("Login error:", error);
         alert(
-          `Failed to send magic link: ${error instanceof Error ? error.message : String(error)}. Please check your Supabase dashboard for Auth logs, ensure SMTP is configured, and verify your email isn't blocked.`
+          `Failed to send magic link: ${
+            error instanceof Error ? error.message : String(error)
+          }. Please check your Supabase dashboard for Auth logs, ensure SMTP is configured, and verify your email isn't blocked.`
         );
       } else {
         console.log("Magic link sent successfully to:", email);
@@ -2575,11 +2829,11 @@ function WelcomePage({
       console.log("Cloud storage notes count:", cloudStorage.notes.length);
       if (cloudStorage.user) {
         // Load notes from Firebase
-        const firebaseNotes = cloudStorage.notes.map(cloudNote => ({
+        const firebaseNotes = cloudStorage.notes.map((cloudNote) => ({
           id: cloudNote.id!,
           title: cloudNote.title,
           content: cloudNote.content,
-          template: cloudNote.template || 'Auto',
+          template: cloudNote.template || "Auto",
           isPermanent: false,
           completionTimestamps: {},
           createdAt: cloudNote.createdAt.toDate().toISOString(),
@@ -2597,7 +2851,14 @@ function WelcomePage({
       setNotes(getDefaultNotes(mode));
       if (connected) loadFromBlockchain();
     }
-  }, [mode, user, connected, fetchNotes, cloudStorage.user, cloudStorage.notes]);
+  }, [
+    mode,
+    user,
+    connected,
+    fetchNotes,
+    cloudStorage.user,
+    cloudStorage.notes,
+  ]);
 
   useEffect(() => {
     if (mode === "cloud" && !cloudStorage.user) {
@@ -2870,13 +3131,23 @@ function WelcomePage({
               />
               <span
                 className={`text-silver-200 flex-1 text-base md:text-sm ${
-                  isChecked ? `line-through ${settings.theme === "Light" ? "text-purple-400" : "text-gray-500"}` : ""
+                  isChecked
+                    ? `line-through ${
+                        settings.theme === "Light"
+                          ? "text-purple-400"
+                          : "text-gray-500"
+                      }`
+                    : ""
                 }`}
               >
                 {itemText}{" "}
                 {isChecked && (
                   <span
-                    className={`text-xs md:text-sm ml-2 cursor-pointer hover:text-indigo-400 transition-colors bg-gray-800/50 px-2 py-1 rounded ${settings.theme === "Light" ? "text-purple-600" : "text-gray-500"}`}
+                    className={`text-xs md:text-sm ml-2 cursor-pointer hover:text-indigo-400 transition-colors bg-gray-800/50 px-2 py-1 rounded ${
+                      settings.theme === "Light"
+                        ? "text-purple-600"
+                        : "text-gray-500"
+                    }`}
                     onClick={handleTimestampClick}
                     title="Click to update timestamp"
                   >
@@ -2920,17 +3191,20 @@ function WelcomePage({
           style={logoSpring}
           className="mb-6 sm:mb-8 flex items-center"
         >
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-wide mr-4 font-serif" style={{ color: 'white' }}>
+          <h1
+            className="text-4xl sm:text-5xl font-extrabold tracking-wide mr-4 font-serif"
+            style={{ color: "white" }}
+          >
             Elysium
           </h1>
           <ElysiumLogo className="w-12 h-12 sm:w-16 sm:h-16" />
         </animated.div>
-          <animated.p
-            style={{ ...titleSpring, color: '#e5e7eb' }}
-            className="text-lg sm:text-xl italic mb-6 max-w-md text-center"
-          >
-            Unlock Your Eternal Notes in a Decentralized Realm
-          </animated.p>
+        <animated.p
+          style={{ ...titleSpring, color: "#e5e7eb" }}
+          className="text-lg sm:text-xl italic mb-6 max-w-md text-center"
+        >
+          Unlock Your Eternal Notes in a Decentralized Realm
+        </animated.p>
         <div className="flex flex-col sm:flex-row w-full max-w-6xl mx-auto space-y-4 sm:space-y-0 sm:space-x-4">
           <div
             className="flex-1 p-6 sm:p-8 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl"
@@ -2943,10 +3217,13 @@ function WelcomePage({
             }}
           >
             <div className="bg-black/60 p-4 rounded text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2 font-serif" style={{ color: 'white' }}>
+              <h2
+                className="text-2xl sm:text-3xl font-bold mb-2 font-serif"
+                style={{ color: "white" }}
+              >
                 Database Version (Supabase)
               </h2>
-              <p className="text-sm sm:text-base" style={{ color: '#e5e7eb' }}>
+              <p className="text-sm sm:text-base" style={{ color: "#e5e7eb" }}>
                 Secure, private notes with user authentication. Perfect for
                 personal organization with reliable cloud backup and instant
                 sync across devices.
@@ -2964,10 +3241,13 @@ function WelcomePage({
             }}
           >
             <div className="bg-black/60 p-4 rounded text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2 font-serif" style={{ color: 'white' }}>
+              <h2
+                className="text-2xl sm:text-3xl font-bold mb-2 font-serif"
+                style={{ color: "white" }}
+              >
                 Cloud Version
               </h2>
-              <p className="text-sm sm:text-base" style={{ color: '#e5e7eb' }}>
+              <p className="text-sm sm:text-base" style={{ color: "#e5e7eb" }}>
                 Fast, offline-capable note storage with seamless device
                 synchronization. Ideal for quick notes and collaborative work
                 with automatic backup.
@@ -2985,10 +3265,13 @@ function WelcomePage({
             }}
           >
             <div className="bg-black/60 p-4 rounded text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2 font-serif" style={{ color: 'white' }}>
+              <h2
+                className="text-2xl sm:text-3xl font-bold mb-2 font-serif"
+                style={{ color: "white" }}
+              >
                 Blockchain Version (SOL + Arweave)
               </h2>
-              <p className="text-sm sm:text-base" style={{ color: '#e5e7eb' }}>
+              <p className="text-sm sm:text-base" style={{ color: "#e5e7eb" }}>
                 <strong>? PREMIUM:</strong> Eternal, censorship-resistant
                 storage on Solana + Arweave. Your notes become immutable digital
                 artifacts, preserved forever in the decentralized web. True
@@ -3004,24 +3287,30 @@ function WelcomePage({
   return (
     <>
       {mode === "db" && !user ? (
-        <div className={`min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 ${
-          settings.theme === "Light"
-            ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
-            : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
-        }`}>
+        <div
+          className={`min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 ${
+            settings.theme === "Light"
+              ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
+              : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
+          }`}
+        >
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
           <animated.div style={logoSpring}>
             <ElysiumLogo className="mb-6 w-20 h-20 sm:w-24 sm:h-24" />
           </animated.div>
           <animated.h1
             style={titleSpring}
-            className={`text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}
+            className={`text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 font-serif ${
+              settings.theme === "Light" ? "text-purple-900" : "text-gold-100"
+            }`}
           >
             Welcome to Elysium
           </animated.h1>
           <animated.p
             style={titleSpring}
-            className={`text-lg sm:text-xl italic mb-6 max-w-md text-center ${settings.theme === "Light" ? "text-purple-700" : "text-silver-200"}`}
+            className={`text-lg sm:text-xl italic mb-6 max-w-md text-center ${
+              settings.theme === "Light" ? "text-purple-700" : "text-silver-200"
+            }`}
           >
             Enter your email to receive a magic link for login
           </animated.p>
@@ -3050,24 +3339,30 @@ function WelcomePage({
           </animated.div>
         </div>
       ) : mode === "web3" && !connected ? (
-        <div className={`min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 ${
-          settings.theme === "Light"
-            ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
-            : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
-        }`}>
+        <div
+          className={`min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 ${
+            settings.theme === "Light"
+              ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
+              : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
+          }`}
+        >
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
           <animated.div style={logoSpring}>
             <ElysiumLogo className="mb-6 w-20 h-20 sm:w-24 sm:h-24" />
           </animated.div>
           <animated.h1
             style={titleSpring}
-            className={`text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}
+            className={`text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 font-serif ${
+              settings.theme === "Light" ? "text-purple-900" : "text-gold-100"
+            }`}
           >
             Welcome to Elysium
           </animated.h1>
           <animated.p
             style={titleSpring}
-            className={`text-lg sm:text-xl italic mb-6 max-w-md text-center ${settings.theme === "Light" ? "text-purple-700" : "text-silver-200"}`}
+            className={`text-lg sm:text-xl italic mb-6 max-w-md text-center ${
+              settings.theme === "Light" ? "text-purple-700" : "text-silver-200"
+            }`}
           >
             Unlock Your Eternal Notes in a Decentralized Realm
           </animated.p>
@@ -3087,11 +3382,13 @@ function WelcomePage({
           </animated.div>
         </div>
       ) : (
-        <div className={`min-h-screen h-screen flex flex-col text-white relative overflow-hidden ${
-          settings.theme === "Light"
-            ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
-            : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
-        }`}>
+        <div
+          className={`min-h-screen h-screen flex flex-col text-white relative overflow-hidden ${
+            settings.theme === "Light"
+              ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
+              : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
+          }`}
+        >
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)] pointer-events-none"></div>
           <Drawer
             onNavigate={handlePageChange}
@@ -3143,7 +3440,13 @@ function WelcomePage({
           {showPopup && mode === "web3" && (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
               <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-black p-4 sm:p-6 rounded-lg shadow-2xl text-white w-11/12 max-w-md sm:w-80 transform transition-all duration-300 ease-in-out">
-                <h3 className={`text-lg sm:text-xl font-semibold mb-4 border-b border-indigo-700 pb-2 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
+                <h3
+                  className={`text-lg sm:text-xl font-semibold mb-4 border-b border-indigo-700 pb-2 font-serif ${
+                    settings.theme === "Light"
+                      ? "text-purple-900"
+                      : "text-gold-100"
+                  }`}
+                >
                   Wallet Options
                 </h3>
                 <button
@@ -3162,16 +3465,37 @@ function WelcomePage({
                   <div className="mb-4">
                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
                   </div>
-                  <h3 className={`text-xl sm:text-2xl font-semibold mb-2 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
+                  <h3
+                    className={`text-xl sm:text-2xl font-semibold mb-2 font-serif ${
+                      settings.theme === "Light"
+                        ? "text-purple-900"
+                        : "text-gold-100"
+                    }`}
+                  >
                     Loading Offline Data
                   </h3>
-                  <p className={`text-sm sm:text-base mb-4 ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
+                  <p
+                    className={`text-sm sm:text-base mb-4 ${
+                      settings.theme === "Light"
+                        ? "text-purple-700"
+                        : "text-gray-300"
+                    }`}
+                  >
                     Retrieving your cached notes for offline access...
                   </p>
                   <div className="flex justify-center space-x-1">
-                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    <div
+                      className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"
+                      style={{ animationDelay: "0ms" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"
+                      style={{ animationDelay: "150ms" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"
+                      style={{ animationDelay: "300ms" }}
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -3209,14 +3533,26 @@ function WelcomePage({
             >
               {activePage === "recent" && (
                 <>
-                  <h1 className={`text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
-                    Recent Notes
+                  <h1
+                    className={`text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 font-serif ${
+                      settings.theme === "Light"
+                        ? "text-purple-900"
+                        : "text-gold-100"
+                    }`}
+                  >
+                    {isOnline ? "Recent Notes" : "Offline Access"}
                   </h1>
-                  <p className={`text-sm mb-4 ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
+                  <p
+                    className={`text-sm mb-4 ${
+                      settings.theme === "Light"
+                        ? "text-purple-700"
+                        : "text-gray-300"
+                    }`}
+                  >
                     {mode === "db"
                       ? "🗄️Classic encrypted database: Simple, secure, and fully tied to your account with enterprise-grade protection."
                       : mode === "cloud"
-                      ? "⚡Lightning-fast cloud storage: Encrypted, downloadable data access with advanced cloud security and instant offline access."
+                      ? "⚡Lightning-fast cloud storage: Encrypted, downloadable data access with advanced cloud security and offline access."
                       : "⛓️ Eternal blockchain vault: Immutable, censorship-resistant storage where your notes become permanent digital artifacts."}
                   </p>
                   <div className="flex space-x-4 mb-6 sm:mb-8">
@@ -3251,188 +3587,330 @@ function WelcomePage({
                     </button>
                   </div>
                   {(() => {
-                    let displayNotes = notes.filter((note) => mode !== "db" || !note.isPermanent);
-                    
+                    let displayNotes = notes.filter(
+                      (note) => mode !== "db" || !note.isPermanent
+                    );
+
                     // In cloud mode, also show cloud notes that aren't downloaded yet
                     if (mode === "cloud" && cloudStorage.user) {
                       const cloudNotesToShow = cloudNotes
-                        .filter(cloudNote => !notes.some(localNote => 
-                          localNote.id === cloudNote.id && localNote.isDownloaded
-                        ))
-                        .map(cloudNote => ({ ...cloudNote, isCloudOnly: true }));
-                      
+                        .filter(
+                          (cloudNote) =>
+                            !notes.some(
+                              (localNote) =>
+                                localNote.id === cloudNote.id &&
+                                localNote.isDownloaded
+                            )
+                        )
+                        .map((cloudNote) => ({
+                          ...cloudNote,
+                          isCloudOnly: true,
+                        }));
+
                       displayNotes = [...displayNotes, ...cloudNotesToShow];
                     }
-                    
+
                     return displayNotes.length > 0 ? (
-                    <>
-                      {mode === "db" && isLoadingNotes && (
-                        <div className="mb-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
-                          <p className="text-red-400 text-sm text-center">
-                            <span className="font-semibold">
-                              Free Database Version:
-                            </span>{" "}
-                            Notes may take a moment to load. Please wait while
-                            we retrieve your data.
-                          </p>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                        {(() => {
-                          const cloudOnlyNotes: Note[] = []; // TODO: Implement cloud-only notes fetching
-                          const displayNotes = mode === "cloud" 
-                            ? [
-                                ...notes.filter(note => !note.isCloudOnly),
-                                ...cloudOnlyNotes
-                              ]
-                            : notes.filter((note) => mode !== "db" || !note.isPermanent);
-                          
-                          return getSortedNotes(displayNotes, settings.noteSorting)
-                        .map((note) => (
-                          <animated.div
-                              key={note.id}
-                              style={noteSpring}
-                              className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
-                                settings.theme === "Light"
-                                  ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 hover:shadow-[0_0_15px_rgba(139,92,246,0.2)] border-purple-200/50"
-                                  : "bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] border-indigo-600/30"
-                              }`}
-                              onClick={() => note.isCloudOnly ? null : setViewingNote(note)}
-                            >
-                              <div className="flex-1 overflow-hidden">
-                                <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${settings.theme === "Light" ? "text-purple-800" : "text-gold-100"}`}>
-                                  {note.title}
-                                  {note.isPermanent && (
-                                    <span className="text-xs text-amber-400 ml-1">
-                                      ??
-                                    </span>
-                                  )}
-                                  {note.isCloudOnly && (
-                                    <span className="text-xs text-cyan-400 ml-1">
-                                      ☁️
-                                    </span>
-                                  )}
-                                </h3>
-                                <div className={`text-sm mb-2 line-clamp-3 leading-relaxed ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
-                                  {note.content
-                                    .split("\n")[0]
-                                    .substring(0, 120)}
-                                  {note.content.length > 120 ? "..." : ""}
-                                </div>
-                                <div className={`flex items-center justify-between text-xs ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                                  <span className={`px-2 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50 text-gray-300"}`}>
-                                    {note.template}
-                                  </span>
-                                  <span className={settings.theme === "Light" ? "text-purple-500" : "text-gray-500"}>
-                                    {note.isCloudOnly ? "Click download" : "Click to view"}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="mt-3 flex justify-between items-center">
-                                <div className="flex space-x-2">
-                                  {mode === "cloud" && !note.isDownloaded && !note.isCloudOnly && (
-                                    <button
-                                      onClick={async (e) => {
-                                        e.stopPropagation(); // Prevent triggering the view
-                                        
-                                        // Start download loading state
-                                        setDownloadingNotes(prev => new Set(prev).add(note.id));
-                                        
-                                        try {
-                                          // Simulate download delay for visual feedback
-                                          await new Promise(resolve => setTimeout(resolve, 500));
-                                          
-                                          // Download note to local storage
-                                          const updatedNotes = notes.map(n => 
-                                            n.id === note.id 
-                                              ? { ...n, isDownloaded: true }
-                                              : n
-                                          );
-                                          
-                                          setNotes(updatedNotes);
-                                          localStorage.setItem(
-                                            `elysium_notes_${mode}`,
-                                            JSON.stringify(updatedNotes)
-                                          );
-                                          
-                                          alert(`✅ "${note.title}" downloaded for offline access!`);
-                                        } catch (error) {
-                                          console.error('Download failed:', error);
-                                          alert(`❌ Failed to download "${note.title}". Please try again.`);
-                                        } finally {
-                                          // Remove from loading state
-                                          setDownloadingNotes(prev => {
-                                            const newSet = new Set(prev);
-                                            newSet.delete(note.id);
-                                            return newSet;
-                                          });
-                                        }
-                                      }}
-                                      className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100 disabled:opacity-50"
-                                      title="Download for offline access"
-                                      disabled={downloadingNotes.has(note.id)}
+                      <>
+                        {mode === "db" && isLoadingNotes && (
+                          <div className="mb-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
+                            <p className="text-red-400 text-sm text-center">
+                              <span className="font-semibold">
+                                Free Database Version:
+                              </span>{" "}
+                              Notes may take a moment to load. Please wait while
+                              we retrieve your data.
+                            </p>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                          {(() => {
+                            const cloudOnlyNotes: Note[] = []; // TODO: Implement cloud-only notes fetching
+                            const displayNotes =
+                              mode === "cloud"
+                                ? [
+                                    ...notes.filter(
+                                      (note) => !note.isCloudOnly
+                                    ),
+                                    ...cloudOnlyNotes,
+                                  ]
+                                : notes.filter(
+                                    (note) => mode !== "db" || !note.isPermanent
+                                  );
+
+                            return getSortedNotes(
+                              displayNotes,
+                              settings.noteSorting
+                            ).map((note) => (
+                              <animated.div
+                                key={note.id}
+                                style={noteSpring}
+                                className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
+                                  settings.theme === "Light"
+                                    ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 hover:shadow-[0_0_15px_rgba(139,92,246,0.2)] border-purple-200/50"
+                                    : "bg-gradient-to-br from-indigo-800/90 to-indigo-700/90 hover:shadow-[0_0_15px_rgba(79,70,229,0.3)] border-indigo-600/30"
+                                }`}
+                                onClick={() =>
+                                  note.isCloudOnly ? null : setViewingNote(note)
+                                }
+                              >
+                                <div className="flex-1 overflow-hidden">
+                                  <h3
+                                    className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${
+                                      settings.theme === "Light"
+                                        ? "text-purple-800"
+                                        : "text-gold-100"
+                                    }`}
+                                  >
+                                    {note.title}
+                                    {note.isPermanent && (
+                                      <span className="text-xs text-amber-400 ml-1">
+                                        ??
+                                      </span>
+                                    )}
+                                    {note.isCloudOnly && (
+                                      <span className="text-xs text-cyan-400 ml-1">
+                                        ☁️
+                                      </span>
+                                    )}
+                                  </h3>
+                                  <div
+                                    className={`text-sm mb-2 line-clamp-3 leading-relaxed ${
+                                      settings.theme === "Light"
+                                        ? "text-purple-700"
+                                        : "text-gray-300"
+                                    }`}
+                                  >
+                                    {note.content
+                                      .split("\n")[0]
+                                      .substring(0, 120)}
+                                    {note.content.length > 120 ? "..." : ""}
+                                  </div>
+                                  <div
+                                    className={`flex items-center justify-between text-xs ${
+                                      settings.theme === "Light"
+                                        ? "text-purple-600"
+                                        : "text-gray-400"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`px-2 py-1 rounded-full ${
+                                        settings.theme === "Light"
+                                          ? "bg-purple-100 text-purple-800"
+                                          : "bg-indigo-900/50 text-gray-300"
+                                      }`}
                                     >
-                                      {downloadingNotes.has(note.id) ? '⏳' : '⬇️'}
-                                    </button>
-                                  )}
-                                  {mode === "cloud" && note.isCloudOnly && (
-                                    <button
-                                      onClick={async (e) => {
-                                        // Start download loading state
-                                        setDownloadingNotes(prev => new Set(prev).add(note.id));
-                                        
-                                        try {
-                                          // Simulate download delay for visual feedback
-                                          await new Promise(resolve => setTimeout(resolve, 500));
-                                          
-                                          // Download cloud-only note to local storage
-                                          const downloadedNote: Note = {
-                                            ...note,
-                                            isDownloaded: true,
-                                            isCloudOnly: false
-                                          };
-                                          const updatedNotes = [...notes, downloadedNote];
-                                          setNotes(updatedNotes);
-                                          localStorage.setItem(
-                                            `elysium_notes_${mode}`,
-                                            JSON.stringify(updatedNotes)
-                                          );
-                                          
-                                          alert(`✅ "${note.title}" downloaded for offline access!`);
-                                        } catch (error) {
-                                          console.error('Download failed:', error);
-                                          alert(`❌ Failed to download "${note.title}". Please try again.`);
-                                        } finally {
-                                          // Remove from loading state
-                                          setDownloadingNotes(prev => {
-                                            const newSet = new Set(prev);
-                                            newSet.delete(note.id);
-                                            return newSet;
-                                          });
-                                        }
-                                      }}
-                                      className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm disabled:opacity-50"
-                                      title="Download for offline access"
-                                      disabled={downloadingNotes.has(note.id)}
-                                    >
-                                      {downloadingNotes.has(note.id) ? '⏳ Downloading...' : '⬇️ Download'}
-                                    </button>
-                                  )}
-                                  {note.isDownloaded && mode === "cloud" && !note.isCloudOnly && (
-                                    <span className="text-cyan-400 text-xs opacity-0 group-hover:opacity-100" title="Available offline">
-                                      💾
+                                      {note.template}
                                     </span>
-                                  )}
+                                    <span
+                                      className={
+                                        settings.theme === "Light"
+                                          ? "text-purple-500"
+                                          : "text-gray-500"
+                                      }
+                                    >
+                                      {note.isCloudOnly
+                                        ? "Click download"
+                                        : "Click to view"}
+                                    </span>
+                                  </div>
                                 </div>
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation(); // Prevent triggering the view
-                                    if (note.isPermanent) {
-                                      if (
-                                        window.confirm(
-                                          "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
-                                        )
-                                      ) {
+                                <div className="mt-3 flex justify-between items-center">
+                                  <div className="flex space-x-2">
+                                    {mode === "cloud" &&
+                                      !note.isDownloaded &&
+                                      !note.isCloudOnly && (
+                                        <button
+                                          onClick={async (e) => {
+                                            e.stopPropagation(); // Prevent triggering the view
+
+                                            // Start download loading state
+                                            setDownloadingNotes((prev) =>
+                                              new Set(prev).add(note.id)
+                                            );
+
+                                            try {
+                                              // Simulate download delay for visual feedback
+                                              await new Promise((resolve) =>
+                                                setTimeout(resolve, 500)
+                                              );
+
+                                              // Download note to local storage
+                                              const updatedNotes = notes.map(
+                                                (n) =>
+                                                  n.id === note.id
+                                                    ? {
+                                                        ...n,
+                                                        isDownloaded: true,
+                                                      }
+                                                    : n
+                                              );
+
+                                              setNotes(updatedNotes);
+                                              localStorage.setItem(
+                                                `elysium_notes_${mode}`,
+                                                JSON.stringify(updatedNotes)
+                                              );
+
+                                              alert(
+                                                `✅ "${note.title}" downloaded for offline access!`
+                                              );
+                                            } catch (error) {
+                                              console.error(
+                                                "Download failed:",
+                                                error
+                                              );
+                                              alert(
+                                                `❌ Failed to download "${note.title}". Please try again.`
+                                              );
+                                            } finally {
+                                              // Remove from loading state
+                                              setDownloadingNotes((prev) => {
+                                                const newSet = new Set(prev);
+                                                newSet.delete(note.id);
+                                                return newSet;
+                                              });
+                                            }
+                                          }}
+                                          className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                                          title="Download for offline access"
+                                          disabled={downloadingNotes.has(
+                                            note.id
+                                          )}
+                                        >
+                                          {downloadingNotes.has(note.id)
+                                            ? "⏳"
+                                            : "⬇️"}
+                                        </button>
+                                      )}
+                                    {mode === "cloud" && note.isCloudOnly && (
+                                      <button
+                                        onClick={async (e) => {
+                                          // Start download loading state
+                                          setDownloadingNotes((prev) =>
+                                            new Set(prev).add(note.id)
+                                          );
+
+                                          try {
+                                            // Simulate download delay for visual feedback
+                                            await new Promise((resolve) =>
+                                              setTimeout(resolve, 500)
+                                            );
+
+                                            // Download cloud-only note to local storage
+                                            const downloadedNote: Note = {
+                                              ...note,
+                                              isDownloaded: true,
+                                              isCloudOnly: false,
+                                            };
+                                            const updatedNotes = [
+                                              ...notes,
+                                              downloadedNote,
+                                            ];
+                                            setNotes(updatedNotes);
+                                            localStorage.setItem(
+                                              `elysium_notes_${mode}`,
+                                              JSON.stringify(updatedNotes)
+                                            );
+
+                                            alert(
+                                              `✅ "${note.title}" downloaded for offline access!`
+                                            );
+                                          } catch (error) {
+                                            console.error(
+                                              "Download failed:",
+                                              error
+                                            );
+                                            alert(
+                                              `❌ Failed to download "${note.title}". Please try again.`
+                                            );
+                                          } finally {
+                                            // Remove from loading state
+                                            setDownloadingNotes((prev) => {
+                                              const newSet = new Set(prev);
+                                              newSet.delete(note.id);
+                                              return newSet;
+                                            });
+                                          }
+                                        }}
+                                        className="text-cyan-400 hover:text-cyan-300 transition-colors duration-200 text-sm disabled:opacity-50"
+                                        title="Download for offline access"
+                                        disabled={downloadingNotes.has(note.id)}
+                                      >
+                                        {downloadingNotes.has(note.id)
+                                          ? "⏳ Downloading..."
+                                          : "⬇️ Download"}
+                                      </button>
+                                    )}
+                                    {note.isDownloaded &&
+                                      mode === "cloud" &&
+                                      !note.isCloudOnly && (
+                                        <span
+                                          className="text-cyan-400 text-xs opacity-0 group-hover:opacity-100"
+                                          title="Available offline"
+                                        >
+                                          💾
+                                        </span>
+                                      )}
+                                  </div>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation(); // Prevent triggering the view
+                                      if (note.isPermanent) {
+                                        if (
+                                          window.confirm(
+                                            "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
+                                          )
+                                        ) {
+                                          const updatedNotes = notes.filter(
+                                            (n) => n.id !== note.id
+                                          );
+                                          setNotes(updatedNotes);
+                                          if (mode === "db" && user) {
+                                            // Security: Confirm permanent deletion from database
+                                            const confirmDelete =
+                                              window.confirm(
+                                                `Are you sure you want to permanently delete "${note.title}" from the database? This action cannot be undone.`
+                                              );
+
+                                            if (!confirmDelete) {
+                                              return; // Cancel deletion
+                                            }
+
+                                            console.log(
+                                              "Deleting note from Supabase:",
+                                              note.id
+                                            );
+                                            const { error } = await supabase
+                                              .from("notes")
+                                              .delete()
+                                              .eq("id", note.id);
+                                            if (error) {
+                                              console.error(
+                                                "Supabase delete error:",
+                                                error
+                                              );
+                                              alert(
+                                                "Failed to delete note from database. Please try again."
+                                              );
+                                            } else {
+                                              console.log(
+                                                "Note deleted from database successfully",
+                                                {
+                                                  noteId: note.id,
+                                                  userId: user.id,
+                                                  noteTitle: note.title,
+                                                }
+                                              );
+                                            }
+                                          } else if (mode === "cloud") {
+                                            localStorage.setItem(
+                                              `elysium_notes_${mode}`,
+                                              JSON.stringify(updatedNotes)
+                                            );
+                                          }
+                                        }
+                                      } else {
                                         const updatedNotes = notes.filter(
                                           (n) => n.id !== note.id
                                         );
@@ -3460,13 +3938,18 @@ function WelcomePage({
                                               "Supabase delete error:",
                                               error
                                             );
-                                            alert("Failed to delete note from database. Please try again.");
+                                            alert(
+                                              "Failed to delete note from database. Please try again."
+                                            );
                                           } else {
-                                            console.log('Note deleted from database successfully', {
-                                              noteId: note.id,
-                                              userId: user.id,
-                                              noteTitle: note.title
-                                            });
+                                            console.log(
+                                              "Note deleted from database successfully",
+                                              {
+                                                noteId: note.id,
+                                                userId: user.id,
+                                                noteTitle: note.title,
+                                              }
+                                            );
                                           }
                                         } else if (mode === "cloud") {
                                           localStorage.setItem(
@@ -3475,90 +3958,57 @@ function WelcomePage({
                                           );
                                         }
                                       }
-                                    } else {
-                                      const updatedNotes = notes.filter(
-                                        (n) => n.id !== note.id
-                                      );
-                                      setNotes(updatedNotes);
-                                      if (mode === "db" && user) {
-                                        // Security: Confirm permanent deletion from database
-                                        const confirmDelete = window.confirm(
-                                          `Are you sure you want to permanently delete "${note.title}" from the database? This action cannot be undone.`
-                                        );
-
-                                        if (!confirmDelete) {
-                                          return; // Cancel deletion
-                                        }
-
-                                        console.log(
-                                          "Deleting note from Supabase:",
-                                          note.id
-                                        );
-                                        const { error } = await supabase
-                                          .from("notes")
-                                          .delete()
-                                          .eq("id", note.id);
-                                        if (error) {
-                                          console.error(
-                                            "Supabase delete error:",
-                                            error
-                                          );
-                                          alert("Failed to delete note from database. Please try again.");
-                                        } else {
-                                          console.log('Note deleted from database successfully', {
-                                            noteId: note.id,
-                                            userId: user.id,
-                                            noteTitle: note.title
-                                          });
-                                        }
-                                      } else if (mode === "cloud") {
-                                        localStorage.setItem(
-                                          `elysium_notes_${mode}`,
-                                          JSON.stringify(updatedNotes)
-                                        );
-                                      }
-                                    }
-                                  }}
-                                  className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
-                                  disabled={false}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </animated.div>
-                          ));
-                        })()}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-12">
-                      {mode === "db" ? (
-                        <div className="space-y-4">
-                          <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg">
-                            <p className="text-red-400 text-sm">
-                              <span className="font-semibold">
-                                Free Database Version:
-                              </span>{" "}
-                              Notes may take a moment to load. Please wait while
-                              we retrieve your data.
+                                    }}
+                                    className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
+                                    disabled={false}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </animated.div>
+                            ));
+                          })()}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-12">
+                        {mode === "db" ? (
+                          <div className="space-y-4">
+                            <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg">
+                              <p className="text-red-400 text-sm">
+                                <span className="font-semibold">
+                                  Free Database Version:
+                                </span>{" "}
+                                Notes may take a moment to load. Please wait
+                                while we retrieve your data.
+                              </p>
+                            </div>
+                            <p
+                              className={`text-sm ${
+                                settings.theme === "Light"
+                                  ? "text-purple-600"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              No notes yet?create one to get started!
                             </p>
                           </div>
-                          <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                        ) : (
+                          <p
+                            className={`text-sm ${
+                              settings.theme === "Light"
+                                ? "text-purple-600"
+                                : "text-gray-400"
+                            }`}
+                          >
                             No notes yet?create one to get started!
                           </p>
-                        </div>
-                      ) : (
-                        <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                          No notes yet?create one to get started!
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  )()}
+                        )}
+                      </div>
+                    );
+                  })()}
                 </>
               )}
-
-
 
               {activePage === "create" && (
                 <CreateNote
@@ -3604,7 +4054,13 @@ function WelcomePage({
               )}
               {activePage === "search" && (
                 <>
-                  <h1 className={`text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
+                  <h1
+                    className={`text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 font-serif ${
+                      settings.theme === "Light"
+                        ? "text-purple-900"
+                        : "text-gold-100"
+                    }`}
+                  >
                     Search Notes
                   </h1>
                   <div className="mb-6">
@@ -3646,7 +4102,13 @@ function WelcomePage({
                             onClick={() => setViewingNote(note)}
                           >
                             <div className="flex-1 overflow-hidden">
-                              <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${settings.theme === "Light" ? "text-purple-800" : "text-gold-100"}`}>
+                              <h3
+                                className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${
+                                  settings.theme === "Light"
+                                    ? "text-purple-800"
+                                    : "text-gold-100"
+                                }`}
+                              >
                                 {note.title}
                                 {note.isPermanent && (
                                   <span className="text-xs text-amber-400 ml-1">
@@ -3654,15 +4116,39 @@ function WelcomePage({
                                   </span>
                                 )}
                               </h3>
-                              <div className={`text-sm mb-2 line-clamp-3 leading-relaxed ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
+                              <div
+                                className={`text-sm mb-2 line-clamp-3 leading-relaxed ${
+                                  settings.theme === "Light"
+                                    ? "text-purple-700"
+                                    : "text-gray-300"
+                                }`}
+                              >
                                 {note.content.split("\n")[0].substring(0, 120)}
                                 {note.content.length > 120 ? "..." : ""}
                               </div>
-                              <div className={`flex items-center justify-between text-xs ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                                <span className={`px-2 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50"}`}>
+                              <div
+                                className={`flex items-center justify-between text-xs ${
+                                  settings.theme === "Light"
+                                    ? "text-purple-600"
+                                    : "text-gray-400"
+                                }`}
+                              >
+                                <span
+                                  className={`px-2 py-1 rounded-full ${
+                                    settings.theme === "Light"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : "bg-indigo-900/50"
+                                  }`}
+                                >
                                   {note.template}
                                 </span>
-                                <span className={settings.theme === "Light" ? "text-purple-500" : "text-gray-500"}>
+                                <span
+                                  className={
+                                    settings.theme === "Light"
+                                      ? "text-purple-500"
+                                      : "text-gray-500"
+                                  }
+                                >
                                   Click to view
                                 </span>
                               </div>
@@ -3730,13 +4216,18 @@ function WelcomePage({
                                           "Supabase delete error:",
                                           error
                                         );
-                                        alert("Failed to delete note from database. Please try again.");
+                                        alert(
+                                          "Failed to delete note from database. Please try again."
+                                        );
                                       } else {
-                                        console.log('Note deleted from database successfully', {
-                                          noteId: note.id,
-                                          userId: user.id,
-                                          noteTitle: note.title
-                                        });
+                                        console.log(
+                                          "Note deleted from database successfully",
+                                          {
+                                            noteId: note.id,
+                                            userId: user.id,
+                                            noteTitle: note.title,
+                                          }
+                                        );
                                       }
                                     } else if (mode === "cloud") {
                                       localStorage.setItem(
@@ -3757,13 +4248,25 @@ function WelcomePage({
                       </div>
                     ) : searchQuery ? (
                       <div className="text-center py-12">
-                        <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                        <p
+                          className={`text-sm ${
+                            settings.theme === "Light"
+                              ? "text-purple-600"
+                              : "text-gray-400"
+                          }`}
+                        >
                           No notes found matching "{searchQuery}"
                         </p>
                       </div>
                     ) : (
                       <div className="text-center py-12">
-                        <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                        <p
+                          className={`text-sm ${
+                            settings.theme === "Light"
+                              ? "text-purple-600"
+                              : "text-gray-400"
+                          }`}
+                        >
                           Enter a search term to find notes
                         </p>
                       </div>
@@ -3812,7 +4315,13 @@ function WelcomePage({
                     // Edit Mode
                     <div className="p-6 space-y-6 max-h-[90vh] overflow-y-auto">
                       <div className="flex justify-between items-center">
-                        <h2 className={`text-2xl font-semibold ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
+                        <h2
+                          className={`text-2xl font-semibold ${
+                            settings.theme === "Light"
+                              ? "text-purple-900"
+                              : "text-gold-100"
+                          }`}
+                        >
                           Edit Note
                         </h2>
                         <button
@@ -3828,8 +4337,6 @@ function WelcomePage({
                           ?
                         </button>
                       </div>
-
-                      
 
                       <div className="space-y-4">
                         <div>
@@ -3942,38 +4449,68 @@ function WelcomePage({
                                 );
 
                                 // For downloaded notes, try to sync to cloud immediately
-                                if (editingNote.isDownloaded && cloudStorage.user) {
+                                if (
+                                  editingNote.isDownloaded &&
+                                  cloudStorage.user
+                                ) {
                                   try {
-                                    await cloudStorage.updateNote(editingNote.id, {
-                                      title: editTitle,
-                                      content: editContent,
-                                      template: editTemplate
-                                    });
-                                    showNotification("Success", "Downloaded note updated and synced to cloud!");
+                                    await cloudStorage.updateNote(
+                                      editingNote.id,
+                                      {
+                                        title: editTitle,
+                                        content: editContent,
+                                        template: editTemplate,
+                                      }
+                                    );
+                                    showNotification(
+                                      "Success",
+                                      "Downloaded note updated and synced to cloud!"
+                                    );
                                   } catch (error) {
                                     // If cloud update fails, add to offline queue
-                                    console.log("Cloud update failed, adding to offline queue:", error);
+                                    console.log(
+                                      "Cloud update failed, adding to offline queue:",
+                                      error
+                                    );
                                     addToOfflineQueue(updatedNote);
-                                    showNotification("Offline", "Note saved locally. Will sync to cloud when online.");
+                                    showNotification(
+                                      "Offline",
+                                      "Note saved locally. Will sync to cloud when online."
+                                    );
                                   }
                                 } else if (cloudStorage.user) {
                                   try {
-                                    await cloudStorage.updateNote(editingNote.id, {
-                                      title: editTitle,
-                                      content: editContent,
-                                      template: editTemplate
-                                    });
-                                    showNotification("Success", "Note updated in cloud!");
+                                    await cloudStorage.updateNote(
+                                      editingNote.id,
+                                      {
+                                        title: editTitle,
+                                        content: editContent,
+                                        template: editTemplate,
+                                      }
+                                    );
+                                    showNotification(
+                                      "Success",
+                                      "Note updated in cloud!"
+                                    );
                                   } catch (error) {
                                     // If cloud update fails, add to offline queue
-                                    console.log("Cloud update failed, adding to offline queue:", error);
+                                    console.log(
+                                      "Cloud update failed, adding to offline queue:",
+                                      error
+                                    );
                                     addToOfflineQueue(updatedNote);
-                                    showNotification("Offline", "Note saved locally. Will sync to cloud when online.");
+                                    showNotification(
+                                      "Offline",
+                                      "Note saved locally. Will sync to cloud when online."
+                                    );
                                   }
                                 } else {
                                   // Not authenticated, add to queue for when they sign in
                                   addToOfflineQueue(updatedNote);
-                                  showNotification("Offline", "Note saved locally. Will sync to cloud when you sign in.");
+                                  showNotification(
+                                    "Offline",
+                                    "Note saved locally. Will sync to cloud when you sign in."
+                                  );
                                 }
                               }
 
@@ -3996,11 +4533,29 @@ function WelcomePage({
                       <div className="p-6 border-b border-indigo-600/30">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h2 className={`text-2xl sm:text-3xl font-semibold font-serif mb-2 leading-tight ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
+                            <h2
+                              className={`text-2xl sm:text-3xl font-semibold font-serif mb-2 leading-tight ${
+                                settings.theme === "Light"
+                                  ? "text-purple-900"
+                                  : "text-gold-100"
+                              }`}
+                            >
                               {viewingNote.title}
                             </h2>
-                            <div className={`flex items-center space-x-4 text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
-                              <span className={`px-3 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50"}`}>
+                            <div
+                              className={`flex items-center space-x-4 text-sm ${
+                                settings.theme === "Light"
+                                  ? "text-purple-600"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              <span
+                                className={`px-3 py-1 rounded-full ${
+                                  settings.theme === "Light"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : "bg-indigo-900/50"
+                                }`}
+                              >
                                 {viewingNote.template}
                               </span>
                               {viewingNote.isPermanent && (
@@ -4040,7 +4595,7 @@ function WelcomePage({
                           viewingNote.template === "List" ? (
                             <div className="space-y-1">
                               {renderList(
-                                viewingNote.id, 
+                                viewingNote.id,
                                 viewingNote.content,
                                 viewingNote.template,
                                 notes,
