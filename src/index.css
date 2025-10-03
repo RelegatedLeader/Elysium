@@ -39,10 +39,6 @@ code {
   background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
 }
 
-.light-theme .text-gold-100 {
-  color: var(--text-accent);
-}
-
 .light-theme .text-gray-200 {
   color: var(--text-secondary);
 }
@@ -50,10 +46,6 @@ code {
 .light-theme .text-gray-400 {
   color: #8b5cf6;
   opacity: 0.6;
-}
-
-.light-theme .text-silver-200 {
-  color: var(--text-secondary);
 }
 
 .light-theme .bg-indigo-950\/80 {

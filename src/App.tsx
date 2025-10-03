@@ -2565,13 +2565,13 @@ function WelcomePage({
               />
               <span
                 className={`text-silver-200 flex-1 text-base md:text-sm ${
-                  isChecked ? "line-through text-gray-500" : ""
+                  isChecked ? `line-through ${settings.theme === "Light" ? "text-purple-400" : "text-gray-500"}` : ""
                 }`}
               >
                 {itemText}{" "}
                 {isChecked && (
                   <span
-                    className="text-gray-500 text-xs md:text-sm ml-2 cursor-pointer hover:text-indigo-400 transition-colors bg-gray-800/50 px-2 py-1 rounded"
+                    className={`text-xs md:text-sm ml-2 cursor-pointer hover:text-indigo-400 transition-colors bg-gray-800/50 px-2 py-1 rounded ${settings.theme === "Light" ? "text-purple-600" : "text-gray-500"}`}
                     onClick={handleTimestampClick}
                     title="Click to update timestamp"
                   >
@@ -2602,11 +2602,7 @@ function WelcomePage({
   if (!selectedMode) {
     return (
       <div
-        className={`min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 ${
-          settings.theme === "Light"
-            ? "bg-gradient-to-br from-purple-100 via-pink-50 to-indigo-100"
-            : "bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
-        }`}
+        className="min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
         style={{
           backgroundImage: `url(${mainMenuGif})`,
           backgroundSize: "cover",
@@ -2619,17 +2615,17 @@ function WelcomePage({
           style={logoSpring}
           className="mb-6 sm:mb-8 flex items-center"
         >
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-wide text-gold-100 mr-4 font-serif">
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-wide mr-4 font-serif" style={{ color: 'white' }}>
             Elysium
           </h1>
           <ElysiumLogo className="w-12 h-12 sm:w-16 sm:h-16" />
         </animated.div>
-        <animated.p
-          style={titleSpring}
-          className="text-lg sm:text-xl italic mb-6 max-w-md text-center text-silver-200"
-        >
-          Unlock Your Eternal Notes in a Decentralized Realm
-        </animated.p>
+          <animated.p
+            style={{ ...titleSpring, color: '#e5e7eb' }}
+            className="text-lg sm:text-xl italic mb-6 max-w-md text-center"
+          >
+            Unlock Your Eternal Notes in a Decentralized Realm
+          </animated.p>
         <div className="flex flex-col sm:flex-row w-full max-w-6xl mx-auto space-y-4 sm:space-y-0 sm:space-x-4">
           <div
             className="flex-1 p-6 sm:p-8 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl"
@@ -2642,10 +2638,10 @@ function WelcomePage({
             }}
           >
             <div className="bg-black/60 p-4 rounded text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gold-100 mb-2 font-serif">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2 font-serif" style={{ color: 'white' }}>
                 Database Version (Supabase)
               </h2>
-              <p className="text-silver-200 text-sm sm:text-base">
+              <p className="text-sm sm:text-base" style={{ color: '#e5e7eb' }}>
                 Secure, private notes with user authentication. Perfect for
                 personal organization with reliable cloud backup and instant
                 sync across devices.
@@ -2663,10 +2659,10 @@ function WelcomePage({
             }}
           >
             <div className="bg-black/60 p-4 rounded text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gold-100 mb-2 font-serif">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2 font-serif" style={{ color: 'white' }}>
                 Cloud Version
               </h2>
-              <p className="text-silver-200 text-sm sm:text-base">
+              <p className="text-sm sm:text-base" style={{ color: '#e5e7eb' }}>
                 Fast, offline-capable note storage with seamless device
                 synchronization. Ideal for quick notes and collaborative work
                 with automatic backup.
@@ -2684,10 +2680,10 @@ function WelcomePage({
             }}
           >
             <div className="bg-black/60 p-4 rounded text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gold-100 mb-2 font-serif">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2 font-serif" style={{ color: 'white' }}>
                 Blockchain Version (SOL + Arweave)
               </h2>
-              <p className="text-silver-200 text-sm sm:text-base">
+              <p className="text-sm sm:text-base" style={{ color: '#e5e7eb' }}>
                 <strong>₿ PREMIUM:</strong> Eternal, censorship-resistant
                 storage on Solana + Arweave. Your notes become immutable digital
                 artifacts, preserved forever in the decentralized web. True
@@ -2714,13 +2710,13 @@ function WelcomePage({
           </animated.div>
           <animated.h1
             style={titleSpring}
-            className="text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 text-gold-100 font-serif"
+            className={`text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}
           >
             Welcome to Elysium
           </animated.h1>
           <animated.p
             style={titleSpring}
-            className="text-lg sm:text-xl italic mb-6 max-w-md text-center text-silver-200"
+            className={`text-lg sm:text-xl italic mb-6 max-w-md text-center ${settings.theme === "Light" ? "text-purple-700" : "text-silver-200"}`}
           >
             Enter your email to receive a magic link for login
           </animated.p>
@@ -2760,13 +2756,13 @@ function WelcomePage({
           </animated.div>
           <animated.h1
             style={titleSpring}
-            className="text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 text-gold-100 font-serif"
+            className={`text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}
           >
             Welcome to Elysium
           </animated.h1>
           <animated.p
             style={titleSpring}
-            className="text-lg sm:text-xl italic mb-6 max-w-md text-center text-silver-200"
+            className={`text-lg sm:text-xl italic mb-6 max-w-md text-center ${settings.theme === "Light" ? "text-purple-700" : "text-silver-200"}`}
           >
             Unlock Your Eternal Notes in a Decentralized Realm
           </animated.p>
@@ -2841,7 +2837,7 @@ function WelcomePage({
           {showPopup && mode === "web3" && (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
               <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-black p-4 sm:p-6 rounded-lg shadow-2xl text-white w-11/12 max-w-md sm:w-80 transform transition-all duration-300 ease-in-out">
-                <h3 className="text-lg sm:text-xl font-semibold mb-4 border-b border-indigo-700 pb-2 text-gold-100 font-serif">
+                <h3 className={`text-lg sm:text-xl font-semibold mb-4 border-b border-indigo-700 pb-2 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
                   Wallet Options
                 </h3>
                 <button
@@ -2885,10 +2881,10 @@ function WelcomePage({
             >
               {activePage === "recent" && (
                 <>
-                  <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 text-gold-100 font-serif">
+                  <h1 className={`text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
                     Recent Notes
                   </h1>
-                  <p className="text-gray-300 text-sm mb-4">
+                  <p className={`text-sm mb-4 ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
                     {mode === "db"
                       ? "🗄️Classic encrypted database: Simple, secure, and fully tied to your account with enterprise-grade protection."
                       : mode === "cloud"
@@ -2956,7 +2952,7 @@ function WelcomePage({
                               onClick={() => setViewingNote(note)}
                             >
                               <div className="flex-1 overflow-hidden">
-                                <h3 className="text-lg sm:text-xl font-semibold text-gold-100 mb-2 font-serif line-clamp-2 leading-tight">
+                                <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${settings.theme === "Light" ? "text-purple-800" : "text-gold-100"}`}>
                                   {note.title}
                                   {note.isPermanent && (
                                     <span className="text-xs text-amber-400 ml-1">
@@ -2964,17 +2960,17 @@ function WelcomePage({
                                     </span>
                                   )}
                                 </h3>
-                                <div className="text-gray-300 text-sm mb-2 line-clamp-3 leading-relaxed">
+                                <div className={`text-sm mb-2 line-clamp-3 leading-relaxed ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
                                   {note.content
                                     .split("\n")[0]
                                     .substring(0, 120)}
                                   {note.content.length > 120 ? "..." : ""}
                                 </div>
-                                <div className="flex items-center justify-between text-xs text-gray-400">
-                                  <span className="bg-indigo-900/50 px-2 py-1 rounded-full">
+                                <div className={`flex items-center justify-between text-xs ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                                  <span className={`px-2 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50 text-gray-300"}`}>
                                     {note.template}
                                   </span>
-                                  <span className="text-gray-500">
+                                  <span className={settings.theme === "Light" ? "text-purple-500" : "text-gray-500"}>
                                     Click to view
                                   </span>
                                 </div>
@@ -3098,12 +3094,12 @@ function WelcomePage({
                               we retrieve your data.
                             </p>
                           </div>
-                          <p className="text-gray-400 text-sm">
+                          <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
                             No notes yet�create one to get started!
                           </p>
                         </div>
                       ) : (
-                        <p className="text-gray-400 text-sm">
+                        <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
                           No notes yet�create one to get started!
                         </p>
                       )}
@@ -3155,7 +3151,7 @@ function WelcomePage({
               )}
               {activePage === "search" && (
                 <>
-                  <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 text-gold-100 font-serif">
+                  <h1 className={`text-4xl sm:text-5xl font-extrabold mb-6 sm:mb-8 font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
                     Search Notes
                   </h1>
                   <div className="mb-6">
@@ -3197,7 +3193,7 @@ function WelcomePage({
                             onClick={() => setViewingNote(note)}
                           >
                             <div className="flex-1 overflow-hidden">
-                              <h3 className="text-lg sm:text-xl font-semibold text-gold-100 mb-2 font-serif line-clamp-2 leading-tight">
+                              <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${settings.theme === "Light" ? "text-purple-800" : "text-gold-100"}`}>
                                 {note.title}
                                 {note.isPermanent && (
                                   <span className="text-xs text-amber-400 ml-1">
@@ -3205,15 +3201,15 @@ function WelcomePage({
                                   </span>
                                 )}
                               </h3>
-                              <div className="text-gray-300 text-sm mb-2 line-clamp-3 leading-relaxed">
+                              <div className={`text-sm mb-2 line-clamp-3 leading-relaxed ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
                                 {note.content.split("\n")[0].substring(0, 120)}
                                 {note.content.length > 120 ? "..." : ""}
                               </div>
-                              <div className="flex items-center justify-between text-xs text-gray-400">
-                                <span className="bg-indigo-900/50 px-2 py-1 rounded-full">
+                              <div className={`flex items-center justify-between text-xs ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                                <span className={`px-2 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50"}`}>
                                   {note.template}
                                 </span>
-                                <span className="text-gray-500">
+                                <span className={settings.theme === "Light" ? "text-purple-500" : "text-gray-500"}>
                                   Click to view
                                 </span>
                               </div>
@@ -3308,13 +3304,13 @@ function WelcomePage({
                       </div>
                     ) : searchQuery ? (
                       <div className="text-center py-12">
-                        <p className="text-gray-400 text-sm">
+                        <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
                           No notes found matching "{searchQuery}"
                         </p>
                       </div>
                     ) : (
                       <div className="text-center py-12">
-                        <p className="text-gray-400 text-sm">
+                        <p className={`text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
                           Enter a search term to find notes
                         </p>
                       </div>
@@ -3363,7 +3359,7 @@ function WelcomePage({
                     // Edit Mode
                     <div className="p-6 space-y-6 max-h-[90vh] overflow-y-auto">
                       <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-semibold text-gold-100">
+                        <h2 className={`text-2xl font-semibold ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
                           Edit Note
                         </h2>
                         <button
@@ -3511,11 +3507,11 @@ function WelcomePage({
                       <div className="p-6 border-b border-indigo-600/30">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h2 className="text-2xl sm:text-3xl font-semibold text-gold-100 font-serif mb-2 leading-tight">
+                            <h2 className={`text-2xl sm:text-3xl font-semibold font-serif mb-2 leading-tight ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
                               {viewingNote.title}
                             </h2>
-                            <div className="flex items-center space-x-4 text-sm text-gray-400">
-                              <span className="bg-indigo-900/50 px-3 py-1 rounded-full">
+                            <div className={`flex items-center space-x-4 text-sm ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                              <span className={`px-3 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50"}`}>
                                 {viewingNote.template}
                               </span>
                               {viewingNote.isPermanent && (
