@@ -55,26 +55,8 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
     }
   }
 
-  // Check AR balance with fresh connection (but don't fail if network is down)
-  try {
-    // Ensure wallet is connected and get fresh address
-    address = await (window as any).arweaveWallet.getActiveAddress();
-    console.log("Getting fresh AR balance for address:", address);
-    const freshBalance = await getArweaveBalance(address);
-    console.log("Fresh AR balance check:", freshBalance);
-
-    if (freshBalance >= 0.001) {
-      console.log("Sufficient balance confirmed:", freshBalance, "AR");
-    } else {
-      console.warn("Balance check shows insufficient funds:", freshBalance, "AR");
-      // Don't throw here - let ArConnect handle the validation
-    }
-  } catch (balanceError) {
-    console.error("Balance check failed due to network issues:", balanceError);
-    console.log("Proceeding with transaction - ArConnect will validate balance");
-    // Don't throw here - network issues shouldn't block the transaction
-    // ArConnect will show appropriate error if balance is insufficient
-  }
+  // No balance checking - let ArConnect handle validation and show transaction details
+  // This makes the process faster and lets users see the exact cost in ArConnect
 
   // Create transaction
   const transaction = await arweave.createTransaction(

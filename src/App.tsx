@@ -2822,39 +2822,21 @@ function WelcomePage({
       
       console.log("Note initialized on Solana, tx:", initTx);
       
-      let isPermanent = false;
-      let permanentTx: string | undefined;
+      // Always make notes permanent when publishing to blockchain
+      const permanentTx = await program.methods
+        .setPermanent(new BN(note.id))
+        .accounts({
+          noteAccount: noteAccountPDA,
+          user: publicKey,
+        })
+        .rpc();
       
-      if (
-        window.confirm("Make this note permanent? (Additional fee may apply)")
-      ) {
-        permanentTx = await program.methods
-          .setPermanent(new BN(note.id))
-          .accounts({
-            noteAccount: noteAccountPDA,
-            user: publicKey,
-          })
-          .rpc();
-        
-        console.log("Note made permanent on Solana, tx:", permanentTx);
-        isPermanent = true;
-        
-        setNotes(
-          notes.map((n) =>
-            n.id === note.id ? { ...n, arweaveHash, transactionHash: permanentTx, isPermanent: true } : n
-          )
-        );
-      } else {
-        setNotes(
-          notes.map((n) =>
-            n.id === note.id ? { ...n, arweaveHash, transactionHash: initTx, isPermanent: false } : n
-          )
-        );
-      }
+      console.log("Note made permanent on Solana, tx:", permanentTx);
+      const isPermanent = true;
       
       return { 
         arweaveHash, 
-        transactionHash: permanentTx || initTx,
+        transactionHash: permanentTx,
         isPermanent 
       };
     } catch (error) {
@@ -3932,6 +3914,76 @@ function WelcomePage({
                         : "Create Draft"}
                     </button>
                   </div>
+
+                  {/* Forever Notes section for blockchain mode */}
+                  {mode === "web3" && notes.filter(note => note.isPermanent).length > 0 && (
+                    <div className="mb-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className={`text-2xl font-bold font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
+                          🌟 Forever Notes ({notes.filter(note => note.isPermanent).length})
+                        </h2>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                        {notes
+                          .filter(note => note.isPermanent)
+                          .map((note) => (
+                            <animated.div
+                              key={note.id}
+                              style={noteSpring}
+                              className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
+                                settings.theme === "Light"
+                                  ? "bg-gradient-to-br from-amber-50/90 via-yellow-50/90 to-orange-50/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] border-amber-200/50"
+                                  : "bg-gradient-to-br from-amber-800/90 to-orange-700/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.3)] border-amber-600/30"
+                              }`}
+                              onClick={() => setViewingNote(note)}
+                            >
+                              <div className="flex-1 overflow-hidden">
+                                <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${
+                                  settings.theme === "Light" ? "text-amber-800" : "text-amber-100"
+                                }`}>
+                                  {note.title}
+                                  <span className="text-xs text-amber-400 ml-1">🌟</span>
+                                </h3>
+                                <div className={`text-sm mb-2 line-clamp-3 leading-relaxed ${
+                                  settings.theme === "Light" ? "text-amber-700" : "text-amber-200"
+                                }`}>
+                                  {note.content.split("\n")[0].substring(0, 120)}
+                                  {note.content.length > 120 ? "..." : ""}
+                                </div>
+                                <div className={`flex items-center justify-between text-xs ${
+                                  settings.theme === "Light" ? "text-amber-600" : "text-amber-400"
+                                }`}>
+                                  <span className={`px-2 py-1 rounded-full ${
+                                    settings.theme === "Light" ? "bg-amber-100 text-amber-800" : "bg-amber-900/50 text-amber-300"
+                                  }`}>
+                                    {note.template}
+                                  </span>
+                                  <span className={settings.theme === "Light" ? "text-amber-500" : "text-amber-500"}>
+                                    Click to view
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex justify-between items-center">
+                                <div className="text-xs text-amber-400 flex items-center space-x-2">
+                                  <span>Permanent</span>
+                                  {note.arweaveHash && (
+                                    <a
+                                      href={`https://arweave.net/${note.arweaveHash}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="underline hover:text-amber-300 text-xs"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      Arweave: {note.arweaveHash.substring(0, 8)}...
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </animated.div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Drafts section for blockchain mode */}
                   {mode === "web3" && drafts.length > 0 && (
