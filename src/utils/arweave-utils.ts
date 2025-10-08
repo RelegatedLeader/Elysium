@@ -35,7 +35,6 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
   console.log("Creating Arweave transaction with data length:", data.length);
 
   if (!checkArweaveWallet()) {
-    installArConnectGuide();
     throw new Error("ArConnect wallet required. Please install it and try again.");
   }
 
@@ -56,28 +55,25 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
     }
   }
 
-  // Check AR balance
-  const balance = await getArweaveBalance(address);
-  if (balance < 0.001) {
-    const fundingMessage = `
-❌ Insufficient AR Balance
+  // Check AR balance with fresh connection (but don't fail if network is down)
+  try {
+    // Ensure wallet is connected and get fresh address
+    address = await (window as any).arweaveWallet.getActiveAddress();
+    console.log("Getting fresh AR balance for address:", address);
+    const freshBalance = await getArweaveBalance(address);
+    console.log("Fresh AR balance check:", freshBalance);
 
-You have ${balance.toFixed(6)} AR, but need at least 0.001 AR to store this note.
-
-GET AR TOKENS NOW:
-• Binance: https://binance.com (search "AR")
-• Coinbase: https://coinbase.com (search "AR")
-• KuCoin: https://kucoin.com (search "AR")
-• Gate.io: https://gate.io (search "AR")
-
-💰 Current AR Price: ~$20-30 USD
-📊 Storage Cost: ~$0.001 per note (very cheap!)
-
-After getting AR tokens, return here and try publishing again.
-    `.trim();
-
-    alert(fundingMessage);
-    throw new Error(`Insufficient AR balance: ${balance} AR. Please get AR tokens and try again.`);
+    if (freshBalance >= 0.001) {
+      console.log("Sufficient balance confirmed:", freshBalance, "AR");
+    } else {
+      console.warn("Balance check shows insufficient funds:", freshBalance, "AR");
+      // Don't throw here - let ArConnect handle the validation
+    }
+  } catch (balanceError) {
+    console.error("Balance check failed due to network issues:", balanceError);
+    console.log("Proceeding with transaction - ArConnect will validate balance");
+    // Don't throw here - network issues shouldn't block the transaction
+    // ArConnect will show appropriate error if balance is insufficient
   }
 
   // Create transaction
@@ -127,11 +123,10 @@ export const checkArweaveWallet = (): boolean => {
 };
 
 // Guide user to install ArConnect
-export const installArConnectGuide = (): void => {
-  const message = `
-🔗 ArConnect Wallet Required
-
-To permanently store your notes on Arweave, you need the ArConnect browser extension:
+export const getArConnectInstallGuide = (): { title: string; message: string; actionUrl?: string } => {
+  return {
+    title: "ArConnect Wallet Required",
+    message: `To permanently store your notes on Arweave, you need the ArConnect browser extension:
 
 📥 INSTALL ARCONNECT:
 1. Visit: https://arconnect.io
@@ -150,12 +145,9 @@ To permanently store your notes on Arweave, you need the ArConnect browser exten
 • Censorship-resistant
 • Very cheap (~$0.001 per note)
 
-After installing ArConnect and getting AR tokens, try publishing again!
-  `.trim();
-
-  alert(message);
-  // Also open ArConnect website
-  window.open('https://arconnect.io', '_blank');
+After installing ArConnect and getting AR tokens, try publishing again!`,
+    actionUrl: 'https://arconnect.io'
+  };
 };
 
 // Connect to Arweave wallet
@@ -175,39 +167,59 @@ export const connectArweaveWallet = async (): Promise<string> => {
   }
 };
 
-// Get AR balance
-export const getArweaveBalance = async (address: string): Promise<number> => {
-  try {
-    const balance = await arweave.wallets.getBalance(address);
-    const arBalance = arweave.ar.winstonToAr(balance);
-    console.log("AR balance:", arBalance);
-    return parseFloat(arBalance);
-  } catch (error) {
-    console.error("Failed to get AR balance:", error);
-    return 0;
+// Get AR balance with retry and timeout handling
+export const getArweaveBalance = async (address: string, retries = 2): Promise<number> => {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      console.log(`Checking AR balance (attempt ${attempt + 1}/${retries + 1})...`);
+
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Balance check timeout')), 10000); // 10 second timeout
+      });
+
+      // Race between the balance check and timeout
+      const balance = await Promise.race([
+        arweave.wallets.getBalance(address),
+        timeoutPromise
+      ]);
+
+      const arBalance = arweave.ar.winstonToAr(balance as string);
+      const balanceFloat = parseFloat(arBalance);
+      console.log(`AR balance: ${balanceFloat} AR`);
+      return balanceFloat;
+    } catch (error) {
+      console.error(`Balance check attempt ${attempt + 1} failed:`, error);
+
+      if (attempt === retries) {
+        // If this was the last attempt, return 0 but don't throw
+        console.warn("All balance check attempts failed, assuming insufficient balance for safety");
+        return 0;
+      }
+
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
   }
+
+  return 0;
 };
 
-// Get information about getting AR tokens
-export const getArweaveFundingInfo = (): string => {
-  return `
-To store your notes permanently on Arweave, you need AR tokens. Here's how to get them:
+// Get funding information for insufficient balance
+export const getArweaveFundingInfo = (): { title: string; message: string } => {
+  return {
+    title: "Insufficient AR Balance",
+    message: `You need at least 0.001 AR to store this note.
 
-🏦 **Exchanges (Recommended for beginners):**
-• Binance: https://binance.com
-• Coinbase: https://coinbase.com
-• KuCoin: https://kucoin.com
-• Gate.io: https://gate.io
+GET AR TOKENS NOW:
+• Binance: https://binance.com (search "AR")
+• Coinbase: https://coinbase.com (search "AR")
+• KuCoin: https://kucoin.com (search "AR")
+• Gate.io: https://gate.io (search "AR")
 
-💰 **AR Price:** ~$20-30 USD per AR token
-📊 **Storage Cost:** ~$0.001 per note (very cheap!)
+💰 Current AR Price: ~$20-30 USD
+📊 Storage Cost: ~$0.001 per note (very cheap!)
 
-🔄 **After getting AR tokens:**
-1. Send them to your ArConnect wallet address
-2. Try publishing your note again
-
-💡 **Pro tip:** You only pay once per note. Updates are free!
-
-Need help? Check: https://arweave.org
-  `.trim();
+After getting AR tokens, return here and try publishing again.`
+  };
 };

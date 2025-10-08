@@ -22,7 +22,8 @@ import Settings from "./components/Settings";
 import Logout from "./components/Logout";
 import CloudAuth from "./components/CloudAuth";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
-import { uploadToArweave, setWallet, checkArweaveWallet, connectArweaveWallet, getArweaveBalance, getArweaveFundingInfo, installArConnectGuide } from "./utils/arweave-utils";
+import { uploadToArweave, setWallet, checkArweaveWallet, connectArweaveWallet, getArweaveBalance, getArweaveFundingInfo, getArConnectInstallGuide } from "./utils/arweave-utils";
+import ArConnectModal from "./components/ArConnectModal";
 import idlJson from "./idl.json";
 import { supabase } from "./SUPABASE/supabaseClient";
 import { Session } from "@supabase/supabase-js";
@@ -1785,10 +1786,23 @@ function WelcomePage({
   const [currentDraft, setCurrentDraft] = useState<Note | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [selectedDrafts, setSelectedDrafts] = useState<Set<string>>(new Set());
+  const [publishingDrafts, setPublishingDrafts] = useState<Set<string>>(new Set());
 
   // Batch processing for blockchain saves
   const [batchQueue, setBatchQueue] = useState<Note[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
+
+  // ArConnect modal state
+  const [arConnectModal, setArConnectModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    actionButton?: { text: string; onClick: () => void };
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
 
   // Connectivity state
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -2014,7 +2028,8 @@ function WelcomePage({
     if (mode !== "web3" || !publicKey) return;
 
     try {
-      setIsProcessingBatch(true);
+      // Add this draft to the publishing set
+      setPublishingDrafts(prev => new Set(prev).add(draft.id));
 
       // Publish to blockchain first
       const result = await saveToBlockchain({
@@ -2045,7 +2060,12 @@ function WelcomePage({
       // Don't delete draft on failure - let user try again
       showNotification('Error', `Failed to publish "${draft.title}" to blockchain. Please try again.`);
     } finally {
-      setIsProcessingBatch(false);
+      // Remove this draft from the publishing set
+      setPublishingDrafts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(draft.id);
+        return newSet;
+      });
     }
   };
 
@@ -2108,14 +2128,14 @@ function WelcomePage({
       
       // Show results
       if (successCount > 0) {
-        alert(`Successfully published ${successCount} draft${successCount === 1 ? '' : 's'} to blockchain!${failureCount > 0 ? ` ${failureCount} failed and were restored to drafts.` : ''}`);
+        showNotification('Success', `Published ${successCount} draft${successCount === 1 ? '' : 's'} to blockchain!${failureCount > 0 ? ` ${failureCount} failed.` : ''}`);
       } else {
-        alert('Failed to publish any drafts. Please try again.');
+        showNotification('Error', 'Failed to publish any drafts. Please try again.');
       }
       
     } catch (error) {
       console.error('Error in batch publish:', error);
-      alert('Failed to publish drafts. Please try again.');
+      showNotification('Error', 'Failed to publish drafts. Please try again.');
     } finally {
       setIsProcessingBatch(false);
     }
@@ -2840,13 +2860,44 @@ function WelcomePage({
     } catch (error) {
       console.error("Blockchain save failed:", error);
 
-      // Error messages are now handled more gracefully in uploadToArweave
-      // Just show a generic message since specific guidance is already provided
       const errorMsg = error instanceof Error ? error.message : String(error);
 
-      // Only show alert for non-ArConnect related errors
-      if (!errorMsg.includes("ArConnect") && !errorMsg.includes("insufficient") && !errorMsg.includes("balance")) {
-        alert("Failed to save to blockchain. Please try again.");
+      // Handle ArConnect-related errors with modal
+      if (errorMsg.includes("ArConnect wallet required")) {
+        const guide = getArConnectInstallGuide();
+        setArConnectModal({
+          isOpen: true,
+          title: guide.title,
+          message: guide.message,
+          actionButton: guide.actionUrl ? {
+            text: "Install ArConnect",
+            onClick: () => {
+              window.open(guide.actionUrl, '_blank');
+              setArConnectModal(prev => ({ ...prev, isOpen: false }));
+            }
+          } : undefined
+        });
+      } else if (errorMsg.includes("Insufficient AR balance")) {
+        const funding = getArweaveFundingInfo();
+        setArConnectModal({
+          isOpen: true,
+          title: funding.title,
+          message: funding.message,
+        });
+      } else if (errorMsg.includes("Transaction signing cancelled")) {
+        // User cancelled the transaction in ArConnect
+        setArConnectModal({
+          isOpen: true,
+          title: "Transaction Cancelled",
+          message: "The transaction was cancelled. You can try publishing again when you're ready.",
+        });
+      } else if (!errorMsg.includes("ArConnect") && !errorMsg.includes("insufficient") && !errorMsg.includes("balance") && !errorMsg.includes("Failed to check")) {
+        // Show generic error for non-ArConnect issues
+        setArConnectModal({
+          isOpen: true,
+          title: "Save Failed",
+          message: "Failed to save to blockchain. Please try again.",
+        });
       }
 
       throw error;
@@ -3799,7 +3850,21 @@ function WelcomePage({
                     </div>
                   </div>
                   <button
-                    onClick={installArConnectGuide}
+                    onClick={() => {
+                      const guide = getArConnectInstallGuide();
+                      setArConnectModal({
+                        isOpen: true,
+                        title: guide.title,
+                        message: guide.message,
+                        actionButton: guide.actionUrl ? {
+                          text: "Install ArConnect",
+                          onClick: () => {
+                            window.open(guide.actionUrl, '_blank');
+                            setArConnectModal(prev => ({ ...prev, isOpen: false }));
+                          }
+                        } : undefined
+                      });
+                    }}
                     className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
                   >
                     Install Now
@@ -3972,7 +4037,19 @@ function WelcomePage({
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        installArConnectGuide();
+                                        const guide = getArConnectInstallGuide();
+                                        setArConnectModal({
+                                          isOpen: true,
+                                          title: guide.title,
+                                          message: guide.message,
+                                          actionButton: guide.actionUrl ? {
+                                            text: "Install ArConnect",
+                                            onClick: () => {
+                                              window.open(guide.actionUrl, '_blank');
+                                              setArConnectModal(prev => ({ ...prev, isOpen: false }));
+                                            }
+                                          } : undefined
+                                        });
                                       }}
                                       className="underline hover:text-orange-300 text-xs"
                                     >
@@ -3987,14 +4064,14 @@ function WelcomePage({
                                     e.stopPropagation();
                                     await publishDraftToBlockchain(draft);
                                   }}
-                                  disabled={isProcessingBatch}
+                                  disabled={publishingDrafts.has(draft.id) || isProcessingBatch}
                                   className={`text-sm disabled:opacity-50 ${
                                     !checkArweaveWallet()
                                       ? "text-orange-400 hover:text-orange-300"
                                       : "text-green-400 hover:text-green-300"
                                   } transition-colors duration-200`}
                                 >
-                                  {isProcessingBatch ? "Publishing..." : "Publish"}
+                                  {publishingDrafts.has(draft.id) ? "Publishing..." : "Publish"}
                                 </button>
                                 <button
                                   onClick={async (e) => {
@@ -5093,6 +5170,15 @@ function WelcomePage({
           )}
         </div>
       )}
+
+      {/* ArConnect Modal */}
+      <ArConnectModal
+        isOpen={arConnectModal.isOpen}
+        onClose={() => setArConnectModal(prev => ({ ...prev, isOpen: false }))}
+        title={arConnectModal.title}
+        message={arConnectModal.message}
+        actionButton={arConnectModal.actionButton}
+      />
     </>
   );
 }
