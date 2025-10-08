@@ -2,10 +2,10 @@ import Arweave from "arweave";
 import { JWKInterface } from "arweave/node/lib/wallet";
 import nacl from "tweetnacl";
 
-// Initialize Arweave client (using testnet for development)
+// Initialize Arweave client (using mainnet for production)
 const arweave = Arweave.init({
-  host: "testnet.arweave.net",
-  port: 1984,
+  host: "arweave.net",
+  port: 443,
   protocol: "https",
 });
 
@@ -32,55 +32,83 @@ export const setWallet = (jwk: JWKInterface) => {
 
 // Upload encrypted content to Arweave
 export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
-  console.log("Creating Arweave transaction with data length:", data.length);
+  console.log("🚀 Starting Arweave upload process...");
 
   if (!checkArweaveWallet()) {
+    console.error("❌ ArConnect wallet not found");
     throw new Error("ArConnect wallet required. Please install it and try again.");
   }
 
-  // Check if wallet is connected
+  // Check if wallet is connected and has proper permissions
   let address: string;
   try {
+    console.log("🔗 Checking ArConnect wallet connection...");
     address = await (window as any).arweaveWallet.getActiveAddress();
-    console.log("ArConnect wallet connected:", address);
+    console.log("✅ ArConnect wallet connected:", address);
   } catch (error) {
-    console.log("ArConnect wallet not connected, attempting to connect...");
+    console.log("🔄 ArConnect wallet not connected, attempting to connect...");
     try {
-      await (window as any).arweaveWallet.connect(['ACCESS_ADDRESS', 'SIGN_TRANSACTION']);
+      // Request permissions for mainnet Arweave
+      await (window as any).arweaveWallet.connect([
+        'ACCESS_ADDRESS',
+        'ACCESS_PUBLIC_KEY',
+        'SIGN_TRANSACTION',
+        'ACCESS_ARWEAVE_CONFIG'
+      ]);
+      // Small delay to ensure connection is fully established
+      await new Promise(resolve => setTimeout(resolve, 500));
       address = await (window as any).arweaveWallet.getActiveAddress();
-      console.log("Successfully connected to ArConnect:", address);
+      console.log("✅ Successfully connected to ArConnect:", address);
     } catch (connectError) {
-      console.error("Failed to connect ArConnect wallet:", connectError);
+      console.error("❌ Failed to connect ArConnect wallet:", connectError);
       throw new Error("Please unlock your ArConnect wallet and try again.");
     }
   }
 
-  // No balance checking - let ArConnect handle validation and show transaction details
-  // This makes the process faster and lets users see the exact cost in ArConnect
+  console.log("� About to create Arweave transaction...");
+  console.log("📊 Data size:", data.length, "bytes");
+  console.log("🏠 Arweave host:", arweave.api.config.host);
 
-  // Create transaction
-  const transaction = await arweave.createTransaction(
-    {
+  console.log("�📝 Creating Arweave transaction...");
+  // Create transaction - try without "use_wallet" first, then sign with ArConnect
+  let transaction;
+  try {
+    console.log("🔧 Calling arweave.createTransaction...");
+    transaction = await arweave.createTransaction({
       data: data,
-    },
-    "use_wallet"
-  );
+    });
+    console.log("✅ Transaction object created successfully");
+  } catch (txError) {
+    console.error("❌ Failed to create transaction:", txError);
+    throw new Error("Failed to create Arweave transaction. Please try again.");
+  }
 
   transaction.addTag("Content-Type", "application/octet-stream");
   transaction.addTag("App-Name", "Elysium-Notes");
   transaction.addTag("App-Version", "1.0.0");
   transaction.addTag("Uploaded-By", address);
 
-  console.log("Arweave transaction created:", transaction.id);
-  console.log("Transaction fee:", arweave.ar.winstonToAr(transaction.reward), "AR");
+  console.log("💰 Transaction created:", {
+    id: transaction.id,
+    fee: arweave.ar.winstonToAr(transaction.reward) + " AR",
+    size: data.length + " bytes"
+  });
 
-  // Sign transaction with ArConnect
+  // Sign transaction with ArConnect - this should show the popup immediately
+  console.log("✍️ Requesting ArConnect signature...");
   try {
-    await (window as any).arweaveWallet.sign(transaction);
-    console.log("Transaction signed by ArConnect");
+    const signedTx = await (window as any).arweaveWallet.sign(transaction);
+    console.log("✅ Transaction signed by ArConnect, signed tx:", signedTx.id);
+    // Use the signed transaction for posting
+    transaction = signedTx;
   } catch (error) {
-    console.error("Failed to sign transaction:", error);
-    throw new Error("Transaction signing cancelled. Please try again and approve the transaction in ArConnect.");
+    console.error("❌ Transaction signing failed:", error);
+    if (error instanceof Error) {
+      if (error.message.includes("User cancelled") || error.message.includes("cancelled")) {
+        throw new Error("Transaction cancelled by user.");
+      }
+    }
+    throw new Error("Transaction signing failed. Please try again and approve the transaction in ArConnect.");
   }
 
   // Post transaction
