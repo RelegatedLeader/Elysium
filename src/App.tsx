@@ -22,7 +22,7 @@ import Settings from "./components/Settings";
 import Logout from "./components/Logout";
 import CloudAuth from "./components/CloudAuth";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
-import { uploadToArweave, setWallet } from "./utils/arweave-utils";
+import { uploadToArweave, setWallet, checkArweaveWallet, connectArweaveWallet, getArweaveBalance, getArweaveFundingInfo, installArConnectGuide } from "./utils/arweave-utils";
 import idlJson from "./idl.json";
 import { supabase } from "./SUPABASE/supabaseClient";
 import { Session } from "@supabase/supabase-js";
@@ -2015,17 +2015,17 @@ function WelcomePage({
 
     try {
       setIsProcessingBatch(true);
-      
-      // Remove from drafts
-      await deleteDraft(draft.id);
-      
-      // Publish to blockchain
+
+      // Publish to blockchain first
       const result = await saveToBlockchain({
         ...draft,
         isPermanent: true,
         updatedAt: new Date().toISOString(),
       });
-      
+
+      // Only remove from drafts after successful publishing
+      await deleteDraft(draft.id);
+
       // Add the published note to the notes list with transaction details
       const publishedNote: Note = {
         ...draft,
@@ -2035,13 +2035,15 @@ function WelcomePage({
         isDraft: false,
         updatedAt: new Date().toISOString(),
       };
-      
+
       setNotes(prev => [...prev, publishedNote]);
-      
+
       console.log('Draft published to blockchain:', draft.id, result);
+      showNotification('Success', `Note "${draft.title}" published to blockchain!`);
     } catch (error) {
       console.error('Error publishing draft:', error);
-      alert('Failed to publish draft to blockchain. Please try again.');
+      // Don't delete draft on failure - let user try again
+      showNotification('Error', `Failed to publish "${draft.title}" to blockchain. Please try again.`);
     } finally {
       setIsProcessingBatch(false);
     }
@@ -2073,16 +2075,16 @@ function WelcomePage({
       // Process each draft sequentially (could be optimized to true batch later)
       for (const draft of draftsToPublish) {
         try {
-          // Remove from drafts first
-          await deleteDraft(draft.id);
-          
-          // Publish to blockchain
+          // Publish to blockchain first
           const result = await saveToBlockchain({
             ...draft,
             isPermanent: true,
             updatedAt: new Date().toISOString(),
           });
-          
+
+          // Only remove from drafts after successful publishing
+          await deleteDraft(draft.id);
+
           // Add the published note to the notes list with transaction details
           const publishedNote: Note = {
             ...draft,
@@ -2092,17 +2094,15 @@ function WelcomePage({
             isDraft: false,
             updatedAt: new Date().toISOString(),
           };
-          
+
           setNotes(prev => [...prev, publishedNote]);
-          
+
           successCount++;
           console.log(`Successfully published draft: ${draft.title}`, result);
         } catch (error) {
           console.error(`Failed to publish draft "${draft.title}":`, error);
           failureCount++;
-          
-          // Re-add to drafts if publishing failed
-          await saveDraftLocally(draft);
+          // Draft remains in drafts list - no need to re-add
         }
       }
       
@@ -2772,9 +2772,13 @@ function WelcomePage({
         dataStr,
         publicKey.toBytes()
       );
+      console.log("Encryption complete - nonce length:", nonce.length, "encrypted length:", encrypted.length);
+      
       const uploadData = new Uint8Array(nonce.length + encrypted.length);
       uploadData.set(nonce);
       uploadData.set(encrypted, nonce.length);
+      console.log("Upload data prepared, total length:", uploadData.length);
+      
       const arweaveHash = await uploadToArweave(uploadData);
       console.log("Arweave content saved, hash:", arweaveHash);
       const [noteAccountPDA] = await PublicKey.findProgramAddress(
@@ -2835,9 +2839,16 @@ function WelcomePage({
       };
     } catch (error) {
       console.error("Blockchain save failed:", error);
-      alert(
-        "Failed to save to blockchain. Please try again or check your wallet."
-      );
+
+      // Error messages are now handled more gracefully in uploadToArweave
+      // Just show a generic message since specific guidance is already provided
+      const errorMsg = error instanceof Error ? error.message : String(error);
+
+      // Only show alert for non-ArConnect related errors
+      if (!errorMsg.includes("ArConnect") && !errorMsg.includes("insufficient") && !errorMsg.includes("balance")) {
+        alert("Failed to save to blockchain. Please try again.");
+      }
+
       throw error;
     }
   };
@@ -2873,54 +2884,52 @@ function WelcomePage({
           const noteId = note.noteId.toString();
           if (note.arweaveHash) {
             try {
-              const response = await fetch(
-                `https://arweave.net/${note.arweaveHash}`
-              );
-              const data = await response.arrayBuffer();
-              const buffer = new Uint8Array(data);
-              const nonceLength = 24;
-              const nonce = buffer.slice(0, nonceLength);
-              const encrypted = buffer.slice(nonceLength);
-              const decrypted = decryptNote(
-                encrypted,
-                publicKey.toBytes(),
-                nonce
-              );
-              const parsed = JSON.parse(decrypted);
-              fetchedNotes.push({
-                id: noteId,
-                title: parsed.title,
-                content: parsed.content,
-                template: parsed.template,
-                completionTimestamps: parsed.completionTimestamps || {},
-                arweaveHash: note.arweaveHash,
-                isPermanent: note.isPermanent,
-                createdAt: note.timestamp
-                  ? new Date(note.timestamp.toNumber() * 1000).toISOString()
-                  : new Date().toISOString(),
-                updatedAt: note.timestamp
-                  ? new Date(note.timestamp.toNumber() * 1000).toISOString()
-                  : new Date().toISOString(),
-                files: parsed.files || [],
-              });
+              // Handle mock Arweave hashes for development
+              if (note.arweaveHash.startsWith("mock_")) {
+                console.log("Skipping mock Arweave hash:", note.arweaveHash);
+                // For mock hashes, create a placeholder note
+                fetchedNotes.push({
+                  id: noteId,
+                  title: `Mock Note ${noteId}`,
+                  content: "This is a mock note created during development.",
+                  template: "Blank",
+                  completionTimestamps: {},
+                  arweaveHash: note.arweaveHash,
+                  isPermanent: note.isPermanent,
+                  createdAt: new Date(note.timestamp.toNumber() * 1000).toISOString(),
+                  updatedAt: new Date(note.timestamp.toNumber() * 1000).toISOString(),
+                });
+              } else {
+                const response = await fetch(
+                  `https://arweave.net/${note.arweaveHash}`
+                );
+                const data = await response.arrayBuffer();
+                const buffer = new Uint8Array(data);
+                const nonceLength = 24;
+                const nonce = buffer.slice(0, nonceLength);
+                const encrypted = buffer.slice(nonceLength);
+                const decrypted = decryptNote(
+                  encrypted,
+                  publicKey.toBytes(),
+                  nonce
+                );
+                const parsed = JSON.parse(decrypted);
+                fetchedNotes.push({
+                  id: noteId,
+                  title: parsed.title,
+                  content: parsed.content,
+                  template: parsed.template,
+                  completionTimestamps: parsed.completionTimestamps || {},
+                  arweaveHash: note.arweaveHash,
+                  isPermanent: note.isPermanent,
+                  createdAt: new Date(note.timestamp.toNumber() * 1000).toISOString(),
+                  updatedAt: new Date(note.timestamp.toNumber() * 1000).toISOString(),
+                  files: parsed.files || [],
+                });
+              }
             } catch (e) {
               console.error("Failed to fetch or decrypt note", e);
             }
-          } else {
-            fetchedNotes.push({
-              id: noteId,
-              title: "Untitled",
-              content: "No content",
-              template: "List",
-              isPermanent: note.isPermanent,
-              completionTimestamps: {},
-              createdAt: note.timestamp
-                ? new Date(note.timestamp.toNumber() * 1000).toISOString()
-                : new Date().toISOString(),
-              updatedAt: note.timestamp
-                ? new Date(note.timestamp.toNumber() * 1000).toISOString()
-                : new Date().toISOString(),
-            });
           }
         } catch (decodeError) {
           console.error("Failed to decode account:", decodeError);
@@ -3775,6 +3784,30 @@ function WelcomePage({
                 }
               `}
             </style>
+
+            {/* ArConnect Installation Banner */}
+            {mode === "web3" && !checkArweaveWallet() && (
+              <div className="mb-6 bg-gradient-to-r from-orange-900/80 to-red-900/80 border border-orange-500/50 rounded-lg p-4 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="text-orange-400 text-2xl">⚠️</div>
+                    <div>
+                      <h3 className="text-orange-200 font-semibold text-sm">ArConnect Wallet Required</h3>
+                      <p className="text-orange-100/80 text-xs mt-1">
+                        Install ArConnect to permanently store notes on Arweave
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={installArConnectGuide}
+                    className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                  >
+                    Install Now
+                  </button>
+                </div>
+              </div>
+            )}
+
             <animated.div
               style={mode === "web3" ? blockchainPageSpring : {}}
               className="w-full max-w-4xl p-4 sm:p-6"
@@ -3931,8 +3964,22 @@ function WelcomePage({
                               </div>
                             </div>
                             <div className="mt-3 flex justify-between items-center">
-                              <div className="text-xs text-gray-400">
-                                Est. cost: ~$0.001
+                              <div className="text-xs text-gray-400 flex items-center space-x-2">
+                                <span>Est. cost: ~$0.001</span>
+                                {!checkArweaveWallet() && (
+                                  <span className="text-orange-400 flex items-center space-x-1">
+                                    <span>⚠️</span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        installArConnectGuide();
+                                      }}
+                                      className="underline hover:text-orange-300 text-xs"
+                                    >
+                                      ArConnect needed
+                                    </button>
+                                  </span>
+                                )}
                               </div>
                               <div className="flex space-x-2">
                                 <button
@@ -3941,9 +3988,13 @@ function WelcomePage({
                                     await publishDraftToBlockchain(draft);
                                   }}
                                   disabled={isProcessingBatch}
-                                  className="text-green-400 hover:text-green-300 transition-colors duration-200 text-sm disabled:opacity-50"
+                                  className={`text-sm disabled:opacity-50 ${
+                                    !checkArweaveWallet()
+                                      ? "text-orange-400 hover:text-orange-300"
+                                      : "text-green-400 hover:text-green-300"
+                                  } transition-colors duration-200`}
                                 >
-                                  Publish
+                                  {isProcessingBatch ? "Publishing..." : "Publish"}
                                 </button>
                                 <button
                                   onClick={async (e) => {
