@@ -1,4 +1,5 @@
 const path = require("path");
+const webpack = require("webpack");
 
 module.exports = {
   webpack: {
@@ -17,6 +18,12 @@ module.exports = {
         url: require.resolve("url/"),
         buffer: require.resolve("buffer/"), // Added for Solana/Anchor
       };
+      // Provide Buffer globally
+      webpackConfig.plugins.push(
+        new webpack.ProvidePlugin({
+          Buffer: ["buffer", "Buffer"],
+        })
+      );
       // Add SVG support
       webpackConfig.module.rules.push({
         test: /\.svg$/,
