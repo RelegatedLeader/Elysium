@@ -11,25 +11,36 @@ const arweave = Arweave.init({
 
 // Load or generate a wallet (for now, placeholder; replace with user wallet)
 let wallet: JWKInterface | undefined;
+
+// Initialize with a test wallet for development
+const initTestWallet = async () => {
+  if (!wallet) {
+    // Generate a test wallet for development
+    wallet = await arweave.wallets.generate();
+    console.log("Generated test Arweave wallet for development");
+  }
+};
+
 export const setWallet = (jwk: JWKInterface) => {
   wallet = jwk;
 };
 
 // Upload encrypted content to Arweave
 export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
-  if (!wallet) throw new Error("Wallet not set. Please connect a wallet.");
+  // Initialize test wallet if none is set
+  await initTestWallet();
 
   const transaction = await arweave.createTransaction(
     {
       data: data.buffer as ArrayBuffer, // Convert Uint8Array to ArrayBuffer
     },
-    wallet
+    wallet!
   );
 
   transaction.addTag("Content-Type", "application/octet-stream"); // Generic binary data
   transaction.addTag("App-Name", "Elysium-Notes");
 
-  await arweave.transactions.sign(transaction, wallet);
+  await arweave.transactions.sign(transaction, wallet!);
   const response = await arweave.transactions.post(transaction);
 
   if (response.status === 200) {

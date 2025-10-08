@@ -96,7 +96,32 @@
   "accounts": [
     {
       "name": "NoteAccount",
-      "discriminator": [81, 153, 230, 186, 216, 191, 215, 90]
+      "discriminator": [81, 153, 230, 186, 216, 191, 215, 90],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "note_id",
+            "type": "u64"
+          },
+          {
+            "name": "arweave_hash",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "is_permanent",
+            "type": "bool"
+          }
+        ]
+      }
     }
   ],
   "errors": [

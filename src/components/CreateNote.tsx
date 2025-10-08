@@ -516,14 +516,14 @@ Please provide a helpful response. Be conversational and focus on helping with t
 
   const handleSave = () => {
     if (title && content) {
-      const confirmationMessage =
+      // Skip confirmation for web3 drafts since they don't cost gas
+      if (mode === "web3" || window.confirm(
         mode === "db"
           ? "Save this note to the database?"
-          : mode === "web3"
-          ? "Save this note to the blockchain? (Gas fee applies)"
-          : "Save this note to cloud storage?";
-      
-      if (window.confirm(confirmationMessage)) {
+          : mode === "cloud"
+          ? "Save this note to cloud storage?"
+          : "Save this note?"
+      )) {
         onSave({ title, content, template, files });
         setTitle("");
         setContent("");

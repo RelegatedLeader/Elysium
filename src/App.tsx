@@ -38,6 +38,7 @@ interface Note {
   encryptedContent?: Uint8Array;
   nonce?: Uint8Array;
   arweaveHash?: string;
+  transactionHash?: string;
   isPermanent?: boolean;
   completionTimestamps?: { [taskIndex: number]: string };
   createdAt: string;
@@ -45,6 +46,7 @@ interface Note {
   files?: File[];
   isDownloaded?: boolean;
   isCloudOnly?: boolean;
+  isDraft?: boolean;
 }
 
 interface SupabaseNote {
@@ -1713,49 +1715,8 @@ function App() {
 }
 
 function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
-  const now = new Date().toISOString();
-  if (mode === "db") {
-    return [];
-  } else if (mode === "cloud") {
-    return [
-      {
-        id: "1",
-        title: "Cloud Sync Notes",
-        content:
-          "Configure cloud storage...\n- [ ] Set up S3 bucket\n- [ ] Enable versioning\n- [ ] Test sync",
-        template: "Checklist",
-        isPermanent: false,
-        completionTimestamps: {},
-        createdAt: now,
-        updatedAt: now,
-      },
-    ];
-  } else {
-    return [
-      {
-        id: "1",
-        title: "Meeting Notes 08/07/2025",
-        content:
-          "Discuss project timeline...\n- [ ] Prepare agenda\n- [ ] Assign tasks\n- [ ] Review progress",
-        template: "To-Do List",
-        isPermanent: false,
-        completionTimestamps: {},
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: "2",
-        title: "Ideas",
-        content:
-          "Brainstorm new features for Elysium...\n- [ ] Add folder support\n- [ ] Enhance templates\n- [ ] Improve UI",
-        template: "Checklist",
-        isPermanent: false,
-        completionTimestamps: {},
-        createdAt: now,
-        updatedAt: now,
-      },
-    ];
-  }
+  // Return empty array to start with no default notes
+  return [];
 }
 
 function WelcomePage({
@@ -1818,6 +1779,16 @@ function WelcomePage({
   const [downloadingNotes, setDownloadingNotes] = useState<Set<string>>(
     new Set()
   );
+
+  // Draft system for blockchain mode
+  const [drafts, setDrafts] = useState<Note[]>([]);
+  const [currentDraft, setCurrentDraft] = useState<Note | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [selectedDrafts, setSelectedDrafts] = useState<Set<string>>(new Set());
+
+  // Batch processing for blockchain saves
+  const [batchQueue, setBatchQueue] = useState<Note[]>([]);
+  const [isProcessingBatch, setIsProcessingBatch] = useState(false);
 
   // Connectivity state
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -1927,6 +1898,226 @@ function WelcomePage({
         icon: "/favicon.ico",
         badge: "/favicon.ico",
       });
+    }
+  };
+
+  // Draft management functions for blockchain mode
+  const saveDraftLocally = async (note: Note) => {
+    if (mode !== "web3" || !publicKey) return;
+
+    try {
+      setIsAutoSaving(true);
+      
+      // Encrypt the draft content with wallet-derived key
+      const dataStr = JSON.stringify({
+        title: note.title,
+        content: note.content,
+        template: note.template,
+        completionTimestamps: note.completionTimestamps || {},
+      });
+      
+      const { encrypted, nonce } = encryptAndCompress(dataStr, publicKey.toBytes());
+      
+      const encryptedDraft = {
+        ...note,
+        encryptedContent: encrypted,
+        nonce: nonce,
+        isDraft: true,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Save to localStorage with wallet-specific key
+      const draftsKey = `elysium_drafts_${publicKey.toBase58()}`;
+      const existingDrafts = JSON.parse(localStorage.getItem(draftsKey) || '[]');
+      
+      // Update or add the draft
+      const draftIndex = existingDrafts.findIndex((d: any) => d.id === note.id);
+      if (draftIndex >= 0) {
+        existingDrafts[draftIndex] = encryptedDraft;
+      } else {
+        existingDrafts.push(encryptedDraft);
+      }
+      
+      localStorage.setItem(draftsKey, JSON.stringify(existingDrafts));
+      setDrafts(existingDrafts);
+      
+      console.log('Draft auto-saved:', note.id);
+    } catch (error) {
+      console.error('Error saving draft:', error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  };
+
+  const loadDraftsFromLocal = async () => {
+    if (mode !== "web3" || !publicKey) return;
+
+    try {
+      const draftsKey = `elysium_drafts_${publicKey.toBase58()}`;
+      const savedDrafts = JSON.parse(localStorage.getItem(draftsKey) || '[]');
+      
+      // Decrypt drafts for display
+      const decryptedDrafts = await Promise.all(
+        savedDrafts.map(async (draft: any) => {
+          try {
+            if (draft.encryptedContent && draft.nonce) {
+              const decryptedData = decryptNote(
+                new Uint8Array(Object.values(draft.encryptedContent)),
+                publicKey.toBytes(),
+                new Uint8Array(Object.values(draft.nonce))
+              );
+              
+              const parsed = JSON.parse(decryptedData);
+              return {
+                ...draft,
+                title: parsed.title,
+                content: parsed.content,
+                template: parsed.template,
+                completionTimestamps: parsed.completionTimestamps,
+                isDraft: true,
+              };
+            }
+            return draft;
+          } catch (error) {
+            console.error('Error decrypting draft:', error);
+            return null;
+          }
+        })
+      );
+      
+      setDrafts(decryptedDrafts.filter(Boolean));
+      console.log(`Loaded ${decryptedDrafts.length} drafts`);
+    } catch (error) {
+      console.error('Error loading drafts:', error);
+      setDrafts([]);
+    }
+  };
+
+  const deleteDraft = async (draftId: string) => {
+    if (mode !== "web3" || !publicKey) return;
+
+    try {
+      const draftsKey = `elysium_drafts_${publicKey.toBase58()}`;
+      const existingDrafts = JSON.parse(localStorage.getItem(draftsKey) || '[]');
+      const filteredDrafts = existingDrafts.filter((d: any) => d.id !== draftId);
+      
+      localStorage.setItem(draftsKey, JSON.stringify(filteredDrafts));
+      setDrafts(filteredDrafts);
+      
+      console.log('Draft deleted:', draftId);
+    } catch (error) {
+      console.error('Error deleting draft:', error);
+    }
+  };
+
+  const publishDraftToBlockchain = async (draft: Note) => {
+    if (mode !== "web3" || !publicKey) return;
+
+    try {
+      setIsProcessingBatch(true);
+      
+      // Remove from drafts
+      await deleteDraft(draft.id);
+      
+      // Publish to blockchain
+      const result = await saveToBlockchain({
+        ...draft,
+        isPermanent: true,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      // Add the published note to the notes list with transaction details
+      const publishedNote: Note = {
+        ...draft,
+        arweaveHash: result.arweaveHash,
+        transactionHash: result.transactionHash,
+        isPermanent: result.isPermanent,
+        isDraft: false,
+        updatedAt: new Date().toISOString(),
+      };
+      
+      setNotes(prev => [...prev, publishedNote]);
+      
+      console.log('Draft published to blockchain:', draft.id, result);
+    } catch (error) {
+      console.error('Error publishing draft:', error);
+      alert('Failed to publish draft to blockchain. Please try again.');
+    } finally {
+      setIsProcessingBatch(false);
+    }
+  };
+
+  const batchPublishDrafts = async (draftIds: string[]) => {
+    if (mode !== "web3" || !publicKey || draftIds.length === 0) return;
+
+    try {
+      setIsProcessingBatch(true);
+      
+      const draftsToPublish = drafts.filter(d => draftIds.includes(d.id));
+      
+      if (draftsToPublish.length === 0) return;
+      
+      // Calculate estimated cost (rough estimate: $0.001 per note)
+      const estimatedCost = (draftIds.length * 0.001).toFixed(3);
+      
+      // Show confirmation once for the entire batch
+      const confirmMessage = draftsToPublish.length === 1 
+        ? `Publish "${draftsToPublish[0].title}" to blockchain? This will make it permanent and cost ~$${estimatedCost}.`
+        : `Publish ${draftsToPublish.length} drafts to blockchain as a batch? This will make them permanent and cost ~$${estimatedCost}.`;
+      
+      if (!window.confirm(confirmMessage)) return;
+      
+      let successCount = 0;
+      let failureCount = 0;
+      
+      // Process each draft sequentially (could be optimized to true batch later)
+      for (const draft of draftsToPublish) {
+        try {
+          // Remove from drafts first
+          await deleteDraft(draft.id);
+          
+          // Publish to blockchain
+          const result = await saveToBlockchain({
+            ...draft,
+            isPermanent: true,
+            updatedAt: new Date().toISOString(),
+          });
+          
+          // Add the published note to the notes list with transaction details
+          const publishedNote: Note = {
+            ...draft,
+            arweaveHash: result.arweaveHash,
+            transactionHash: result.transactionHash,
+            isPermanent: result.isPermanent,
+            isDraft: false,
+            updatedAt: new Date().toISOString(),
+          };
+          
+          setNotes(prev => [...prev, publishedNote]);
+          
+          successCount++;
+          console.log(`Successfully published draft: ${draft.title}`, result);
+        } catch (error) {
+          console.error(`Failed to publish draft "${draft.title}":`, error);
+          failureCount++;
+          
+          // Re-add to drafts if publishing failed
+          await saveDraftLocally(draft);
+        }
+      }
+      
+      // Show results
+      if (successCount > 0) {
+        alert(`Successfully published ${successCount} draft${successCount === 1 ? '' : 's'} to blockchain!${failureCount > 0 ? ` ${failureCount} failed and were restored to drafts.` : ''}`);
+      } else {
+        alert('Failed to publish any drafts. Please try again.');
+      }
+      
+    } catch (error) {
+      console.error('Error in batch publish:', error);
+      alert('Failed to publish drafts. Please try again.');
+    } finally {
+      setIsProcessingBatch(false);
     }
   };
 
@@ -2154,6 +2345,26 @@ function WelcomePage({
       console.log(`Cached ${cloudNotes.length} notes for offline use`);
     }
   }, [cloudNotes, mode, cloudStorage.user]);
+
+  // Load drafts when switching to blockchain mode or wallet connects
+  useEffect(() => {
+    if (mode === "web3" && publicKey) {
+      loadDraftsFromLocal();
+    } else {
+      setDrafts([]);
+    }
+  }, [mode, publicKey]);
+
+  // Auto-save current draft every 30 seconds
+  useEffect(() => {
+    if (mode !== "web3" || !currentDraft || !publicKey) return;
+
+    const autoSaveInterval = setInterval(() => {
+      saveDraftLocally(currentDraft);
+    }, 30000); // Auto-save every 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [currentDraft, mode, publicKey]);
 
   const handleSelectWallet = () => {
     setVisible(true);
@@ -2386,28 +2597,29 @@ function WelcomePage({
     if (note.title && note.content) {
       let newNote: Note;
       if (mode === "web3" && publicKey) {
-        const { encrypted, nonce } = encryptAndCompress(
-          JSON.stringify({
-            title: note.title,
-            content: note.content,
-            template: note.template,
-            completionTimestamps: {},
-          }),
-          publicKey.toBytes()
-        );
+        // Create draft instead of immediately saving to blockchain
         newNote = {
           id: Date.now().toString(),
           title: note.title,
           content: note.content,
           template: note.template,
-          encryptedContent: encrypted,
-          nonce: nonce,
           isPermanent: false,
           completionTimestamps: {},
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          isDraft: true,
         };
-        await saveToBlockchain(newNote);
+        
+        // Save as draft locally
+        await saveDraftLocally(newNote);
+        
+        // Set as current draft for auto-saving
+        setCurrentDraft(newNote);
+        
+        // Close the create modal
+        setShowCreateModal(false);
+        
+        console.log("Note saved as draft:", newNote.id);
       } else if (mode === "db") {
         const session = (await supabase.auth.getSession()).data.session;
         if (session) {
@@ -2543,9 +2755,9 @@ function WelcomePage({
     setActivePage(page);
   };
 
-  const saveToBlockchain = async (note: Note) => {
+  const saveToBlockchain = async (note: Note): Promise<{ arweaveHash: string; transactionHash?: string; isPermanent: boolean }> => {
     if (mode !== "web3" || !publicKey || !sendTransaction || !anchorWallet) {
-      return;
+      throw new Error("Blockchain mode not available");
     }
     try {
       const provider = new AnchorProvider(connection, anchorWallet, {});
@@ -2573,7 +2785,9 @@ function WelcomePage({
         ],
         programId
       );
-      await program.methods
+      
+      // Initialize note and capture transaction signature
+      const initTx = await program.methods
         .initializeNote(new BN(note.id), arweaveHash, new BN(Date.now()))
         .accounts({
           noteAccount: noteAccountPDA,
@@ -2581,33 +2795,50 @@ function WelcomePage({
           systemProgram: SystemProgram.programId,
         })
         .rpc();
+      
+      console.log("Note initialized on Solana, tx:", initTx);
+      
+      let isPermanent = false;
+      let permanentTx: string | undefined;
+      
       if (
         window.confirm("Make this note permanent? (Additional fee may apply)")
       ) {
-        await program.methods
+        permanentTx = await program.methods
           .setPermanent(new BN(note.id))
           .accounts({
             noteAccount: noteAccountPDA,
             user: publicKey,
           })
           .rpc();
+        
+        console.log("Note made permanent on Solana, tx:", permanentTx);
+        isPermanent = true;
+        
         setNotes(
           notes.map((n) =>
-            n.id === note.id ? { ...n, arweaveHash, isPermanent: true } : n
+            n.id === note.id ? { ...n, arweaveHash, transactionHash: permanentTx, isPermanent: true } : n
           )
         );
       } else {
         setNotes(
           notes.map((n) =>
-            n.id === note.id ? { ...n, arweaveHash, isPermanent: false } : n
+            n.id === note.id ? { ...n, arweaveHash, transactionHash: initTx, isPermanent: false } : n
           )
         );
       }
+      
+      return { 
+        arweaveHash, 
+        transactionHash: permanentTx || initTx,
+        isPermanent 
+      };
     } catch (error) {
       console.error("Blockchain save failed:", error);
       alert(
         "Failed to save to blockchain. Please try again or check your wallet."
       );
+      throw error;
     }
   };
 
@@ -2616,71 +2847,88 @@ function WelcomePage({
     const provider = new AnchorProvider(connection, anchorWallet, {});
     const program = new Program(idlJson as Idl, provider);
     try {
-      const noteAccounts = await (program.account as any).NoteAccount.all([
-        {
-          memcmp: {
-            offset: 8,
-            bytes: publicKey.toBase58(),
+      // Use getProgramAccounts instead of program.account.NoteAccount.all()
+      const programId = new PublicKey(idlJson.address);
+      const noteAccounts = await connection.getProgramAccounts(programId, {
+        filters: [
+          {
+            memcmp: {
+              offset: 8, // owner field offset
+              bytes: publicKey.toBase58(),
+            },
           },
-        },
-      ]);
+        ],
+      });
+
       const fetchedNotes: Note[] = [];
       for (const account of noteAccounts) {
-        const note = account.account;
-        const noteId = note.noteId.toString();
-        if (note.arweaveHash) {
-          try {
-            const response = await fetch(
-              `https://arweave.net/${note.arweaveHash}`
-            );
-            const data = await response.arrayBuffer();
-            const buffer = new Uint8Array(data);
-            const nonceLength = 24;
-            const nonce = buffer.slice(0, nonceLength);
-            const encrypted = buffer.slice(nonceLength);
-            const decrypted = decryptNote(
-              encrypted,
-              publicKey.toBytes(),
-              nonce
-            );
-            const parsed = JSON.parse(decrypted);
+        try {
+          // Decode the account data using the program's coder
+          const decodedAccount = program.coder.accounts.decode(
+            "NoteAccount",
+            account.account.data
+          );
+
+          const note = decodedAccount;
+          const noteId = note.noteId.toString();
+          if (note.arweaveHash) {
+            try {
+              const response = await fetch(
+                `https://arweave.net/${note.arweaveHash}`
+              );
+              const data = await response.arrayBuffer();
+              const buffer = new Uint8Array(data);
+              const nonceLength = 24;
+              const nonce = buffer.slice(0, nonceLength);
+              const encrypted = buffer.slice(nonceLength);
+              const decrypted = decryptNote(
+                encrypted,
+                publicKey.toBytes(),
+                nonce
+              );
+              const parsed = JSON.parse(decrypted);
+              fetchedNotes.push({
+                id: noteId,
+                title: parsed.title,
+                content: parsed.content,
+                template: parsed.template,
+                completionTimestamps: parsed.completionTimestamps || {},
+                arweaveHash: note.arweaveHash,
+                isPermanent: note.isPermanent,
+                createdAt: note.timestamp
+                  ? new Date(note.timestamp.toNumber() * 1000).toISOString()
+                  : new Date().toISOString(),
+                updatedAt: note.timestamp
+                  ? new Date(note.timestamp.toNumber() * 1000).toISOString()
+                  : new Date().toISOString(),
+                files: parsed.files || [],
+              });
+            } catch (e) {
+              console.error("Failed to fetch or decrypt note", e);
+            }
+          } else {
             fetchedNotes.push({
               id: noteId,
-              title: parsed.title,
-              content: parsed.content,
-              template: parsed.template,
-              completionTimestamps: parsed.completionTimestamps || {},
-              arweaveHash: note.arweaveHash,
+              title: "Untitled",
+              content: "No content",
+              template: "List",
               isPermanent: note.isPermanent,
-              createdAt: note.createdAt
-                ? new Date(note.createdAt.toNumber() * 1000).toISOString()
+              completionTimestamps: {},
+              createdAt: note.timestamp
+                ? new Date(note.timestamp.toNumber() * 1000).toISOString()
                 : new Date().toISOString(),
-              updatedAt: note.updatedAt
-                ? new Date(note.updatedAt.toNumber() * 1000).toISOString()
+              updatedAt: note.timestamp
+                ? new Date(note.timestamp.toNumber() * 1000).toISOString()
                 : new Date().toISOString(),
-              files: parsed.files || [],
             });
-          } catch (e) {
-            console.error("Failed to fetch or decrypt note", e);
           }
-        } else {
-          fetchedNotes.push({
-            id: noteId,
-            title: "Untitled",
-            content: "No content",
-            template: "List",
-            isPermanent: note.isPermanent,
-            completionTimestamps: {},
-            createdAt: note.createdAt
-              ? new Date(note.createdAt.toNumber() * 1000).toISOString()
-              : new Date().toISOString(),
-            updatedAt: note.updatedAt
-              ? new Date(note.updatedAt.toNumber() * 1000).toISOString()
-              : new Date().toISOString(),
-          });
+        } catch (decodeError) {
+          console.error("Failed to decode account:", decodeError);
         }
       }
+
       setNotes(fetchedNotes);
+      console.log(`Loaded ${fetchedNotes.length} notes from blockchain`);
     } catch (error) {
       console.error("Failed to load notes from blockchain:", error);
     }
@@ -3553,7 +3801,7 @@ function WelcomePage({
                       ? "🗄️Classic encrypted database: Simple, secure, and fully tied to your account with enterprise-grade protection."
                       : mode === "cloud"
                       ? "⚡Lightning-fast cloud storage: Encrypted, downloadable data access with advanced cloud security and offline access."
-                      : "⛓️ Eternal blockchain vault: Immutable, censorship-resistant storage where your notes become permanent digital artifacts."}
+                      : "⛓️ Eternal blockchain vault: Edit freely in drafts, then publish permanently to immutable blockchain storage. True ownership forever."}
                   </p>
                   <div className="flex space-x-4 mb-6 sm:mb-8">
                     <button
@@ -3583,9 +3831,139 @@ function WelcomePage({
                         ? "Save to Database"
                         : mode === "cloud"
                         ? "Save to Cloud"
-                        : "Create Note"}
+                        : "Create Draft"}
                     </button>
                   </div>
+
+                  {/* Drafts section for blockchain mode */}
+                  {mode === "web3" && drafts.length > 0 && (
+                    <div className="mb-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className={`text-2xl font-bold font-serif ${settings.theme === "Light" ? "text-purple-900" : "text-gold-100"}`}>
+                          Drafts ({drafts.length})
+                        </h2>
+                        <div className="flex space-x-2">
+                          {selectedDrafts.size > 0 && (
+                            <button
+                              onClick={() => {
+                                batchPublishDrafts(Array.from(selectedDrafts));
+                                setSelectedDrafts(new Set());
+                              }}
+                              disabled={isProcessingBatch}
+                              className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 text-sm disabled:opacity-50"
+                            >
+                              {isProcessingBatch ? "Publishing..." : `Publish Selected (~$${(selectedDrafts.size * 0.001).toFixed(3)})`}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (drafts.length > 0) {
+                                const allIds = drafts.map(d => d.id);
+                                setSelectedDrafts(new Set(allIds));
+                              }
+                            }}
+                            className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 text-sm"
+                          >
+                            Select All
+                          </button>
+                          <button
+                            onClick={() => setSelectedDrafts(new Set())}
+                            className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 text-sm"
+                          >
+                            Clear Selection
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                        {drafts.map((draft) => (
+                          <animated.div
+                            key={draft.id}
+                            style={noteSpring}
+                            className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border ${
+                              settings.theme === "Light"
+                                ? "bg-gradient-to-br from-yellow-50/90 via-orange-50/90 to-amber-50/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] border-yellow-200/50"
+                                : "bg-gradient-to-br from-yellow-800/90 to-orange-800/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.3)] border-yellow-600/30"
+                            }`}
+                            onClick={() => setViewingNote(draft)}
+                          >
+                            <div className="flex-1 overflow-hidden">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedDrafts.has(draft.id)}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      const newSelected = new Set(selectedDrafts);
+                                      if (e.target.checked) {
+                                        newSelected.add(draft.id);
+                                      } else {
+                                        newSelected.delete(draft.id);
+                                      }
+                                      setSelectedDrafts(newSelected);
+                                    }}
+                                    className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
+                                  />
+                                  <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full font-semibold">
+                                    DRAFT
+                                  </span>
+                                </div>
+                                {isAutoSaving && (
+                                  <span className="text-xs text-yellow-400 animate-pulse">
+                                    Saving...
+                                  </span>
+                                )}
+                              </div>
+                              <h3 className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${settings.theme === "Light" ? "text-purple-800" : "text-gold-100"}`}>
+                                {draft.title}
+                              </h3>
+                              <div className={`text-sm mb-2 line-clamp-3 leading-relaxed ${settings.theme === "Light" ? "text-purple-700" : "text-gray-300"}`}>
+                                {draft.content.split("\n")[0].substring(0, 120)}
+                                {draft.content.length > 120 ? "..." : ""}
+                              </div>
+                              <div className={`flex items-center justify-between text-xs ${settings.theme === "Light" ? "text-purple-600" : "text-gray-400"}`}>
+                                <span className={`px-2 py-1 rounded-full ${settings.theme === "Light" ? "bg-purple-100 text-purple-800" : "bg-indigo-900/50 text-gray-300"}`}>
+                                  {draft.template}
+                                </span>
+                                <span className={settings.theme === "Light" ? "text-purple-500" : "text-gray-500"}>
+                                  Click to view
+                                </span>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex justify-between items-center">
+                              <div className="text-xs text-gray-400">
+                                Est. cost: ~$0.001
+                              </div>
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await publishDraftToBlockchain(draft);
+                                  }}
+                                  disabled={isProcessingBatch}
+                                  className="text-green-400 hover:text-green-300 transition-colors duration-200 text-sm disabled:opacity-50"
+                                >
+                                  Publish
+                                </button>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm("Delete this draft?")) {
+                                      await deleteDraft(draft.id);
+                                    }
+                                  }}
+                                  className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </animated.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {(() => {
                     let displayNotes = notes.filter(
                       (note) => mode !== "db" || !note.isPermanent
@@ -3852,6 +4230,31 @@ function WelcomePage({
                                           💾
                                         </span>
                                       )}
+                                    {/* Blockchain transaction links */}
+                                    {mode === "web3" && note.transactionHash && (
+                                      <a
+                                        href={`https://explorer.solana.com/tx/${note.transactionHash}?cluster=devnet`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-blue-400 hover:text-blue-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
+                                        title="View Solana transaction"
+                                      >
+                                        🔗 SOL
+                                      </a>
+                                    )}
+                                    {mode === "web3" && note.arweaveHash && (
+                                      <a
+                                        href={`https://arweave.net/${note.arweaveHash}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-green-400 hover:text-green-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
+                                        title="View Arweave content"
+                                      >
+                                        🟢 AR
+                                      </a>
+                                    )}
                                   </div>
                                   <button
                                     onClick={async (e) => {
