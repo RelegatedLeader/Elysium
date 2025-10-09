@@ -36,7 +36,11 @@ code {
 }
 
 .light-theme .bg-gradient-to-br {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--bg-secondary) 0%,
+    var(--bg-tertiary) 100%
+  );
 }
 
 .light-theme .text-gray-200 {
@@ -85,15 +89,27 @@ code {
 }
 
 .light-theme .bg-gradient-to-br.from-indigo-900\/95 {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--bg-secondary) 0%,
+    var(--bg-tertiary) 100%
+  );
 }
 
 .light-theme .bg-gradient-to-br.from-indigo-800\/95 {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--bg-secondary) 0%,
+    var(--bg-tertiary) 100%
+  );
 }
 
 .light-theme .bg-gradient-to-br.from-purple-700\/95 {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--bg-secondary) 0%,
+    var(--bg-tertiary) 100%
+  );
 }
 
 .light-theme .border-indigo-500\/50 {

@@ -6,7 +6,11 @@ interface LogoutProps {
   theme?: string;
 }
 
-const Logout: React.FC<LogoutProps> = ({ onConfirm, onCancel, theme = "Dark" }) => {
+const Logout: React.FC<LogoutProps> = ({
+  onConfirm,
+  onCancel,
+  theme = "Dark",
+}) => {
   return (
     <div
       className={`flex items-center justify-center text-white relative overflow-hidden ${

@@ -5,18 +5,23 @@ import {
   deleteObject,
   listAll,
   UploadResult,
-  StorageReference
-} from 'firebase/storage';
-import { storage } from './config';
+  StorageReference,
+} from "firebase/storage";
+import { storage } from "./config";
 
 export class FirebaseStorageService {
-  private notesFolder = 'notes/';
+  private notesFolder = "notes/";
 
   // Upload a file to Firebase Storage
-  async uploadFile(userId: string, file: File, fileName?: string): Promise<{ url: string; path: string }> {
-    if (!storage) throw new Error('Firebase not configured');
+  async uploadFile(
+    userId: string,
+    file: File,
+    fileName?: string
+  ): Promise<{ url: string; path: string }> {
+    if (!storage) throw new Error("Firebase not configured");
     const timestamp = Date.now();
-    const safeFileName = fileName || `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+    const safeFileName =
+      fileName || `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
     const filePath = `${this.notesFolder}${userId}/${safeFileName}`;
 
     const storageRef = ref(storage, filePath);
@@ -32,21 +37,21 @@ export class FirebaseStorageService {
 
   // Download a file from Firebase Storage
   async downloadFile(filePath: string): Promise<string> {
-    if (!storage) throw new Error('Firebase not configured');
+    if (!storage) throw new Error("Firebase not configured");
     const storageRef = ref(storage, filePath);
     return await getDownloadURL(storageRef);
   }
 
   // Delete a file from Firebase Storage
   async deleteFile(filePath: string): Promise<void> {
-    if (!storage) throw new Error('Firebase not configured');
+    if (!storage) throw new Error("Firebase not configured");
     const storageRef = ref(storage, filePath);
     await deleteObject(storageRef);
   }
 
   // List all files for a user
   async listUserFiles(userId: string): Promise<StorageReference[]> {
-    if (!storage) throw new Error('Firebase not configured');
+    if (!storage) throw new Error("Firebase not configured");
     const userFolderRef = ref(storage, `${this.notesFolder}${userId}/`);
     const result = await listAll(userFolderRef);
     return result.items;
@@ -57,23 +62,23 @@ export class FirebaseStorageService {
     userId: string,
     noteTitle: string,
     noteContent: string,
-    format: 'txt' | 'md' = 'md'
+    format: "txt" | "md" = "md"
   ): Promise<{ url: string; path: string }> {
-    if (!storage) throw new Error('Firebase not configured');
+    if (!storage) throw new Error("Firebase not configured");
     const timestamp = Date.now();
-    const safeTitle = noteTitle.replace(/[^a-zA-Z0-9]/g, '_');
+    const safeTitle = noteTitle.replace(/[^a-zA-Z0-9]/g, "_");
     const fileName = `${safeTitle}_${timestamp}.${format}`;
 
     // Create blob from content
-    const blob = new Blob([noteContent], { type: 'text/plain' });
-    const file = new File([blob], fileName, { type: 'text/plain' });
+    const blob = new Blob([noteContent], { type: "text/plain" });
+    const file = new File([blob], fileName, { type: "text/plain" });
 
     return await this.uploadFile(userId, file, fileName);
   }
 
   // Get file metadata (size, type, etc.)
   async getFileMetadata(filePath: string): Promise<any> {
-    if (!storage) throw new Error('Firebase not configured');
+    if (!storage) throw new Error("Firebase not configured");
     // Note: Firebase Storage doesn't provide direct metadata access in web SDK
     // You might need to store metadata in Firestore alongside file references
     return {
@@ -83,8 +88,11 @@ export class FirebaseStorageService {
   }
 
   // Generate signed URL for temporary access (if needed)
-  async generateSignedUrl(filePath: string, expirationTime: number = 3600): Promise<string> {
-    if (!storage) throw new Error('Firebase not configured');
+  async generateSignedUrl(
+    filePath: string,
+    expirationTime: number = 3600
+  ): Promise<string> {
+    if (!storage) throw new Error("Firebase not configured");
     // Firebase Storage web SDK doesn't support signed URLs directly
     // Use download URL with security rules instead
     return await this.downloadFile(filePath);

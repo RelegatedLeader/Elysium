@@ -36,7 +36,9 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
 
   if (!checkArweaveWallet()) {
     console.error("❌ ArConnect wallet not found");
-    throw new Error("ArConnect wallet required. Please install it and try again.");
+    throw new Error(
+      "ArConnect wallet required. Please install it and try again."
+    );
   }
 
   // Check if wallet is connected and has proper permissions
@@ -50,13 +52,13 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
     try {
       // Request permissions for mainnet Arweave
       await (window as any).arweaveWallet.connect([
-        'ACCESS_ADDRESS',
-        'ACCESS_PUBLIC_KEY',
-        'SIGN_TRANSACTION',
-        'ACCESS_ARWEAVE_CONFIG'
+        "ACCESS_ADDRESS",
+        "ACCESS_PUBLIC_KEY",
+        "SIGN_TRANSACTION",
+        "ACCESS_ARWEAVE_CONFIG",
       ]);
       // Small delay to ensure connection is fully established
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       address = await (window as any).arweaveWallet.getActiveAddress();
       console.log("✅ Successfully connected to ArConnect:", address);
     } catch (connectError) {
@@ -91,7 +93,7 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
   console.log("💰 Transaction created:", {
     id: transaction.id,
     fee: arweave.ar.winstonToAr(transaction.reward) + " AR",
-    size: data.length + " bytes"
+    size: data.length + " bytes",
   });
 
   // Sign transaction with ArConnect - this should show the popup immediately
@@ -104,11 +106,16 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
   } catch (error) {
     console.error("❌ Transaction signing failed:", error);
     if (error instanceof Error) {
-      if (error.message.includes("User cancelled") || error.message.includes("cancelled")) {
+      if (
+        error.message.includes("User cancelled") ||
+        error.message.includes("cancelled")
+      ) {
         throw new Error("Transaction cancelled by user.");
       }
     }
-    throw new Error("Transaction signing failed. Please try again and approve the transaction in ArConnect.");
+    throw new Error(
+      "Transaction signing failed. Please try again and approve the transaction in ArConnect."
+    );
   }
 
   // Post transaction
@@ -116,24 +123,35 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
     const response = await arweave.transactions.post(transaction);
     if (response.status === 200) {
       console.log("Arweave upload successful, transaction ID:", transaction.id);
-      console.log("Data will be available at:", `https://arweave.net/${transaction.id}`);
+      console.log(
+        "Data will be available at:",
+        `https://arweave.net/${transaction.id}`
+      );
       return transaction.id;
     } else {
-      throw new Error(`Upload failed with status ${response.status}: ${response.statusText}`);
+      throw new Error(
+        `Upload failed with status ${response.status}: ${response.statusText}`
+      );
     }
   } catch (error) {
     console.error("Failed to post transaction:", error);
-    throw new Error("Failed to upload to Arweave. Please check your connection and try again.");
+    throw new Error(
+      "Failed to upload to Arweave. Please check your connection and try again."
+    );
   }
 };
 
 // Check if ArConnect wallet is available
 export const checkArweaveWallet = (): boolean => {
-  return typeof window !== 'undefined' && (window as any).arweaveWallet;
+  return typeof window !== "undefined" && (window as any).arweaveWallet;
 };
 
 // Guide user to install ArConnect
-export const getArConnectInstallGuide = (): { title: string; message: string; actionUrl?: string } => {
+export const getArConnectInstallGuide = (): {
+  title: string;
+  message: string;
+  actionUrl?: string;
+} => {
   return {
     title: "ArConnect Wallet Required",
     message: `To permanently store your notes on Arweave, you need the ArConnect browser extension:
@@ -156,42 +174,54 @@ export const getArConnectInstallGuide = (): { title: string; message: string; ac
 • Very cheap (~$0.001 per note)
 
 After installing ArConnect and getting AR tokens, try publishing again!`,
-    actionUrl: 'https://arconnect.io'
+    actionUrl: "https://arconnect.io",
   };
 };
 
 // Connect to Arweave wallet
 export const connectArweaveWallet = async (): Promise<string> => {
   if (!checkArweaveWallet()) {
-    throw new Error("ArConnect wallet not found. Please install ArConnect browser extension.");
+    throw new Error(
+      "ArConnect wallet not found. Please install ArConnect browser extension."
+    );
   }
 
   try {
-    await (window as any).arweaveWallet.connect(['ACCESS_ADDRESS', 'SIGN_TRANSACTION']);
+    await (window as any).arweaveWallet.connect([
+      "ACCESS_ADDRESS",
+      "SIGN_TRANSACTION",
+    ]);
     const address = await (window as any).arweaveWallet.getActiveAddress();
     console.log("Connected to Arweave wallet:", address);
     return address;
   } catch (error) {
     console.error("Failed to connect Arweave wallet:", error);
-    throw new Error("Failed to connect to Arweave wallet. Please make sure ArConnect is unlocked.");
+    throw new Error(
+      "Failed to connect to Arweave wallet. Please make sure ArConnect is unlocked."
+    );
   }
 };
 
 // Get AR balance with retry and timeout handling
-export const getArweaveBalance = async (address: string, retries = 2): Promise<number> => {
+export const getArweaveBalance = async (
+  address: string,
+  retries = 2
+): Promise<number> => {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      console.log(`Checking AR balance (attempt ${attempt + 1}/${retries + 1})...`);
+      console.log(
+        `Checking AR balance (attempt ${attempt + 1}/${retries + 1})...`
+      );
 
       // Create a timeout promise
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Balance check timeout')), 10000); // 10 second timeout
+        setTimeout(() => reject(new Error("Balance check timeout")), 10000); // 10 second timeout
       });
 
       // Race between the balance check and timeout
       const balance = await Promise.race([
         arweave.wallets.getBalance(address),
-        timeoutPromise
+        timeoutPromise,
       ]);
 
       const arBalance = arweave.ar.winstonToAr(balance as string);
@@ -203,12 +233,16 @@ export const getArweaveBalance = async (address: string, retries = 2): Promise<n
 
       if (attempt === retries) {
         // If this was the last attempt, return 0 but don't throw
-        console.warn("All balance check attempts failed, assuming insufficient balance for safety");
+        console.warn(
+          "All balance check attempts failed, assuming insufficient balance for safety"
+        );
         return 0;
       }
 
       // Wait before retrying (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.pow(2, attempt) * 1000)
+      );
     }
   }
 
@@ -230,6 +264,6 @@ GET AR TOKENS NOW:
 💰 Current AR Price: ~$20-30 USD
 📊 Storage Cost: ~$0.001 per note (very cheap!)
 
-After getting AR tokens, return here and try publishing again.`
+After getting AR tokens, return here and try publishing again.`,
   };
 };

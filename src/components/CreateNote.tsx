@@ -16,7 +16,15 @@ interface CreateNoteProps {
   aiPersonality?: string;
 }
 
-const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme = "Dark", defaultTemplate = "Blank", aiResponseStyle = "Balanced", aiPersonality = "Professional" }) => {
+const CreateNote: React.FC<CreateNoteProps> = ({
+  onSave,
+  onCancel,
+  mode,
+  theme = "Dark",
+  defaultTemplate = "Blank",
+  aiResponseStyle = "Balanced",
+  aiPersonality = "Professional",
+}) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [template, setTemplate] = useState(defaultTemplate);
@@ -25,8 +33,12 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatInput, setChatInput] = useState("");
-  const [messageHistory, setMessageHistory] = useState<Array<{type: 'user' | 'ai', content: string}>>([]);
-  const [completionTimestamps, setCompletionTimestamps] = useState<{[key: number]: string}>({});
+  const [messageHistory, setMessageHistory] = useState<
+    Array<{ type: "user" | "ai"; content: string }>
+  >([]);
+  const [completionTimestamps, setCompletionTimestamps] = useState<{
+    [key: number]: string;
+  }>({});
 
   // Refs for auto-scrolling
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -34,7 +46,7 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messageHistory]);
 
@@ -54,8 +66,9 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
   };
 
   const getTextareaClass = () => {
-    const baseClass = "w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 resize-none hover:shadow-[inset_0_0_10px_rgba(79,70,229,0.2)]";
-    
+    const baseClass =
+      "w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 resize-none hover:shadow-[inset_0_0_10px_rgba(79,70,229,0.2)]";
+
     if (template === "Canvas") {
       return baseClass + " font-mono text-sm";
     }
@@ -122,7 +135,7 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
       const handleToggleCheck = () => {
         if (!isChecked) {
           const newTimestamp = new Date().toISOString();
-          setCompletionTimestamps(prev => ({
+          setCompletionTimestamps((prev) => ({
             ...prev,
             [index]: newTimestamp,
           }));
@@ -131,7 +144,15 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
             .split("\n")
             .map((l, i) =>
               i === index
-                ? `${trimmed.startsWith("*") ? "*" : trimmed.startsWith("-") ? "-" : trimmed.startsWith(".") ? "." : "*"} [x] ${itemText} (Done at ${newTimestamp})`
+                ? `${
+                    trimmed.startsWith("*")
+                      ? "*"
+                      : trimmed.startsWith("-")
+                      ? "-"
+                      : trimmed.startsWith(".")
+                      ? "."
+                      : "*"
+                  } [x] ${itemText} (Done at ${newTimestamp})`
                 : l
             )
             .join("\n");
@@ -149,7 +170,7 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
           if (!confirmChange) return;
 
           const newTimestamp = new Date().toISOString();
-          setCompletionTimestamps(prev => ({
+          setCompletionTimestamps((prev) => ({
             ...prev,
             [index]: newTimestamp,
           }));
@@ -158,7 +179,18 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
             .split("\n")
             .map((l, i) =>
               i === index
-                ? `${trimmed.startsWith("*") ? "*" : trimmed.startsWith("-") ? "-" : trimmed.startsWith(".") ? "." : "*"} [x] ${itemText.replace(/\s*\(Done at .*\)/, "")} (Done at ${newTimestamp})`
+                ? `${
+                    trimmed.startsWith("*")
+                      ? "*"
+                      : trimmed.startsWith("-")
+                      ? "-"
+                      : trimmed.startsWith(".")
+                      ? "."
+                      : "*"
+                  } [x] ${itemText.replace(
+                    /\s*\(Done at .*\)/,
+                    ""
+                  )} (Done at ${newTimestamp})`
                 : l
             )
             .join("\n");
@@ -231,8 +263,11 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
     }, 30000); // 30 second timeout
 
     try {
-      console.log('Sending request to Mistral AI for', type);
-      console.log('API Key available:', !!process.env.REACT_APP_MISTRAL_API_KEY);
+      console.log("Sending request to Mistral AI for", type);
+      console.log(
+        "API Key available:",
+        !!process.env.REACT_APP_MISTRAL_API_KEY
+      );
 
       // Adjust parameters based on AI response style
       const getAIParameters = () => {
@@ -252,43 +287,53 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
 
       const { max_tokens, temperature } = getAIParameters();
 
-      const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.REACT_APP_MISTRAL_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'mistral-small',
-          messages: [{
-            role: 'user',
-            content: getPromptForType(type, context, aiPersonality)
-          }],
-          max_tokens: max_tokens,
-          temperature: temperature,
-        }),
-      });
+      const response = await fetch(
+        "https://api.mistral.ai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.REACT_APP_MISTRAL_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "mistral-small",
+            messages: [
+              {
+                role: "user",
+                content: getPromptForType(type, context, aiPersonality),
+              },
+            ],
+            max_tokens: max_tokens,
+            temperature: temperature,
+          }),
+        }
+      );
 
       clearTimeout(timeoutId); // Clear timeout on successful response
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('OpenRouter API Error:', response.status, errorText);
-        throw new Error(`API request failed: ${response.status} - ${errorText}`);
+        console.error("OpenRouter API Error:", response.status, errorText);
+        throw new Error(
+          `API request failed: ${response.status} - ${errorText}`
+        );
       }
 
       const data = await response.json();
-      console.log('Received response from Mistral AI:', data);
+      console.log("Received response from Mistral AI:", data);
 
       const suggestion = data.choices?.[0]?.message?.content;
-      console.log('Extracted suggestion:', suggestion);
+      console.log("Extracted suggestion:", suggestion);
 
       if (!suggestion) {
-        throw new Error('No response content received from API');
+        throw new Error("No response content received from API");
       }
 
       // Add the AI suggestion to message history so it appears in chat
-      setMessageHistory(prev => [...prev, { type: 'ai', content: suggestion }]);
+      setMessageHistory((prev) => [
+        ...prev,
+        { type: "ai", content: suggestion },
+      ]);
       setAiSuggestions([suggestion]);
     } catch (error) {
       console.error("Mistral AI API error:", error);
@@ -298,15 +343,20 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
       let errorMessage = "❌ Sorry, couldn't generate suggestions right now.";
 
       if (error instanceof Error) {
-        if (error.message.includes('429')) {
-          errorMessage = "⏳ AI is busy right now. Please try again in a moment.";
-        } else if (error.message.includes('401')) {
+        if (error.message.includes("429")) {
+          errorMessage =
+            "⏳ AI is busy right now. Please try again in a moment.";
+        } else if (error.message.includes("401")) {
           errorMessage = "🔑 API key issue. Please check your Mistral API key.";
-        } else if (error.message.includes('403')) {
-          errorMessage = "🚫 Access denied. Please verify your API permissions.";
-        } else if (error.message.includes('402')) {
+        } else if (error.message.includes("403")) {
+          errorMessage =
+            "🚫 Access denied. Please verify your API permissions.";
+        } else if (error.message.includes("402")) {
           errorMessage = "💰 Free credits exhausted. Please try again later.";
-        } else if (error.message.includes('timeout') || error.message.includes('timed out')) {
+        } else if (
+          error.message.includes("timeout") ||
+          error.message.includes("timed out")
+        ) {
           errorMessage = "⏰ Request timed out. Please try again.";
         }
       }
@@ -318,7 +368,11 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
     }
   };
 
-  const getPromptForType = (type: string, context: string, personality?: string) => {
+  const getPromptForType = (
+    type: string,
+    context: string,
+    personality?: string
+  ) => {
     // Get personality-specific instructions
     const getPersonalityInstructions = () => {
       switch (personality) {
@@ -337,25 +391,33 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
       }
     };
 
-    const personalityInstruction = personality ? `\n\n${getPersonalityInstructions()}` : '';
+    const personalityInstruction = personality
+      ? `\n\n${getPersonalityInstructions()}`
+      : "";
 
     const prompts = {
       summarize: `Please provide a clear and concise summary of this note in 2-3 sentences:\n\n${context}${personalityInstruction}`,
       list: `Extract the main points and create a numbered list from this note:\n\n${context}${personalityInstruction}`,
       todo: `Convert this note into a checklist of actionable tasks. Use * for each checkbox item:\n\n${context}${personalityInstruction}`,
-      improve: `Please improve and enhance this note by making it clearer, more organized, and more professional:\n\n${context}${personalityInstruction}`
+      improve: `Please improve and enhance this note by making it clearer, more organized, and more professional:\n\n${context}${personalityInstruction}`,
     };
-    return prompts[type as keyof typeof prompts] || `Please help me with this note: ${context}${personalityInstruction}`;
+    return (
+      prompts[type as keyof typeof prompts] ||
+      `Please help me with this note: ${context}${personalityInstruction}`
+    );
   };
 
   const handleChatSubmit = async () => {
     if (!chatInput.trim() || isGenerating) return;
 
     const userMessage = chatInput.trim();
-    setChatInput('');
+    setChatInput("");
 
     // Add user message to history
-    setMessageHistory(prev => [...prev, { type: 'user', content: userMessage }]);
+    setMessageHistory((prev) => [
+      ...prev,
+      { type: "user", content: userMessage },
+    ]);
 
     setIsGenerating(true);
 
@@ -366,13 +428,20 @@ const CreateNote: React.FC<CreateNoteProps> = ({ onSave, onCancel, mode, theme =
     }, 30000); // 30 second timeout
 
     try {
-      console.log('Starting chat request to Mistral AI');
-      console.log('API Key available:', !!process.env.REACT_APP_MISTRAL_API_KEY);
-      console.log('User message:', userMessage);
+      console.log("Starting chat request to Mistral AI");
+      console.log(
+        "API Key available:",
+        !!process.env.REACT_APP_MISTRAL_API_KEY
+      );
+      console.log("User message:", userMessage);
 
-      const conversationContext = messageHistory.slice(-4).map(msg =>
-        `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
-      ).join('\n\n');
+      const conversationContext = messageHistory
+        .slice(-4)
+        .map(
+          (msg) =>
+            `${msg.type === "user" ? "User" : "Assistant"}: ${msg.content}`
+        )
+        .join("\n\n");
 
       // Adjust parameters based on AI response style
       const getChatParameters = () => {
@@ -422,45 +491,55 @@ User's new question: ${userMessage}
 
 Please provide a helpful response. Be conversational and focus on helping with their note-taking needs.`;
 
-      console.log('Sending chat request to Mistral AI...');
+      console.log("Sending chat request to Mistral AI...");
 
-      const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.REACT_APP_MISTRAL_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'mistral-small',
-          messages: [{
-            role: 'user',
-            content: fullPrompt
-          }],
-          max_tokens: max_tokens,
-          temperature: temperature,
-        }),
-      });
+      const response = await fetch(
+        "https://api.mistral.ai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.REACT_APP_MISTRAL_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "mistral-small",
+            messages: [
+              {
+                role: "user",
+                content: fullPrompt,
+              },
+            ],
+            max_tokens: max_tokens,
+            temperature: temperature,
+          }),
+        }
+      );
 
       clearTimeout(timeoutId); // Clear timeout on successful response
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Mistral AI Chat API Error:', response.status, errorText);
-        throw new Error(`API request failed: ${response.status} - ${errorText}`);
+        console.error("Mistral AI Chat API Error:", response.status, errorText);
+        throw new Error(
+          `API request failed: ${response.status} - ${errorText}`
+        );
       }
 
       const data = await response.json();
-      console.log('Received response from Mistral AI:', data);
+      console.log("Received response from Mistral AI:", data);
 
       const aiResponse = data.choices?.[0]?.message?.content;
-      console.log('Extracted AI response:', aiResponse);
+      console.log("Extracted AI response:", aiResponse);
 
       if (!aiResponse) {
-        throw new Error('No response content received from API');
+        throw new Error("No response content received from API");
       }
 
       // Add AI response to history
-      setMessageHistory(prev => [...prev, { type: 'ai', content: aiResponse }]);
+      setMessageHistory((prev) => [
+        ...prev,
+        { type: "ai", content: aiResponse },
+      ]);
 
       // Update suggestions to show the latest response
       setAiSuggestions([aiResponse]);
@@ -472,15 +551,21 @@ Please provide a helpful response. Be conversational and focus on helping with t
       let errorMessage = "❌ Sorry, couldn't generate a response right now.";
 
       if (error instanceof Error) {
-        if (error.message.includes('429')) {
-          errorMessage = "⏳ AI is busy right now. Please try again in a moment.";
-        } else if (error.message.includes('401')) {
-          errorMessage = "🔑 API key issue. Please check your OpenRouter token.";
-        } else if (error.message.includes('403')) {
-          errorMessage = "🚫 Access denied. Please verify your API permissions.";
-        } else if (error.message.includes('402')) {
+        if (error.message.includes("429")) {
+          errorMessage =
+            "⏳ AI is busy right now. Please try again in a moment.";
+        } else if (error.message.includes("401")) {
+          errorMessage =
+            "🔑 API key issue. Please check your OpenRouter token.";
+        } else if (error.message.includes("403")) {
+          errorMessage =
+            "🚫 Access denied. Please verify your API permissions.";
+        } else if (error.message.includes("402")) {
           errorMessage = "💰 Free credits exhausted. Please try again later.";
-        } else if (error.message.includes('timeout') || error.message.includes('timed out')) {
+        } else if (
+          error.message.includes("timeout") ||
+          error.message.includes("timed out")
+        ) {
           errorMessage = "⏰ Request timed out. Please try again.";
         }
       }
@@ -517,13 +602,16 @@ Please provide a helpful response. Be conversational and focus on helping with t
   const handleSave = () => {
     if (title && content) {
       // Skip confirmation for web3 drafts since they don't cost gas
-      if (mode === "web3" || window.confirm(
-        mode === "db"
-          ? "Save this note to the database?"
-          : mode === "cloud"
-          ? "Save this note to cloud storage?"
-          : "Save this note?"
-      )) {
+      if (
+        mode === "web3" ||
+        window.confirm(
+          mode === "db"
+            ? "Save this note to the database?"
+            : mode === "cloud"
+            ? "Save this note to cloud storage?"
+            : "Save this note?"
+        )
+      ) {
         onSave({ title, content, template, files });
         setTitle("");
         setContent("");
@@ -536,11 +624,13 @@ Please provide a helpful response. Be conversational and focus on helping with t
   return (
     <div className="flex items-center justify-center">
       <div className="relative w-[32rem] max-w-full mx-4">
-        <div className={`rounded-xl p-8 backdrop-blur-lg border shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all duration-300 ease-in-out transform hover:scale-105 ${
-          theme === "Light"
-            ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 border-purple-200/50"
-            : "bg-gradient-to-br from-indigo-900/80 via-indigo-800/80 to-purple-700/80 border-indigo-500/50"
-        }`}>
+        <div
+          className={`rounded-xl p-8 backdrop-blur-lg border shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all duration-300 ease-in-out transform hover:scale-105 ${
+            theme === "Light"
+              ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 border-purple-200/50"
+              : "bg-gradient-to-br from-indigo-900/80 via-indigo-800/80 to-purple-700/80 border-indigo-500/50"
+          }`}
+        >
           <h2 className="text-2xl font-semibold text-gold-100 mb-6 text-center tracking-tight text-shadow-md">
             Create New Note
           </h2>
@@ -605,7 +695,10 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   />
                 </label>
               </div>
-              <div className="relative" style={{ height: template === "Canvas" ? "320px" : "256px" }}>
+              <div
+                className="relative"
+                style={{ height: template === "Canvas" ? "320px" : "256px" }}
+              >
                 <textarea
                   id="content"
                   placeholder={getPlaceholderText()}
@@ -613,20 +706,20 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   onChange={handleContentChange}
                   className={`${getTextareaClass()} absolute inset-0 z-10 bg-transparent text-transparent caret-white resize-none`}
                   style={{
-                    color: 'transparent',
-                    backgroundColor: 'transparent',
-                    WebkitTextFillColor: 'transparent'
+                    color: "transparent",
+                    backgroundColor: "transparent",
+                    WebkitTextFillColor: "transparent",
                   }}
                   aria-required="true"
                 />
                 {/* Live inline preview overlay */}
                 <div className="absolute inset-0 z-20 pointer-events-none p-4 text-white whitespace-pre-wrap leading-relaxed overflow-hidden">
                   {content ? (
-                    <div className="space-y-1">
-                      {renderLiveContent()}
-                    </div>
+                    <div className="space-y-1">{renderLiveContent()}</div>
                   ) : (
-                    <span className="text-gray-400">{getPlaceholderText()}</span>
+                    <span className="text-gray-400">
+                      {getPlaceholderText()}
+                    </span>
                   )}
                 </div>
               </div>
@@ -668,11 +761,11 @@ Please provide a helpful response. Be conversational and focus on helping with t
             alt="Elysium AI Elephant"
             className="w-10 h-10 rounded-full object-cover object-center"
             style={{
-              transform: 'scale(1.2)',
-              transformOrigin: 'center',
+              transform: "scale(1.2)",
+              transformOrigin: "center",
             }}
           />
-          
+
           {/* Sparkle effect */}
           <div className="absolute -top-1 -right-1 w-3 h-3 bg-gold-400 rounded-full animate-ping opacity-75"></div>
         </div>
@@ -738,13 +831,15 @@ Please provide a helpful response. Be conversational and focus on helping with t
 
               {/* Chat Input */}
               <div className="space-y-2">
-                <h4 className="text-gold-100 font-medium text-sm">💬 Ask AI:</h4>
+                <h4 className="text-gold-100 font-medium text-sm">
+                  💬 Ask AI:
+                </h4>
                 <div className="flex space-x-2">
                   <input
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()}
+                    onKeyPress={(e) => e.key === "Enter" && handleChatSubmit()}
                     placeholder="Ask anything about your note..."
                     className="flex-1 bg-indigo-950/50 border border-indigo-700/50 rounded px-2 py-1 text-silver-200 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
                     disabled={isGenerating}
@@ -770,21 +865,23 @@ Please provide a helpful response. Be conversational and focus on helping with t
               {/* Message History */}
               {messageHistory.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-gold-100 font-medium text-sm">� Conversation:</h4>
+                  <h4 className="text-gold-100 font-medium text-sm">
+                    � Conversation:
+                  </h4>
                   <div className="max-h-48 overflow-y-auto space-y-2">
                     {messageHistory.map((message, index) => (
                       <div
                         key={index}
                         className={`rounded p-2 text-xs ${
-                          message.type === 'user'
-                            ? 'bg-indigo-600/30 border-l-2 border-indigo-400'
-                            : 'bg-purple-600/30 border-l-2 border-purple-400'
+                          message.type === "user"
+                            ? "bg-indigo-600/30 border-l-2 border-indigo-400"
+                            : "bg-purple-600/30 border-l-2 border-purple-400"
                         }`}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <span className="text-gold-100 font-medium text-xs">
-                              {message.type === 'user' ? '👤 You:' : '🤖 AI:'}
+                              {message.type === "user" ? "👤 You:" : "🤖 AI:"}
                             </span>
                             <p className="text-silver-200 mt-1 whitespace-pre-wrap leading-relaxed">
                               {message.content}
@@ -800,7 +897,8 @@ Please provide a helpful response. Be conversational and focus on helping with t
                         </div>
                       </div>
                     ))}
-                    <div ref={messagesEndRef} /> {/* Invisible element for auto-scrolling */}
+                    <div ref={messagesEndRef} />{" "}
+                    {/* Invisible element for auto-scrolling */}
                   </div>
                 </div>
               )}
@@ -808,11 +906,15 @@ Please provide a helpful response. Be conversational and focus on helping with t
               {/* Latest AI Response */}
               {aiSuggestions.length > 0 && messageHistory.length === 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-gold-100 font-medium text-sm">💡 Latest Response:</h4>
+                  <h4 className="text-gold-100 font-medium text-sm">
+                    💡 Latest Response:
+                  </h4>
                   <div className="bg-purple-600/30 border border-purple-400/50 rounded p-3 text-xs">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <span className="text-gold-100 font-medium text-xs">🤖 AI:</span>
+                        <span className="text-gold-100 font-medium text-xs">
+                          🤖 AI:
+                        </span>
                         <p className="text-silver-200 mt-1 whitespace-pre-wrap leading-relaxed">
                           {aiSuggestions[0]}
                         </p>

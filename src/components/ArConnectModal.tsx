@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface ArConnectModalProps {
   isOpen: boolean;
@@ -16,7 +16,7 @@ const ArConnectModal: React.FC<ArConnectModalProps> = ({
   onClose,
   title,
   message,
-  actionButton
+  actionButton,
 }) => {
   if (!isOpen) return null;
 
@@ -33,9 +33,7 @@ const ArConnectModal: React.FC<ArConnectModalProps> = ({
           </button>
         </div>
 
-        <div className="text-gray-700 mb-6 whitespace-pre-line">
-          {message}
-        </div>
+        <div className="text-gray-700 mb-6 whitespace-pre-line">{message}</div>
 
         <div className="flex gap-3 justify-end">
           <button

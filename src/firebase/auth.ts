@@ -6,33 +6,33 @@ import {
   signOut,
   onAuthStateChanged,
   User,
-  UserCredential
-} from 'firebase/auth';
-import { auth } from './config';
+  UserCredential,
+} from "firebase/auth";
+import { auth } from "./config";
 
 export class FirebaseAuthService {
   private googleProvider = new GoogleAuthProvider();
 
   // Email/Password Authentication
   async signUp(email: string, password: string): Promise<UserCredential> {
-    if (!auth) throw new Error('Firebase not configured');
+    if (!auth) throw new Error("Firebase not configured");
     return await createUserWithEmailAndPassword(auth, email, password);
   }
 
   async signIn(email: string, password: string): Promise<UserCredential> {
-    if (!auth) throw new Error('Firebase not configured');
+    if (!auth) throw new Error("Firebase not configured");
     return await signInWithEmailAndPassword(auth, email, password);
   }
 
   // Google Authentication
   async signInWithGoogle(): Promise<UserCredential> {
-    if (!auth) throw new Error('Firebase not configured');
+    if (!auth) throw new Error("Firebase not configured");
     return await signInWithPopup(auth, this.googleProvider);
   }
 
   // Sign Out
   async signOut(): Promise<void> {
-    if (!auth) throw new Error('Firebase not configured');
+    if (!auth) throw new Error("Firebase not configured");
     return await signOut(auth);
   }
 
@@ -40,7 +40,7 @@ export class FirebaseAuthService {
   onAuthStateChange(callback: (user: User | null) => void): () => void {
     if (!auth) {
       // Return a no-op function if auth is not available
-      console.warn('Firebase auth not available, returning no-op listener');
+      console.warn("Firebase auth not available, returning no-op listener");
       return () => {};
     }
     return onAuthStateChanged(auth, callback);

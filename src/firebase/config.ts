@@ -1,8 +1,12 @@
 // Firebase configuration
-import { initializeApp } from 'firebase/app';
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { initializeApp } from "firebase/app";
+import {
+  getAuth,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth";
+import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -11,7 +15,7 @@ const firebaseConfig = {
   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
 
 // Validate Firebase configuration
@@ -20,9 +24,9 @@ const isFirebaseConfigured = () => {
     firebaseConfig.apiKey &&
     firebaseConfig.authDomain &&
     firebaseConfig.projectId &&
-    firebaseConfig.apiKey !== 'your_firebase_api_key_here' &&
-    firebaseConfig.authDomain !== 'your-project.firebaseapp.com' &&
-    firebaseConfig.projectId !== 'your-project-id'
+    firebaseConfig.apiKey !== "your_firebase_api_key_here" &&
+    firebaseConfig.authDomain !== "your-project.firebaseapp.com" &&
+    firebaseConfig.projectId !== "your-project-id"
   );
 };
 
@@ -39,22 +43,28 @@ if (isFirebaseConfigured()) {
     // Set persistence to maintain auth state across browser sessions
     setPersistence(auth, browserLocalPersistence);
     db = getFirestore(app);
-    
+
     // Enable offline persistence for Firestore
     enableIndexedDbPersistence(db).catch((err) => {
-      if (err.code === 'failed-precondition') {
-        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-      } else if (err.code === 'unimplemented') {
-        console.warn('The current browser does not support all of the features required to enable persistence');
+      if (err.code === "failed-precondition") {
+        console.warn(
+          "Multiple tabs open, persistence can only be enabled in one tab at a time."
+        );
+      } else if (err.code === "unimplemented") {
+        console.warn(
+          "The current browser does not support all of the features required to enable persistence"
+        );
       }
     });
-    
+
     storage = getStorage(app);
   } catch (error) {
-    console.warn('Firebase initialization failed:', error);
+    console.warn("Firebase initialization failed:", error);
   }
 } else {
-  console.warn('Firebase not configured. Please set up your Firebase project and update the environment variables.');
+  console.warn(
+    "Firebase not configured. Please set up your Firebase project and update the environment variables."
+  );
 }
 
 export { auth, db, storage };
