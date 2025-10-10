@@ -1897,13 +1897,13 @@ function WelcomePage({
 
   // Draft management functions for blockchain mode
   const saveDraftLocally = async (note: Note) => {
-    if (mode !== "web3" || !checkArweaveWallet()) return;
+    if (mode !== "web3" || !walletAddress) return;
 
     try {
       setIsAutoSaving(true);
 
-      // Get Arweave address
-      const arweaveAddress = await connectArweaveWallet();
+      // Use the already connected Arweave address
+      const arweaveAddress = walletAddress;
 
       // Encrypt the draft content with wallet-derived key
       const dataStr = JSON.stringify({
@@ -1956,10 +1956,10 @@ function WelcomePage({
   };
 
   const loadDraftsFromLocal = async () => {
-    if (mode !== "web3" || !checkArweaveWallet()) return;
+    if (mode !== "web3" || !walletAddress) return;
 
     try {
-      const arweaveAddress = await connectArweaveWallet();
+      const arweaveAddress = walletAddress;
       const draftsKey = `elysium_drafts_${arweaveAddress}`;
       const savedDrafts = JSON.parse(localStorage.getItem(draftsKey) || "[]");
 
@@ -2411,6 +2411,7 @@ function WelcomePage({
       }
     } catch (error) {
       console.error("Failed to connect Arweave wallet:", error);
+      alert(`Failed to connect Arweave wallet: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -2455,6 +2456,7 @@ function WelcomePage({
       setWalletAddress("");
       setActivePage("recent");
       setNotes([]);
+      setDrafts([]);
     }
     setShowPopup(false);
   };
@@ -3586,16 +3588,22 @@ function WelcomePage({
           >
             Store Your Notes Permanently on Arweave
           </animated.p>
-          <animated.div style={buttonSpring}>
+          <animated.div style={buttonSpring} className="flex flex-col items-center space-y-4">
             <button
               onClick={handleSelectWallet}
-              className="bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white font-bold py-3 px-6 sm:px-8 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg"
+              className="relative bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-700 hover:from-purple-700 hover:via-blue-700 hover:to-indigo-800 text-white font-bold py-4 px-8 sm:px-10 rounded-full shadow-2xl transition-all duration-300 text-lg sm:text-xl transform hover:scale-105 hover:shadow-purple-500/25 border-2 border-purple-400/50"
             >
-              Access Via Arweave
+              <div className="flex items-center space-x-3">
+                <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">🔗</span>
+                </div>
+                <span>Access Via Arweave</span>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-blue-400/20 rounded-full animate-pulse"></div>
             </button>
             <button
               onClick={handleExitToMainMenu}
-              className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-3 px-6 sm:px-8 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg"
+              className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold py-3 px-6 sm:px-8 rounded-full shadow-lg transition-all duration-300 text-base sm:text-lg opacity-75 hover:opacity-100"
             >
               Exit to Main Menu
             </button>

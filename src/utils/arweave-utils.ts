@@ -187,12 +187,15 @@ export const connectArweaveWallet = async (): Promise<string> => {
   }
 
   try {
+    // Connect to wallet with required permissions
     await (window as any).arweaveWallet.connect([
       "ACCESS_ADDRESS",
       "SIGN_TRANSACTION",
     ]);
+    
     const address = await (window as any).arweaveWallet.getActiveAddress();
     console.log("Connected to Arweave wallet:", address);
+
     return address;
   } catch (error) {
     console.error("Failed to connect Arweave wallet:", error);
