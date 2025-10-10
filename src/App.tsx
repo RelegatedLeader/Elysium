@@ -2173,8 +2173,7 @@ function WelcomePage({
     if (mode !== "web3" || !checkArweaveWallet()) return;
 
     try {
-      const arweaveAddress = await connectArweaveWallet();
-      const draftsKey = `elysium_drafts_${arweaveAddress}`;
+      const draftsKey = walletAddress ? `elysium_drafts_${walletAddress}` : 'elysium_drafts_local';
       const existingDrafts = JSON.parse(
         localStorage.getItem(draftsKey) || "[]"
       );
@@ -4090,8 +4089,8 @@ function WelcomePage({
                                   style={noteSpring}
                                   className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
                                     settings.theme === "Light"
-                                      ? "bg-gradient-to-br from-amber-50/90 via-yellow-50/90 to-orange-50/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] border-amber-200/50"
-                                      : "bg-gradient-to-br from-amber-800/90 to-orange-700/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.3)] border-amber-600/30"
+                                      ? "bg-gradient-to-br from-gray-50/90 via-gray-100/90 to-gray-200/90 hover:shadow-[0_0_15px_rgba(107,114,128,0.2)] border-gray-300/50"
+                                      : "bg-gradient-to-br from-gray-800/90 to-gray-900/90 hover:shadow-[0_0_15px_rgba(107,114,128,0.3)] border-gray-600/30"
                                   }`}
                                   onClick={() => setViewingNote(note)}
                                 >
@@ -4099,20 +4098,20 @@ function WelcomePage({
                                     <h3
                                       className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${
                                         settings.theme === "Light"
-                                          ? "text-amber-800"
-                                          : "text-amber-100"
+                                          ? "text-gray-800"
+                                          : "text-gray-100"
                                       }`}
                                     >
                                       {note.title}
-                                      <span className="text-xs text-amber-400 ml-1">
-                                        🌟
+                                      <span className="text-xs text-gray-400 ml-1">
+                                        ⛓️
                                       </span>
                                     </h3>
                                     <div
                                       className={`text-sm mb-2 line-clamp-3 leading-relaxed ${
                                         settings.theme === "Light"
-                                          ? "text-amber-700"
-                                          : "text-amber-200"
+                                          ? "text-gray-700"
+                                          : "text-gray-200"
                                       }`}
                                     >
                                       {note.content
@@ -4123,15 +4122,15 @@ function WelcomePage({
                                     <div
                                       className={`flex items-center justify-between text-xs ${
                                         settings.theme === "Light"
-                                          ? "text-amber-600"
-                                          : "text-amber-400"
+                                          ? "text-gray-600"
+                                          : "text-gray-400"
                                       }`}
                                     >
                                       <span
                                         className={`px-2 py-1 rounded-full ${
                                           settings.theme === "Light"
-                                            ? "bg-amber-100 text-amber-800"
-                                            : "bg-amber-900/50 text-amber-300"
+                                            ? "bg-gray-100 text-gray-800"
+                                            : "bg-gray-900/50 text-gray-300"
                                         }`}
                                       >
                                         {note.template}
@@ -4139,8 +4138,8 @@ function WelcomePage({
                                       <span
                                         className={
                                           settings.theme === "Light"
-                                            ? "text-amber-500"
-                                            : "text-amber-500"
+                                            ? "text-gray-500"
+                                            : "text-gray-500"
                                         }
                                       >
                                         Click to view
@@ -4492,7 +4491,7 @@ function WelcomePage({
                                     {note.title}
                                     {note.isPermanent && (
                                       <span className="text-xs text-amber-400 ml-1">
-                                        ??
+                                        ⛓️
                                       </span>
                                     )}
                                     {note.isCloudOnly && (
@@ -4952,7 +4951,7 @@ function WelcomePage({
                                 {note.title}
                                 {note.isPermanent && (
                                   <span className="text-xs text-amber-400 ml-1">
-                                    ??
+                                    ⛓️
                                   </span>
                                 )}
                               </h3>
@@ -5174,7 +5173,7 @@ function WelcomePage({
                           }}
                           className="text-gray-400 hover:text-white transition-colors"
                         >
-                          ?
+                          ×
                         </button>
                       </div>
 
@@ -5400,7 +5399,7 @@ function WelcomePage({
                               </span>
                               {viewingNote.isPermanent && (
                                 <span className="bg-amber-900/50 px-3 py-1 rounded-full text-amber-300">
-                                  ?? Blockchain Stored
+                                  ⛓️ Blockchain Stored
                                 </span>
                               )}
                             </div>
@@ -5425,7 +5424,7 @@ function WelcomePage({
                               }}
                               className="text-gray-400 hover:text-white transition-colors text-xl p-2"
                             >
-                              ?
+                              ×
                             </button>
                           </div>
                         </div>
