@@ -1962,47 +1962,65 @@ function WelcomePage({
 
   // Draft management functions for blockchain mode
   const saveDraftLocally = async (note: Note) => {
-    if (mode !== "web3" || !walletAddress || !walletPublicKey) return;
+    if (mode !== "web3") return;
+
+    // Allow saving drafts even without wallet connection
+    const draftKey = walletAddress ? `elysium_drafts_${walletAddress}` : 'elysium_drafts_local';
 
     try {
       setIsAutoSaving(true);
 
-      // Encrypt the draft content with wallet public key
-      const dataStr = JSON.stringify({
-        title: note.title,
-        content: note.content,
-        template: note.template,
-        completionTimestamps: note.completionTimestamps || {},
-      });
+      // Prepare the draft for saving
+      let draftToSave = note;
+      
+      // Encrypt the draft content using address-derived key
+      if (walletAddress) {
+        const dataStr = JSON.stringify({
+          title: note.title,
+          content: note.content,
+          template: note.template,
+          completionTimestamps: note.completionTimestamps || {},
+        });
 
-      const { encrypted, nonce } = encryptAndCompress(
-        dataStr,
-        walletPublicKey
-      );
+        const encoder = new TextEncoder();
+        const addressBytes = encoder.encode(walletAddress);
+        const keyMaterial = nacl.hash(addressBytes).slice(0, 32);
 
-      const encryptedDraft = {
-        ...note,
-        encryptedContent: encrypted,
-        nonce: nonce,
-        isDraft: true,
-        updatedAt: new Date().toISOString(),
-      };
+        const { encrypted, nonce } = encryptAndCompress(
+          dataStr,
+          keyMaterial
+        );
 
-      // Save to localStorage with wallet-specific key
-      const draftsKey = `elysium_drafts_${walletAddress}`;
+        draftToSave = {
+          ...note,
+          encryptedContent: encrypted,
+          nonce: nonce,
+          isDraft: true,
+          updatedAt: new Date().toISOString(),
+        };
+      } else {
+        // Save unencrypted if no wallet
+        draftToSave = {
+          ...note,
+          isDraft: true,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      // Save to localStorage
       const existingDrafts = JSON.parse(
-        localStorage.getItem(draftsKey) || "[]"
+        localStorage.getItem(draftKey) || "[]"
       );
 
       // Update or add the draft
       const draftIndex = existingDrafts.findIndex((d: any) => d.id === note.id);
       if (draftIndex >= 0) {
-        existingDrafts[draftIndex] = encryptedDraft;
+        existingDrafts[draftIndex] = draftToSave;
       } else {
-        existingDrafts.push(encryptedDraft);
+        existingDrafts.push(draftToSave);
       }
 
-      localStorage.setItem(draftsKey, JSON.stringify(existingDrafts));
+      localStorage.setItem(draftKey, JSON.stringify(existingDrafts));
       
       // Update the drafts state with the decrypted version for immediate UI update
       const decryptedDraft = {
@@ -2028,37 +2046,83 @@ function WelcomePage({
   };
 
   const loadDraftsFromLocal = async () => {
-    if (mode !== "web3" || !walletAddress || !walletPublicKey) return;
+    if (mode !== "web3") return;
 
     try {
-      const arweaveAddress = walletAddress;
-      const draftsKey = `elysium_drafts_${arweaveAddress}`;
-      const savedDrafts = JSON.parse(localStorage.getItem(draftsKey) || "[]");
+      let allSavedDrafts: any[] = [];
+
+      // Load from local key (drafts saved without wallet)
+      const localDrafts = JSON.parse(localStorage.getItem('elysium_drafts_local') || "[]");
+      allSavedDrafts = [...allSavedDrafts, ...localDrafts];
+
+      // Load from wallet-specific key if connected (drafts saved with wallet)
+      if (walletAddress) {
+        const walletDrafts = JSON.parse(localStorage.getItem(`elysium_drafts_${walletAddress}`) || "[]");
+        allSavedDrafts = [...allSavedDrafts, ...walletDrafts];
+      }
+
+      // Remove duplicates based on id
+      const uniqueDrafts = allSavedDrafts.filter((draft, index, self) => 
+        index === self.findIndex(d => d.id === draft.id)
+      );
 
       // Decrypt drafts for display
       const decryptedDrafts = await Promise.all(
-        savedDrafts.map(async (draft: any) => {
+        uniqueDrafts.map(async (draft: any) => {
           try {
+            // If draft has encrypted content, try to decrypt using address-derived key
             if (draft.encryptedContent && draft.nonce) {
-              const decryptedData = decryptNote(
-                new Uint8Array(Object.values(draft.encryptedContent)),
-                walletPublicKey,
-                new Uint8Array(Object.values(draft.nonce))
-              );
+              console.log("Attempting to decrypt draft:", draft.id);
+              try {
+                const encoder = new TextEncoder();
+                const addressBytes = encoder.encode(walletAddress);
+                const keyMaterial = nacl.hash(addressBytes).slice(0, 32);
+                
+                const decryptedData = decryptNote(
+                  new Uint8Array(Object.values(draft.encryptedContent)),
+                  keyMaterial,
+                  new Uint8Array(Object.values(draft.nonce))
+                );
 
-              const parsed = JSON.parse(decryptedData);
+                const parsed = JSON.parse(decryptedData);
+                return {
+                  ...draft,
+                  title: parsed.title,
+                  content: parsed.content,
+                  template: parsed.template,
+                  completionTimestamps: parsed.completionTimestamps,
+                  isDraft: true,
+                };
+              } catch (decryptError) {
+                console.error("Decryption failed for draft:", draft.id, decryptError);
+                // If decryption fails, try to use it as plain text if it has title/content
+                if (draft.title && draft.content) {
+                  console.log("Using encrypted draft as plain text:", draft.id);
+                  return {
+                    ...draft,
+                    isDraft: true,
+                  };
+                }
+                return null;
+              }
+            } else {
+              // Draft is not encrypted, use as-is
+              console.log("Using draft as-is:", draft.id);
               return {
                 ...draft,
-                title: parsed.title,
-                content: parsed.content,
-                template: parsed.template,
-                completionTimestamps: parsed.completionTimestamps,
                 isDraft: true,
               };
             }
-            return draft;
           } catch (error) {
-            console.error("Error decrypting draft:", error);
+            console.error("Error decrypting draft:", draft.id, error);
+            // If decryption fails, try to use the draft as-is (might be unencrypted)
+            if (draft.title && draft.content) {
+              console.log("Using failed draft as plain text:", draft.id);
+              return {
+                ...draft,
+                isDraft: true,
+              };
+            }
             return null;
           }
         })
@@ -2485,6 +2549,7 @@ function WelcomePage({
         try {
           console.log("Attempting to reconnect Arweave wallet...");
           const { address, publicKey } = await connectArweaveWallet();
+          console.log("Reconnected wallet publicKey type:", typeof publicKey, "length:", publicKey?.length);
           setWalletAddress(address);
           setWalletPublicKey(publicKey);
           console.log("Successfully reconnected Arweave wallet:", address);
@@ -2502,9 +2567,11 @@ function WelcomePage({
 
   // Load drafts and published notes when switching to blockchain mode or wallet connects
   useEffect(() => {
-    if (mode === "web3" && walletAddress) {
+    if (mode === "web3") {
       loadDraftsFromLocal();
-      loadPublishedNotesFromLocal();
+      if (walletAddress) {
+        loadPublishedNotesFromLocal();
+      }
     } else {
       setDrafts([]);
       setPublishedNotes([]);
@@ -2774,7 +2841,7 @@ function WelcomePage({
   }) => {
     if (note.title && note.content) {
       let newNote: Note;
-      if (mode === "web3" && checkArweaveWallet()) {
+      if (mode === "web3") {
         // Create draft instead of immediately saving to blockchain
         newNote = {
           id: Date.now().toString(),
@@ -2788,14 +2855,15 @@ function WelcomePage({
           isDraft: true,
         };
 
-        // Save as draft locally
+        // Save as draft locally (works with or without wallet)
         await saveDraftLocally(newNote);
 
         // Set as current draft for auto-saving
         setCurrentDraft(newNote);
 
-        // Close the create modal
+        // Close the create modal and go to recent page
         setShowCreateModal(false);
+        setActivePage("recent");
 
         console.log("Note saved as draft:", newNote.id);
       } else if (mode === "db") {
@@ -2944,9 +3012,9 @@ function WelcomePage({
       throw new Error("Arweave wallet not connected");
     }
     try {
-      // Use the stored wallet public key for encryption
-      if (!walletPublicKey) {
-        throw new Error("Wallet public key not available");
+      // Use address-derived key for encryption
+      if (!walletAddress) {
+        throw new Error("Wallet address not available");
       }
 
       const dataStr = JSON.stringify({
@@ -2956,10 +3024,14 @@ function WelcomePage({
         completionTimestamps: note.completionTimestamps,
       });
 
-      // Use wallet public key for encryption
+      // Use address as key material for encryption
+      const encoder = new TextEncoder();
+      const addressBytes = encoder.encode(walletAddress);
+      const keyMaterial = nacl.hash(addressBytes).slice(0, 32);
+
       const { encrypted, nonce } = encryptAndCompress(
         dataStr,
-        walletPublicKey
+        keyMaterial
       );
       console.log(
         "Encryption complete - nonce length:",
@@ -4382,7 +4454,12 @@ function WelcomePage({
                       displayNotes = [...displayNotes, ...cloudNotesToShow];
                     }
 
-                    return displayNotes.length > 0 ? (
+                    // In web3 mode, don't show "No notes yet" if there are drafts or published notes
+                    const hasWeb3Content = mode === "web3" && 
+                      (drafts.length > 0 || publishedNotes.length > 0 || 
+                       notes.filter((note) => note.isPermanent).length > 0);
+
+                    return displayNotes.length > 0 || hasWeb3Content ? (
                       <>
                         {mode === "db" && isLoadingNotes && (
                           <div className="mb-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
@@ -5351,17 +5428,19 @@ function WelcomePage({
                             </div>
                           </div>
                           <div className="flex space-x-2 ml-4">
-                            <button
-                              onClick={() => {
-                                setEditingNote(viewingNote);
-                                setEditTitle(viewingNote.title);
-                                setEditContent(viewingNote.content);
-                                setEditTemplate(viewingNote.template);
-                              }}
-                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
-                            >
-                              Edit
-                            </button>
+                            {!viewingNote.isPermanent && (
+                              <button
+                                onClick={() => {
+                                  setEditingNote(viewingNote);
+                                  setEditTitle(viewingNote.title);
+                                  setEditContent(viewingNote.content);
+                                  setEditTemplate(viewingNote.template);
+                                }}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
+                              >
+                                Edit
+                              </button>
+                            )}
                             <button
                               onClick={() => {
                                 setViewingNote(null);
