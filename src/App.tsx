@@ -7,6 +7,7 @@ import Settings from "./components/Settings";
 import Logout from "./components/Logout";
 import CloudAuth from "./components/CloudAuth";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
+import nacl from "tweetnacl";
 import {
   uploadToArweave,
   checkArweaveWallet,
@@ -1916,10 +1917,12 @@ function WelcomePage({
       // Use Arweave address as key material (convert to bytes)
       const encoder = new TextEncoder();
       const addressBytes = encoder.encode(arweaveAddress);
+      // Hash the address to create a 32-byte key for NaCl
+      const keyMaterial = nacl.hash(addressBytes).slice(0, 32);
 
       const { encrypted, nonce } = encryptAndCompress(
         dataStr,
-        addressBytes
+        keyMaterial
       );
 
       const encryptedDraft = {
@@ -1945,7 +1948,21 @@ function WelcomePage({
       }
 
       localStorage.setItem(draftsKey, JSON.stringify(existingDrafts));
-      setDrafts(existingDrafts);
+      
+      // Update the drafts state with the decrypted version for immediate UI update
+      const decryptedDraft = {
+        ...note,
+        isDraft: true,
+        updatedAt: new Date().toISOString(),
+      };
+      const updatedDrafts = [...drafts];
+      const stateDraftIndex = updatedDrafts.findIndex((d) => d.id === note.id);
+      if (stateDraftIndex >= 0) {
+        updatedDrafts[stateDraftIndex] = decryptedDraft;
+      } else {
+        updatedDrafts.push(decryptedDraft);
+      }
+      setDrafts(updatedDrafts);
 
       console.log("Draft auto-saved:", note.id);
     } catch (error) {
@@ -1971,9 +1988,11 @@ function WelcomePage({
               // Use Arweave address as key material for decryption
               const encoder = new TextEncoder();
               const addressBytes = encoder.encode(arweaveAddress);
+              // Hash the address to create a 32-byte key for NaCl
+              const keyMaterial = nacl.hash(addressBytes).slice(0, 32);
               const decryptedData = decryptNote(
                 new Uint8Array(Object.values(draft.encryptedContent)),
-                addressBytes,
+                keyMaterial,
                 new Uint8Array(Object.values(draft.nonce))
               );
 
@@ -2383,12 +2402,12 @@ function WelcomePage({
 
   // Load drafts when switching to blockchain mode or wallet connects
   useEffect(() => {
-    if (mode === "web3" && checkArweaveWallet()) {
+    if (mode === "web3" && walletAddress) {
       loadDraftsFromLocal();
     } else {
       setDrafts([]);
     }
-  }, [mode]);
+  }, [mode, walletAddress]);
 
   // Auto-save current draft every 30 seconds
   useEffect(() => {
