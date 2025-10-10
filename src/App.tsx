@@ -3558,7 +3558,7 @@ function WelcomePage({
             </button>
           </animated.div>
         </div>
-      ) : mode === "web3" && !checkArweaveWallet() ? (
+      ) : mode === "web3" && !walletAddress ? (
         <div
           className={`min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 ${
             settings.theme === "Light"
@@ -3591,7 +3591,7 @@ function WelcomePage({
               onClick={handleSelectWallet}
               className="bg-gradient-to-r from-blue-600 to-purple-700 hover:from-blue-700 hover:to-purple-800 text-white font-bold py-3 px-6 sm:px-8 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg"
             >
-              Select Arweave Wallet
+              Access Via Arweave
             </button>
             <button
               onClick={handleExitToMainMenu}
