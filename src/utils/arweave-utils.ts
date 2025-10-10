@@ -26,8 +26,18 @@ const initTestWallet = async () => {
   }
 };
 
-export const setWallet = (jwk: JWKInterface) => {
-  wallet = jwk;
+export const disconnectArweaveWallet = async (): Promise<void> => {
+  if (!checkArweaveWallet()) {
+    return;
+  }
+
+  try {
+    await (window as any).arweaveWallet.disconnect();
+    console.log("Disconnected from Arweave wallet");
+  } catch (error) {
+    console.error("Error disconnecting from Arweave wallet:", error);
+    // Don't throw error for disconnect - it's not critical
+  }
 };
 
 // Upload encrypted content to Arweave
@@ -187,6 +197,17 @@ export const connectArweaveWallet = async (): Promise<string> => {
   }
 
   try {
+    // Check if already connected
+    try {
+      const existingAddress = await (window as any).arweaveWallet.getActiveAddress();
+      if (existingAddress) {
+        console.log("Already connected to Arweave wallet:", existingAddress);
+        return existingAddress;
+      }
+    } catch (error) {
+      // Not connected yet, continue with connection
+    }
+
     // Connect to wallet with required permissions
     await (window as any).arweaveWallet.connect([
       "ACCESS_ADDRESS",

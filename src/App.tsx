@@ -9,12 +9,12 @@ import CloudAuth from "./components/CloudAuth";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
 import {
   uploadToArweave,
-  setWallet,
   checkArweaveWallet,
   connectArweaveWallet,
   getArweaveBalance,
   getArweaveFundingInfo,
   getArConnectInstallGuide,
+  disconnectArweaveWallet,
 } from "./utils/arweave-utils";
 import ArConnectModal from "./components/ArConnectModal";
 import { supabase } from "./SUPABASE/supabaseClient";
@@ -2450,6 +2450,8 @@ function WelcomePage({
     }
     if (mode === "web3") {
       console.log("Logging out from Arweave - returning to main menu");
+      // Disconnect from ArConnect
+      await disconnectArweaveWallet();
       // Clear the selected mode to return to main menu
       setSelectedMode(null);
       localStorage.removeItem("elysium_selected_mode");
@@ -3102,8 +3104,23 @@ function WelcomePage({
   }, [notes, mode, cloudStorage.user]);
 
   useEffect(() => {
-    // SOL wallet connection logic disabled - Arweave-only mode
-    // Arweave wallet connection is handled in handleSelectWallet
+    // Check for existing ArConnect connection on app startup
+    const checkExistingConnection = async () => {
+      if (checkArweaveWallet()) {
+        try {
+          const address = await (window as any).arweaveWallet.getActiveAddress();
+          if (address) {
+            console.log("Restored existing Arweave wallet connection:", address);
+            setWalletAddress(address);
+          }
+        } catch (error) {
+          // Not connected, that's fine
+          console.log("No existing Arweave wallet connection found");
+        }
+      }
+    };
+
+    checkExistingConnection();
   }, []);
 
   const shortenedAddress = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "";
