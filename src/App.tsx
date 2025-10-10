@@ -1711,6 +1711,7 @@ function WelcomePage({
   const [showPopup, setShowPopup] = useState(false);
   const [email, setEmail] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string>("");
 
   const [selectedMode, setSelectedMode] = useState<
     null | "web3" | "db" | "cloud"
@@ -2402,7 +2403,8 @@ function WelcomePage({
 
   const handleSelectWallet = async () => {
     try {
-      await connectArweaveWallet();
+      const address = await connectArweaveWallet();
+      setWalletAddress(address);
       // Reload drafts after wallet connection
       if (mode === "web3") {
         loadDraftsFromLocal();
@@ -2444,6 +2446,15 @@ function WelcomePage({
       } catch (error) {
         console.error("Error signing out from Firebase:", error);
       }
+    }
+    if (mode === "web3") {
+      console.log("Logging out from Arweave - returning to main menu");
+      // Clear the selected mode to return to main menu
+      setSelectedMode(null);
+      localStorage.removeItem("elysium_selected_mode");
+      setWalletAddress("");
+      setActivePage("recent");
+      setNotes([]);
     }
     setShowPopup(false);
   };
@@ -3093,7 +3104,7 @@ function WelcomePage({
     // Arweave wallet connection is handled in handleSelectWallet
   }, []);
 
-  const shortenedAddress = "";
+  const shortenedAddress = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "";
 
   const renderList = (
     noteId: string,
