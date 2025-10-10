@@ -1839,6 +1839,9 @@ function WelcomePage({
   }>>([]);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
   const [showPublishFolderModal, setShowPublishFolderModal] = useState(false);
+  const [viewingFolder, setViewingFolder] = useState<any>(null);
+  const [folderToDelete, setFolderToDelete] = useState<any>(null);
+  const [showDeleteFolderModal, setShowDeleteFolderModal] = useState(false);
   const [selectedDrafts, setSelectedDrafts] = useState<Set<string>>(new Set());
   const [publishingDrafts, setPublishingDrafts] = useState<Set<string>>(
     new Set()
@@ -3043,11 +3046,17 @@ function WelcomePage({
       existingPublished.push(publishedNote);
       localStorage.setItem(publishedKey, JSON.stringify(existingPublished));
       
-      // Remove from drafts localStorage
-      const draftsKey = `elysium_drafts_${walletAddress}`;
+      // Remove from drafts localStorage (check both possible keys)
+      const draftsKey = walletAddress ? `elysium_drafts_${walletAddress}` : 'elysium_drafts_local';
       const existingDrafts = JSON.parse(localStorage.getItem(draftsKey) || '[]');
       const updatedDrafts = existingDrafts.filter((d: any) => d.id !== draft.id);
       localStorage.setItem(draftsKey, JSON.stringify(updatedDrafts));
+      
+      // Also check the other key in case the draft was saved there
+      const otherKey = walletAddress ? 'elysium_drafts_local' : `elysium_drafts_${walletAddress}`;
+      const otherDrafts = JSON.parse(localStorage.getItem(otherKey) || '[]');
+      const updatedOtherDrafts = otherDrafts.filter((d: any) => d.id !== draft.id);
+      localStorage.setItem(otherKey, JSON.stringify(updatedOtherDrafts));
       
       console.log("Draft published successfully:", draft.id);
     } catch (error) {
@@ -4104,56 +4113,85 @@ function WelcomePage({
                               key={folder.id}
                               style={{
                                 ...noteSpring,
-                                background: `linear-gradient(135deg, ${folder.color}20 0%, ${folder.color}10 100%)`,
+                                background: `linear-gradient(135deg, ${folder.color}15 0%, ${folder.color}08 50%, ${folder.color}12 100%)`,
                                 borderColor: folder.color,
-                                boxShadow: `0 0 20px ${folder.color}30`
+                                boxShadow: `0 0 25px ${folder.color}40, inset 0 1px 0 ${folder.color}20`
                               }}
-                              className="group backdrop-blur-sm p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border-2 h-48 sm:h-52"
-                              onClick={() => {
-                                // Open folder view - for now just show an alert
-                                alert(`Folder "${folder.name}" contains ${folderNotes.length} notes:\n${folderNotes.map(n => `- ${n.title}`).join('\n')}`);
-                              }}
+                              className="group backdrop-blur-md p-5 rounded-xl shadow-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.02] transition-all duration-500 border-2 h-56 sm:h-60 relative overflow-hidden"
+                              onClick={() => setViewingFolder(folder)}
                             >
                               <div className="flex-1 overflow-hidden">
-                                <div className="flex items-center justify-between mb-3">
-                                  <h3 className="text-lg sm:text-xl font-semibold font-serif line-clamp-2 leading-tight text-white">
-                                    {folder.name}
-                                  </h3>
-                                  <div className="flex space-x-2">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (window.confirm(`Publish folder "${folder.name}" to blockchain? This feature is coming soon!`)) {
-                                          setShowPublishFolderModal(true);
-                                        }
-                                      }}
-                                      className="px-2 py-1 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white text-xs rounded-full font-semibold transition-all duration-300"
-                                    >
-                                      🚀 Publish
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (window.confirm(`Delete folder "${folder.name}"? This will not delete the eternal notes inside.`)) {
-                                          setFolders(prev => prev.filter(f => f.id !== folder.id));
-                                          // Remove from localStorage
-                                          const foldersKey = `elysium_folders_${walletAddress}`;
-                                          const existingFolders = JSON.parse(localStorage.getItem(foldersKey) || '[]');
-                                          const updatedFolders = existingFolders.filter((f: any) => f.id !== folder.id);
-                                          localStorage.setItem(foldersKey, JSON.stringify(updatedFolders));
-                                        }
-                                      }}
-                                      className="text-red-400 hover:text-red-300 transition-colors text-sm p-1"
-                                    >
-                                      🗑️
-                                    </button>
+                                {/* Decorative elements */}
+                                <div className="absolute top-0 right-0 w-20 h-20 opacity-20">
+                                  <div className="w-full h-full rounded-full" style={{ backgroundColor: folder.color }}></div>
+                                </div>
+                                <div className="absolute bottom-0 left-0 w-16 h-16 opacity-15">
+                                  <div className="w-full h-full rounded-full" style={{ backgroundColor: folder.color }}></div>
+                                </div>
+
+                                {/* Folder header */}
+                                <div className="flex items-center justify-between mb-3 relative z-10">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: folder.color }}>
+                                      <span className="text-white font-bold text-lg">📁</span>
+                                    </div>
+                                    <div>
+                                      <h3 className="font-bold text-lg text-gray-800 truncate max-w-[120px] sm:max-w-[150px]">{folder.name}</h3>
+                                      <p className="text-sm text-gray-600">{folderNotes.length} notes</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFolderToDelete(folder);
+                                      setShowDeleteFolderModal(true);
+                                    }}
+                                    className="text-gray-400 hover:text-red-500 transition-colors duration-200 p-1 rounded-full hover:bg-red-50"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+
+                                {/* Notes preview */}
+                                <div className="flex-1 relative z-10">
+                                  <div className="space-y-2">
+                                    {folderNotes.slice(0, 3).map((note, index) => (
+                                      <div key={note.id} className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm rounded-lg p-2">
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: folder.color }}></div>
+                                        <span className="text-sm text-gray-700 truncate flex-1">{note.title}</span>
+                                      </div>
+                                    ))}
+                                    {folderNotes.length > 3 && (
+                                      <div className="text-xs text-gray-500 text-center py-1">
+                                        +{folderNotes.length - 3} more notes
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
-                                <div className="text-sm text-gray-200 mb-2">
-                                  {folderNotes.length} eternal {folderNotes.length === 1 ? 'note' : 'notes'}
-                                </div>
-                                <div className="text-xs text-gray-400">
-                                  Created: {new Date(folder.createdAt).toLocaleDateString()}
+
+                                {/* Folder actions */}
+                                <div className="flex justify-between items-center mt-3 relative z-10">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewingFolder(folder);
+                                    }}
+                                    className="px-4 py-2 bg-white/80 backdrop-blur-sm text-gray-700 rounded-lg hover:bg-white transition-all duration-200 text-sm font-medium shadow-sm"
+                                  >
+                                    View Notes
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      alert('Publish folder feature coming soon!');
+                                    }}
+                                    className="px-4 py-2 text-white rounded-lg transition-all duration-200 text-sm font-medium shadow-sm"
+                                    style={{ backgroundColor: folder.color }}
+                                  >
+                                    Publish
+                                  </button>
                                 </div>
                               </div>
                             </animated.div>
@@ -5439,6 +5477,174 @@ function WelcomePage({
                           className="px-6 py-2 bg-gradient-to-r from-purple-500 to-indigo-700 text-white font-bold rounded-full hover:from-purple-600 hover:to-indigo-800 transition-all"
                         >
                           Got it! 🎉
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {showDeleteFolderModal && folderToDelete && (
+              <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+                <div className="w-full max-w-md max-h-[90vh] overflow-hidden">
+                  <div className="bg-gradient-to-br from-red-900/95 via-red-800/95 to-orange-700/95 backdrop-blur-lg border border-red-500/50 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.3)] overflow-hidden">
+                    <div className="p-6 space-y-6">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-semibold text-white">
+                          🗑️ Delete Folder
+                        </h2>
+                        <button
+                          onClick={() => {
+                            setShowDeleteFolderModal(false);
+                            setFolderToDelete(null);
+                          }}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="text-center space-y-4">
+                        <div className="text-6xl">⚠️</div>
+                        <h3 className="text-xl font-semibold text-white">
+                          Are you sure?
+                        </h3>
+                        <p className="text-gray-300 leading-relaxed">
+                          You're about to delete the folder <strong className="text-white">"{folderToDelete.name}"</strong>.
+                        </p>
+
+                        <div className="bg-red-900/50 rounded-lg p-4 text-left">
+                          <h4 className="font-semibold text-red-200 mb-2">Important:</h4>
+                          <ul className="text-sm text-gray-300 space-y-1">
+                            <li>• 📁 The folder will be permanently deleted</li>
+                            <li>• 📝 Eternal notes inside will NOT be deleted</li>
+                            <li>• 🔄 Notes will remain in your published collection</li>
+                            <li>• ❌ This action cannot be undone</li>
+                          </ul>
+                        </div>
+
+                        <p className="text-sm text-gray-400">
+                          The {folderToDelete.noteIds.length} eternal {folderToDelete.noteIds.length === 1 ? 'note' : 'notes'} in this folder will remain safely published.
+                        </p>
+                      </div>
+
+                      <div className="flex justify-end space-x-4">
+                        <button
+                          onClick={() => {
+                            setShowDeleteFolderModal(false);
+                            setFolderToDelete(null);
+                          }}
+                          className="px-4 py-2 bg-gray-700/80 text-white rounded-lg hover:bg-gray-600/80 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (folderToDelete) {
+                              setFolders(prev => prev.filter(f => f.id !== folderToDelete.id));
+                              // Remove from localStorage
+                              const foldersKey = `elysium_folders_${walletAddress}`;
+                              const existingFolders = JSON.parse(localStorage.getItem(foldersKey) || '[]');
+                              const updatedFolders = existingFolders.filter((f: any) => f.id !== folderToDelete.id);
+                              localStorage.setItem(foldersKey, JSON.stringify(updatedFolders));
+                            }
+                            setShowDeleteFolderModal(false);
+                            setFolderToDelete(null);
+                          }}
+                          className="px-6 py-2 bg-gradient-to-r from-red-500 to-red-700 text-white font-bold rounded-full hover:from-red-600 hover:to-red-800 transition-all"
+                        >
+                          Delete Folder
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {viewingFolder && (
+              <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+                <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
+                  <div className="bg-gradient-to-br from-indigo-900/95 via-indigo-800/95 to-purple-700/95 backdrop-blur-lg border border-indigo-500/50 rounded-xl shadow-[0_0_30px_rgba(79,70,229,0.3)] overflow-hidden">
+                    <div className="p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: viewingFolder.color }}>
+                            <span className="text-white font-bold text-xl">📁</span>
+                          </div>
+                          <div>
+                            <h2 className="text-2xl font-semibold text-gold-100">
+                              {viewingFolder.name}
+                            </h2>
+                            <p className="text-sm text-gray-300">
+                              {viewingFolder.noteIds.length} eternal {viewingFolder.noteIds.length === 1 ? 'note' : 'notes'}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setViewingFolder(null)}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        {publishedNotes.filter(note => viewingFolder.noteIds.includes(note.id)).length === 0 ? (
+                          <div className="text-center py-12">
+                            <div className="text-6xl mb-4">📝</div>
+                            <h3 className="text-xl font-semibold text-white mb-2">No Notes in This Folder</h3>
+                            <p className="text-gray-300">This folder is empty. Add some eternal notes to get started!</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {publishedNotes.filter(note => viewingFolder.noteIds.includes(note.id)).map((note) => (
+                              <div
+                                key={note.id}
+                                className="bg-indigo-950/50 backdrop-blur-sm border border-indigo-700/50 rounded-lg p-4 hover:bg-indigo-900/50 transition-all duration-200"
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <h4 className="font-semibold text-white text-lg line-clamp-2 flex-1 mr-2">
+                                    {note.title}
+                                  </h4>
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => {
+                                        // Copy note link to clipboard
+                                        const noteUrl = `${window.location.origin}/note/${note.id}`;
+                                        navigator.clipboard.writeText(noteUrl);
+                                        // Could add a toast notification here
+                                      }}
+                                      className="text-gray-400 hover:text-white transition-colors p-1"
+                                      title="Copy note link"
+                                    >
+                                      🔗
+                                    </button>
+                                  </div>
+                                </div>
+                                <p className="text-gray-300 text-sm line-clamp-3 mb-3">
+                                  {note.content.substring(0, 150)}...
+                                </p>
+                                <div className="flex items-center justify-between text-xs text-gray-400">
+                                  <span>
+                                    Published: {new Date(note.publishedAt).toLocaleDateString()}
+                                  </span>
+                                  <span className="flex items-center space-x-1">
+                                    <span>🔗</span>
+                                    <span>{note.id.substring(0, 8)}...</span>
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end space-x-4">
+                        <button
+                          onClick={() => setViewingFolder(null)}
+                          className="px-6 py-2 bg-gradient-to-r from-indigo-500 to-purple-700 text-white font-bold rounded-full hover:from-indigo-600 hover:to-purple-800 transition-all"
+                        >
+                          Close
                         </button>
                       </div>
                     </div>
