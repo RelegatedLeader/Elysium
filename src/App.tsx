@@ -1828,6 +1828,17 @@ function WelcomePage({
   const [publishedNotes, setPublishedNotes] = useState<Array<Note & { transactionId: string; publishedAt: string }>>([]);
   const [currentDraft, setCurrentDraft] = useState<Note | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+
+  // Folder system for organizing eternal notes
+  const [folders, setFolders] = useState<Array<{
+    id: string;
+    name: string;
+    color: string;
+    noteIds: string[];
+    createdAt: string;
+  }>>([]);
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [showPublishFolderModal, setShowPublishFolderModal] = useState(false);
   const [selectedDrafts, setSelectedDrafts] = useState<Set<string>>(new Set());
   const [publishingDrafts, setPublishingDrafts] = useState<Set<string>>(
     new Set()
@@ -2169,6 +2180,20 @@ function WelcomePage({
     }
   };
 
+  const loadFoldersFromLocal = async () => {
+    if (mode !== "web3" || !walletAddress) return;
+
+    try {
+      const foldersKey = `elysium_folders_${walletAddress}`;
+      const savedFolders = JSON.parse(localStorage.getItem(foldersKey) || "[]");
+      setFolders(savedFolders);
+      console.log(`Loaded ${savedFolders.length} folders`);
+    } catch (error) {
+      console.error("Error loading folders:", error);
+      setFolders([]);
+    }
+  };
+
   const deleteDraft = async (draftId: string) => {
     if (mode !== "web3" || !checkArweaveWallet()) return;
 
@@ -2444,10 +2469,12 @@ function WelcomePage({
       loadDraftsFromLocal();
       if (walletAddress) {
         loadPublishedNotesFromLocal();
+        loadFoldersFromLocal();
       }
     } else {
       setDrafts([]);
       setPublishedNotes([]);
+      setFolders([]);
     }
   }, [mode, walletAddress]);
 
@@ -4045,7 +4072,96 @@ function WelcomePage({
                         ? "Save to Cloud"
                         : "Create Draft"}
                     </button>
+                    {mode === "web3" && (
+                      <button
+                        onClick={() => setShowCreateFolderModal(true)}
+                        className="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold py-3 px-6 sm:px-8 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg"
+                      >
+                        📁 Create Folder
+                      </button>
+                    )}
                   </div>
+
+                  {/* Folders section for blockchain mode */}
+                  {mode === "web3" && folders.length > 0 && (
+                    <div className="mb-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2
+                          className={`text-2xl font-bold font-serif ${
+                            settings.theme === "Light"
+                              ? "text-purple-900"
+                              : "text-gold-100"
+                          }`}
+                        >
+                          📁 Your Folders ({folders.length})
+                        </h2>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                        {folders.map((folder) => {
+                          const folderNotes = publishedNotes.filter(note => folder.noteIds.includes(note.id));
+                          return (
+                            <animated.div
+                              key={folder.id}
+                              style={{
+                                ...noteSpring,
+                                background: `linear-gradient(135deg, ${folder.color}20 0%, ${folder.color}10 100%)`,
+                                borderColor: folder.color,
+                                boxShadow: `0 0 20px ${folder.color}30`
+                              }}
+                              className="group backdrop-blur-sm p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border-2 h-48 sm:h-52"
+                              onClick={() => {
+                                // Open folder view - for now just show an alert
+                                alert(`Folder "${folder.name}" contains ${folderNotes.length} notes:\n${folderNotes.map(n => `- ${n.title}`).join('\n')}`);
+                              }}
+                            >
+                              <div className="flex-1 overflow-hidden">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h3 className="text-lg sm:text-xl font-semibold font-serif line-clamp-2 leading-tight text-white">
+                                    {folder.name}
+                                  </h3>
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm(`Publish folder "${folder.name}" to blockchain? This feature is coming soon!`)) {
+                                          setShowPublishFolderModal(true);
+                                        }
+                                      }}
+                                      className="px-2 py-1 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white text-xs rounded-full font-semibold transition-all duration-300"
+                                    >
+                                      🚀 Publish
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm(`Delete folder "${folder.name}"? This will not delete the eternal notes inside.`)) {
+                                          setFolders(prev => prev.filter(f => f.id !== folder.id));
+                                          // Remove from localStorage
+                                          const foldersKey = `elysium_folders_${walletAddress}`;
+                                          const existingFolders = JSON.parse(localStorage.getItem(foldersKey) || '[]');
+                                          const updatedFolders = existingFolders.filter((f: any) => f.id !== folder.id);
+                                          localStorage.setItem(foldersKey, JSON.stringify(updatedFolders));
+                                        }
+                                      }}
+                                      className="text-red-400 hover:text-red-300 transition-colors text-sm p-1"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="text-sm text-gray-200 mb-2">
+                                  {folderNotes.length} eternal {folderNotes.length === 1 ? 'note' : 'notes'}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  Created: {new Date(folder.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </animated.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Published Eternal Notes section for blockchain mode */}
                   {mode === "web3" && publishedNotes.length > 0 && (
@@ -4155,18 +4271,21 @@ function WelcomePage({
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              if (isTrackable) {
-                                                window.open(`https://viewblock.io/arweave/tx/${note.transactionId}`, '_blank');
+                                              const txId = note.transactionId || note.arweaveHash;
+                                              if (txId) {
+                                                window.open(`https://viewblock.io/arweave/tx/${txId}`, '_blank');
+                                              } else {
+                                                alert('Transaction ID not available yet. Please wait for the note to be fully processed.');
                                               }
                                             }}
-                                            disabled={!isTrackable}
+                                            disabled={!note.transactionId && !note.arweaveHash}
                                             className={`px-3 py-1 rounded-full font-semibold text-xs transition-all duration-300 ${
-                                              isTrackable
+                                              (note.transactionId || note.arweaveHash)
                                                 ? "bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white shadow-lg hover:shadow-purple-500/25"
                                                 : "bg-gray-600 text-gray-400 cursor-not-allowed"
                                             }`}
                                           >
-                                            {isTrackable ? "Track" : "Processing..."}
+                                            {(note.transactionId || note.arweaveHash) ? "Track" : "Processing..."}
                                           </button>
                                         </>
                                       )}
@@ -5130,6 +5249,200 @@ function WelcomePage({
                     theme={settings.theme}
                     defaultTemplate={settings.defaultTemplate}
                   />
+                </div>
+              </div>
+            )}
+            {showCreateFolderModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+                <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden">
+                  <div className="bg-gradient-to-br from-indigo-900/95 via-indigo-800/95 to-purple-700/95 backdrop-blur-lg border border-indigo-500/50 rounded-xl shadow-[0_0_30px_rgba(79,70,229,0.3)] overflow-hidden">
+                    <div className="p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-semibold text-gold-100">
+                          📁 Create New Folder
+                        </h2>
+                        <button
+                          onClick={() => setShowCreateFolderModal(false)}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-2">
+                            Folder Name
+                          </label>
+                          <input
+                            type="text"
+                            id="folderName"
+                            placeholder="Enter folder name..."
+                            className="w-full p-3 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-2">
+                            Choose Folder Color
+                          </label>
+                          <div className="flex items-center space-x-4">
+                            <input
+                              type="color"
+                              id="folderColor"
+                              defaultValue="#6366f1"
+                              className="w-16 h-10 rounded border border-indigo-700/50 bg-indigo-950/80"
+                            />
+                            <span className="text-sm text-gray-300">
+                              Pick any color for your folder
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-2">
+                            Select Eternal Notes to Add
+                          </label>
+                          <div className="max-h-60 overflow-y-auto space-y-2 bg-indigo-950/50 rounded-lg p-3">
+                            {publishedNotes.length === 0 ? (
+                              <p className="text-gray-400 text-sm">
+                                No published eternal notes available. Publish some drafts first!
+                              </p>
+                            ) : (
+                              publishedNotes.map((note) => (
+                                <div
+                                  key={note.id}
+                                  className="flex items-center space-x-3 p-2 rounded hover:bg-indigo-900/50"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    id={`note-${note.id}`}
+                                    className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
+                                  />
+                                  <label
+                                    htmlFor={`note-${note.id}`}
+                                    className="flex-1 text-sm text-gray-200 cursor-pointer"
+                                  >
+                                    <div className="font-medium">{note.title}</div>
+                                    <div className="text-xs text-gray-400">
+                                      Published: {new Date(note.publishedAt).toLocaleDateString()}
+                                    </div>
+                                  </label>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end space-x-4">
+                        <button
+                          onClick={() => setShowCreateFolderModal(false)}
+                          className="px-4 py-2 bg-gray-700/80 text-white rounded-lg hover:bg-gray-600/80 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            const folderName = (document.getElementById('folderName') as HTMLInputElement)?.value?.trim();
+                            const folderColor = (document.getElementById('folderColor') as HTMLInputElement)?.value;
+
+                            if (!folderName) {
+                              alert('Please enter a folder name');
+                              return;
+                            }
+
+                            // Get selected notes
+                            const selectedNotes: string[] = [];
+                            publishedNotes.forEach(note => {
+                              const checkbox = document.getElementById(`note-${note.id}`) as HTMLInputElement;
+                              if (checkbox?.checked) {
+                                selectedNotes.push(note.id);
+                              }
+                            });
+
+                            // Create folder
+                            const newFolder = {
+                              id: `folder_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                              name: folderName,
+                              color: folderColor || '#6366f1',
+                              noteIds: selectedNotes,
+                              createdAt: new Date().toISOString(),
+                            };
+
+                            setFolders(prev => [...prev, newFolder]);
+
+                            // Save to localStorage
+                            const foldersKey = `elysium_folders_${walletAddress}`;
+                            const existingFolders = JSON.parse(localStorage.getItem(foldersKey) || '[]');
+                            existingFolders.push(newFolder);
+                            localStorage.setItem(foldersKey, JSON.stringify(existingFolders));
+
+                            setShowCreateFolderModal(false);
+                          }}
+                          className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-teal-700 text-white font-bold rounded-full hover:from-emerald-600 hover:to-teal-800 transition-all"
+                        >
+                          Create Folder
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {showPublishFolderModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+                <div className="w-full max-w-lg max-h-[90vh] overflow-hidden">
+                  <div className="bg-gradient-to-br from-purple-900/95 via-purple-800/95 to-indigo-700/95 backdrop-blur-lg border border-purple-500/50 rounded-xl shadow-[0_0_30px_rgba(147,51,234,0.3)] overflow-hidden">
+                    <div className="p-6 space-y-6">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-semibold text-gold-100">
+                          🚀 Publish Folder - Coming Soon!
+                        </h2>
+                        <button
+                          onClick={() => setShowPublishFolderModal(false)}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="text-center space-y-4">
+                        <div className="text-6xl">🚀</div>
+                        <h3 className="text-xl font-semibold text-white">
+                          Folder Publishing Feature
+                        </h3>
+                        <p className="text-gray-300 leading-relaxed">
+                          We're working on an exciting new feature that will allow you to publish entire folders of eternal notes to the blockchain as a single, organized collection!
+                        </p>
+
+                        <div className="bg-purple-900/50 rounded-lg p-4 text-left">
+                          <h4 className="font-semibold text-purple-200 mb-2">Coming Soon:</h4>
+                          <ul className="text-sm text-gray-300 space-y-1">
+                            <li>• 📁 Publish folders as organized collections</li>
+                            <li>• 🔗 Interconnected eternal notes</li>
+                            <li>• 📊 Advanced folder analytics</li>
+                            <li>• 🌐 Shareable folder links</li>
+                            <li>• 🎨 Custom folder themes on blockchain</li>
+                            <li>• 📈 Folder popularity tracking</li>
+                          </ul>
+                        </div>
+
+                        <p className="text-sm text-gray-400">
+                          This feature is currently in development. Stay tuned for updates!
+                        </p>
+                      </div>
+
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => setShowPublishFolderModal(false)}
+                          className="px-6 py-2 bg-gradient-to-r from-purple-500 to-indigo-700 text-white font-bold rounded-full hover:from-purple-600 hover:to-indigo-800 transition-all"
+                        >
+                          Got it! 🎉
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
