@@ -189,7 +189,7 @@ After installing ArConnect and getting AR tokens, try publishing again!`,
 };
 
 // Connect to Arweave wallet
-export const connectArweaveWallet = async (): Promise<string> => {
+export const connectArweaveWallet = async (): Promise<{address: string, publicKey: Uint8Array}> => {
   if (!checkArweaveWallet()) {
     throw new Error(
       "ArConnect wallet not found. Please install ArConnect browser extension."
@@ -202,7 +202,8 @@ export const connectArweaveWallet = async (): Promise<string> => {
       const existingAddress = await (window as any).arweaveWallet.getActiveAddress();
       if (existingAddress) {
         console.log("Already connected to Arweave wallet:", existingAddress);
-        return existingAddress;
+        const publicKey = await (window as any).arweaveWallet.getActivePublicKey();
+        return { address: existingAddress, publicKey: new Uint8Array(publicKey) };
       }
     } catch (error) {
       // Not connected yet, continue with connection
@@ -211,13 +212,15 @@ export const connectArweaveWallet = async (): Promise<string> => {
     // Connect to wallet with required permissions
     await (window as any).arweaveWallet.connect([
       "ACCESS_ADDRESS",
+      "ACCESS_PUBLIC_KEY",
       "SIGN_TRANSACTION",
     ]);
     
     const address = await (window as any).arweaveWallet.getActiveAddress();
+    const publicKey = await (window as any).arweaveWallet.getActivePublicKey();
     console.log("Connected to Arweave wallet:", address);
 
-    return address;
+    return { address, publicKey: new Uint8Array(publicKey) };
   } catch (error) {
     console.error("Failed to connect Arweave wallet:", error);
     throw new Error(

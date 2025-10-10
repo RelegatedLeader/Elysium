@@ -1713,6 +1713,7 @@ function WelcomePage({
   const [email, setEmail] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
+  const [walletPublicKey, setWalletPublicKey] = useState<Uint8Array | null>(null);
 
   const [selectedMode, setSelectedMode] = useState<
     null | "web3" | "db" | "cloud"
@@ -1762,6 +1763,7 @@ function WelcomePage({
 
   // Draft system for blockchain mode
   const [drafts, setDrafts] = useState<Note[]>([]);
+  const [publishedNotes, setPublishedNotes] = useState<Array<Note & { transactionId: string; publishedAt: string }>>([]);
   const [currentDraft, setCurrentDraft] = useState<Note | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [selectedDrafts, setSelectedDrafts] = useState<Set<string>>(new Set());
@@ -1898,15 +1900,12 @@ function WelcomePage({
 
   // Draft management functions for blockchain mode
   const saveDraftLocally = async (note: Note) => {
-    if (mode !== "web3" || !walletAddress) return;
+    if (mode !== "web3" || !walletAddress || !walletPublicKey) return;
 
     try {
       setIsAutoSaving(true);
 
-      // Use the already connected Arweave address
-      const arweaveAddress = walletAddress;
-
-      // Encrypt the draft content with wallet-derived key
+      // Encrypt the draft content with wallet public key
       const dataStr = JSON.stringify({
         title: note.title,
         content: note.content,
@@ -1914,15 +1913,9 @@ function WelcomePage({
         completionTimestamps: note.completionTimestamps || {},
       });
 
-      // Use Arweave address as key material (convert to bytes)
-      const encoder = new TextEncoder();
-      const addressBytes = encoder.encode(arweaveAddress);
-      // Hash the address to create a 32-byte key for NaCl
-      const keyMaterial = nacl.hash(addressBytes).slice(0, 32);
-
       const { encrypted, nonce } = encryptAndCompress(
         dataStr,
-        keyMaterial
+        walletPublicKey
       );
 
       const encryptedDraft = {
@@ -1934,7 +1927,7 @@ function WelcomePage({
       };
 
       // Save to localStorage with wallet-specific key
-      const draftsKey = `elysium_drafts_${arweaveAddress}`;
+      const draftsKey = `elysium_drafts_${walletAddress}`;
       const existingDrafts = JSON.parse(
         localStorage.getItem(draftsKey) || "[]"
       );
@@ -1973,7 +1966,7 @@ function WelcomePage({
   };
 
   const loadDraftsFromLocal = async () => {
-    if (mode !== "web3" || !walletAddress) return;
+    if (mode !== "web3" || !walletAddress || !walletPublicKey) return;
 
     try {
       const arweaveAddress = walletAddress;
@@ -1985,14 +1978,9 @@ function WelcomePage({
         savedDrafts.map(async (draft: any) => {
           try {
             if (draft.encryptedContent && draft.nonce) {
-              // Use Arweave address as key material for decryption
-              const encoder = new TextEncoder();
-              const addressBytes = encoder.encode(arweaveAddress);
-              // Hash the address to create a 32-byte key for NaCl
-              const keyMaterial = nacl.hash(addressBytes).slice(0, 32);
               const decryptedData = decryptNote(
                 new Uint8Array(Object.values(draft.encryptedContent)),
-                keyMaterial,
+                walletPublicKey,
                 new Uint8Array(Object.values(draft.nonce))
               );
 
@@ -2019,6 +2007,20 @@ function WelcomePage({
     } catch (error) {
       console.error("Error loading drafts:", error);
       setDrafts([]);
+    }
+  };
+
+  const loadPublishedNotesFromLocal = async () => {
+    if (mode !== "web3" || !walletAddress) return;
+
+    try {
+      const publishedKey = `elysium_published_${walletAddress}`;
+      const savedPublished = JSON.parse(localStorage.getItem(publishedKey) || "[]");
+      setPublishedNotes(savedPublished);
+      console.log(`Loaded ${savedPublished.length} published notes`);
+    } catch (error) {
+      console.error("Error loading published notes:", error);
+      setPublishedNotes([]);
     }
   };
 
@@ -2072,6 +2074,20 @@ function WelcomePage({
       };
 
       setNotes((prev) => [...prev, publishedNote]);
+
+      // Also add to published notes for tracking
+      const publishedNoteWithTx = {
+        ...publishedNote,
+        transactionId: result.arweaveHash,
+        publishedAt: new Date().toISOString(),
+      };
+      setPublishedNotes((prev) => [...prev, publishedNoteWithTx]);
+
+      // Save published notes to localStorage
+      const publishedKey = `elysium_published_${walletAddress}`;
+      const existingPublished = JSON.parse(localStorage.getItem(publishedKey) || "[]");
+      existingPublished.push(publishedNoteWithTx);
+      localStorage.setItem(publishedKey, JSON.stringify(existingPublished));
 
       console.log("Draft published to blockchain:", draft.id, result);
       showNotification(
@@ -2400,12 +2416,36 @@ function WelcomePage({
     }
   }, [cloudNotes, mode, cloudStorage.user]);
 
-  // Load drafts when switching to blockchain mode or wallet connects
+  // Try to reconnect Arweave wallet on page load if in web3 mode
+  useEffect(() => {
+    const reconnectWallet = async () => {
+      if (mode === "web3" && checkArweaveWallet() && !walletAddress) {
+        try {
+          console.log("Attempting to reconnect Arweave wallet...");
+          const { address, publicKey } = await connectArweaveWallet();
+          setWalletAddress(address);
+          setWalletPublicKey(publicKey);
+          console.log("Successfully reconnected Arweave wallet:", address);
+        } catch (error) {
+          console.log("Failed to reconnect Arweave wallet, staying in web3 mode but disconnected");
+          // Don't change mode, just stay disconnected
+        }
+      }
+    };
+    
+    // Small delay to ensure ArConnect is loaded
+    const timer = setTimeout(reconnectWallet, 1000);
+    return () => clearTimeout(timer);
+  }, [mode]); // Only depend on mode, not walletAddress to avoid loops
+
+  // Load drafts and published notes when switching to blockchain mode or wallet connects
   useEffect(() => {
     if (mode === "web3" && walletAddress) {
       loadDraftsFromLocal();
+      loadPublishedNotesFromLocal();
     } else {
       setDrafts([]);
+      setPublishedNotes([]);
     }
   }, [mode, walletAddress]);
 
@@ -2422,8 +2462,9 @@ function WelcomePage({
 
   const handleSelectWallet = async () => {
     try {
-      const address = await connectArweaveWallet();
+      const { address, publicKey } = await connectArweaveWallet();
       setWalletAddress(address);
+      setWalletPublicKey(publicKey);
       // Reload drafts after wallet connection
       if (mode === "web3") {
         loadDraftsFromLocal();
@@ -2475,6 +2516,7 @@ function WelcomePage({
       setSelectedMode(null);
       localStorage.removeItem("elysium_selected_mode");
       setWalletAddress("");
+      setWalletPublicKey(null);
       setActivePage("recent");
       setNotes([]);
       setDrafts([]);
@@ -2840,8 +2882,10 @@ function WelcomePage({
       throw new Error("Arweave wallet not connected");
     }
     try {
-      // Get Arweave address for encryption
-      const arweaveAddress = await connectArweaveWallet();
+      // Use the stored wallet public key for encryption
+      if (!walletPublicKey) {
+        throw new Error("Wallet public key not available");
+      }
 
       const dataStr = JSON.stringify({
         title: note.title,
@@ -2850,13 +2894,10 @@ function WelcomePage({
         completionTimestamps: note.completionTimestamps,
       });
 
-      // Use Arweave address as key material for encryption
-      const encoder = new TextEncoder();
-      const addressBytes = encoder.encode(arweaveAddress);
-
+      // Use wallet public key for encryption
       const { encrypted, nonce } = encryptAndCompress(
         dataStr,
-        addressBytes
+        walletPublicKey
       );
       console.log(
         "Encryption complete - nonce length:",
@@ -4011,6 +4052,80 @@ function WelcomePage({
                         </div>
                       </div>
                     )}
+
+                  {/* Published Eternal Notes section for blockchain mode */}
+                  {mode === "web3" && publishedNotes.length > 0 && (
+                    <div className="mb-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2
+                          className={`text-2xl font-bold font-serif ${
+                            settings.theme === "Light"
+                              ? "text-purple-900"
+                              : "text-gold-100"
+                          }`}
+                        >
+                          Published Eternal Notes ({publishedNotes.length})
+                        </h2>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                        {publishedNotes.map((note) => (
+                          <animated.div
+                            key={note.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className={`p-4 rounded-lg shadow-lg border cursor-pointer transition-all duration-300 hover:shadow-xl ${
+                              settings.theme === "Light"
+                                ? "bg-white border-purple-200 hover:border-purple-300"
+                                : "bg-gray-800 border-gold-700 hover:border-gold-600"
+                            }`}
+                            onClick={() => setViewingNote(note)}
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <h3
+                                className={`font-semibold text-lg leading-tight line-clamp-2 ${
+                                  settings.theme === "Light"
+                                    ? "text-purple-900"
+                                    : "text-gold-100"
+                                }`}
+                              >
+                                {note.title}
+                              </h3>
+                            </div>
+                            <p
+                              className={`text-sm leading-relaxed line-clamp-3 mb-3 ${
+                                settings.theme === "Light"
+                                  ? "text-gray-700"
+                                  : "text-gray-300"
+                              }`}
+                            >
+                              {note.content}
+                            </p>
+                            <div className="flex justify-between items-center text-xs">
+                              <span
+                                className={
+                                  settings.theme === "Light"
+                                    ? "text-amber-600"
+                                    : "text-amber-400"
+                                }
+                              >
+                                Published {new Date(note.publishedAt).toLocaleDateString()}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(`https://viewblock.io/arweave/tx/${note.transactionId}`, '_blank');
+                                }}
+                                className="ml-2 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors duration-200"
+                              >
+                                Track
+                              </button>
+                            </div>
+                          </animated.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Drafts section for blockchain mode */}
                   {mode === "web3" && drafts.length > 0 && (
