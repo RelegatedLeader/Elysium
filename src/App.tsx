@@ -1833,6 +1833,10 @@ function WelcomePage({
     new Set()
   );
 
+  // Section visibility toggles
+  const [showDrafts, setShowDrafts] = useState(true);
+  const [showPublishedNotes, setShowPublishedNotes] = useState(true);
+
   // Batch processing for blockchain saves
   const [batchQueue, setBatchQueue] = useState<Note[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
@@ -4071,122 +4075,6 @@ function WelcomePage({
                     </button>
                   </div>
 
-                  {/* Forever Notes section for blockchain mode */}
-                  {mode === "web3" &&
-                    notes.filter((note) => note.isPermanent).length > 0 && (
-                      <div className="mb-8">
-                        <div className="flex items-center justify-between mb-4">
-                          <h2
-                            className={`text-2xl font-bold font-serif ${
-                              settings.theme === "Light"
-                                ? "text-purple-900"
-                                : "text-gold-100"
-                            }`}
-                          >
-                            🌟 Forever Notes (
-                            {notes.filter((note) => note.isPermanent).length})
-                          </h2>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
-                          {notes
-                            .filter((note) => note.isPermanent)
-                            .map((note) => (
-                              <animated.div
-                                key={note.id}
-                                style={noteSpring}
-                                className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
-                                  settings.theme === "Light"
-                                    ? "bg-gradient-to-br from-amber-50/90 via-yellow-50/90 to-orange-50/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] border-amber-200/50"
-                                    : "bg-gradient-to-br from-amber-800/90 to-orange-700/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.3)] border-amber-600/30"
-                                }`}
-                                onClick={() => setViewingNote(note)}
-                              >
-                                <div className="flex-1 overflow-hidden">
-                                  <h3
-                                    className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${
-                                      settings.theme === "Light"
-                                        ? "text-amber-800"
-                                        : "text-amber-100"
-                                    }`}
-                                  >
-                                    {note.title}
-                                    <span className="text-xs text-amber-400 ml-1">
-                                      🌟
-                                    </span>
-                                  </h3>
-                                  <div
-                                    className={`text-sm mb-2 line-clamp-3 leading-relaxed ${
-                                      settings.theme === "Light"
-                                        ? "text-amber-700"
-                                        : "text-amber-200"
-                                    }`}
-                                  >
-                                    {note.content
-                                      .split("\n")[0]
-                                      .substring(0, 120)}
-                                    {note.content.length > 120 ? "..." : ""}
-                                  </div>
-                                  <div
-                                    className={`flex items-center justify-between text-xs ${
-                                      settings.theme === "Light"
-                                        ? "text-amber-600"
-                                        : "text-amber-400"
-                                    }`}
-                                  >
-                                    <span
-                                      className={`px-2 py-1 rounded-full ${
-                                        settings.theme === "Light"
-                                          ? "bg-amber-100 text-amber-800"
-                                          : "bg-amber-900/50 text-amber-300"
-                                      }`}
-                                    >
-                                      {note.template}
-                                    </span>
-                                    <span
-                                      className={
-                                        settings.theme === "Light"
-                                          ? "text-amber-500"
-                                          : "text-amber-500"
-                                      }
-                                    >
-                                      Click to view
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="mt-3 flex justify-between items-center">
-                                  <div className="text-xs text-amber-400 flex items-center space-x-2">
-                                    <span>Permanent</span>
-                                    {note.arweaveHash && (
-                                      <>
-                                        <a
-                                          href={`https://arweave.net/${note.arweaveHash}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="underline hover:text-amber-300 text-xs"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          Arweave:{" "}
-                                          {note.arweaveHash.substring(0, 8)}...
-                                        </a>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            window.open(`https://viewblock.io/arweave/tx/${note.arweaveHash}`, '_blank');
-                                          }}
-                                          className="ml-2 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors duration-200"
-                                        >
-                                          Track
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </animated.div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
                   {/* Published Eternal Notes section for blockchain mode */}
                   {mode === "web3" && publishedNotes.length > 0 && (
                     <div className="mb-8">
@@ -4200,18 +4088,30 @@ function WelcomePage({
                         >
                           Published Eternal Notes ({publishedNotes.length})
                         </h2>
+                        <button
+                          onClick={() => setShowPublishedNotes(!showPublishedNotes)}
+                          className={`px-4 py-2 rounded-full font-semibold transition-all duration-300 ${
+                            showPublishedNotes
+                              ? "bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white shadow-lg"
+                              : "bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white shadow-lg"
+                          }`}
+                        >
+                          {showPublishedNotes ? "Hide" : "Show"} Notes
+                        </button>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
-                        {publishedNotes.map((note, index) => (
-                          <AnimatedNoteCard
-                            key={note.id}
-                            note={note}
-                            index={index}
-                            settings={settings}
-                            onClick={() => setViewingNote(note)}
-                          />
-                        ))}
-                      </div>
+                      {showPublishedNotes && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                          {publishedNotes.map((note, index) => (
+                            <AnimatedNoteCard
+                              key={note.id}
+                              note={note}
+                              index={index}
+                              settings={settings}
+                              onClick={() => setViewingNote(note)}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -4228,209 +4128,223 @@ function WelcomePage({
                         >
                           Drafts ({drafts.length})
                         </h2>
-                        <div className="flex space-x-2">
-                          {selectedDrafts.size > 0 && (
-                            <button
-                              onClick={() => {
-                                batchPublishDrafts(Array.from(selectedDrafts));
-                                setSelectedDrafts(new Set());
-                              }}
-                              disabled={isProcessingBatch}
-                              className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 text-sm disabled:opacity-50"
-                            >
-                              {isProcessingBatch
-                                ? "Publishing..."
-                                : `Publish Selected (~$${(
-                                    selectedDrafts.size * 0.001
-                                  ).toFixed(3)})`}
-                            </button>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setShowDrafts(!showDrafts)}
+                            className={`px-4 py-2 rounded-full font-semibold transition-all duration-300 ${
+                              showDrafts
+                                ? "bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white shadow-lg"
+                                : "bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white shadow-lg"
+                            }`}
+                          >
+                            {showDrafts ? "Hide" : "Show"} Drafts
+                          </button>
+                          {showDrafts && (
+                            <div className="flex space-x-2">
+                              {selectedDrafts.size > 0 && (
+                                <button
+                                  onClick={() => {
+                                    batchPublishDrafts(Array.from(selectedDrafts));
+                                    setSelectedDrafts(new Set());
+                                  }}
+                                  disabled={isProcessingBatch}
+                                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 text-sm disabled:opacity-50"
+                                >
+                                  {isProcessingBatch
+                                    ? "Publishing..."
+                                    : `Publish Selected (~$${(
+                                        selectedDrafts.size * 0.001
+                                      ).toFixed(3)})`}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  if (drafts.length > 0) {
+                                    const allIds = drafts.map((d) => d.id);
+                                    setSelectedDrafts(new Set(allIds));
+                                  }
+                                }}
+                                className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 text-sm"
+                              >
+                                Select All
+                              </button>
+                              <button
+                                onClick={() => setSelectedDrafts(new Set())}
+                                className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 text-sm"
+                              >
+                                Clear Selection
+                              </button>
+                            </div>
                           )}
-                          <button
-                            onClick={() => {
-                              if (drafts.length > 0) {
-                                const allIds = drafts.map((d) => d.id);
-                                setSelectedDrafts(new Set(allIds));
-                              }
-                            }}
-                            className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 text-sm"
-                          >
-                            Select All
-                          </button>
-                          <button
-                            onClick={() => setSelectedDrafts(new Set())}
-                            className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 text-sm"
-                          >
-                            Clear Selection
-                          </button>
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
-                        {drafts.map((draft) => (
-                          <animated.div
-                            key={draft.id}
-                            style={noteSpring}
-                            className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border ${
-                              settings.theme === "Light"
-                                ? "bg-gradient-to-br from-yellow-50/90 via-orange-50/90 to-amber-50/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] border-yellow-200/50"
-                                : "bg-gradient-to-br from-yellow-800/90 to-orange-800/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.3)] border-yellow-600/30"
-                            }`}
-                            onClick={() => setViewingNote(draft)}
-                          >
-                            <div className="flex-1 overflow-hidden">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center space-x-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedDrafts.has(draft.id)}
-                                    onChange={(e) => {
-                                      e.stopPropagation();
-                                      const newSelected = new Set(
-                                        selectedDrafts
-                                      );
-                                      if (e.target.checked) {
-                                        newSelected.add(draft.id);
-                                      } else {
-                                        newSelected.delete(draft.id);
-                                      }
-                                      setSelectedDrafts(newSelected);
-                                    }}
-                                    className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
-                                  />
-                                  <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full font-semibold">
-                                    DRAFT
-                                  </span>
+                      {showDrafts && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                          {drafts.map((draft) => (
+                            <animated.div
+                              key={draft.id}
+                              style={noteSpring}
+                              className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border ${
+                                settings.theme === "Light"
+                                  ? "bg-gradient-to-br from-yellow-50/90 via-orange-50/90 to-amber-50/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] border-yellow-200/50"
+                                  : "bg-gradient-to-br from-yellow-800/90 to-orange-800/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.3)] border-yellow-600/30"
+                              }`}
+                              onClick={() => setViewingNote(draft)}
+                            >
+                              <div className="flex-1 overflow-hidden">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedDrafts.has(draft.id)}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        const newSelected = new Set(
+                                          selectedDrafts
+                                        );
+                                        if (e.target.checked) {
+                                          newSelected.add(draft.id);
+                                        } else {
+                                          newSelected.delete(draft.id);
+                                        }
+                                        setSelectedDrafts(newSelected);
+                                      }}
+                                      className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
+                                    />
+                                    <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full font-semibold">
+                                      DRAFT
+                                    </span>
+                                  </div>
+                                  {isAutoSaving && (
+                                    <span className="text-xs text-yellow-400 animate-pulse">
+                                      Saving...
+                                    </span>
+                                  )}
                                 </div>
-                                {isAutoSaving && (
-                                  <span className="text-xs text-yellow-400 animate-pulse">
-                                    Saving...
-                                  </span>
-                                )}
-                              </div>
-                              <h3
-                                className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${
-                                  settings.theme === "Light"
-                                    ? "text-purple-800"
-                                    : "text-gold-100"
-                                }`}
-                              >
-                                {draft.title}
-                              </h3>
-                              <div
-                                className={`text-sm mb-2 line-clamp-3 leading-relaxed ${
-                                  settings.theme === "Light"
-                                    ? "text-purple-700"
-                                    : "text-gray-300"
-                                }`}
-                              >
-                                {draft.content.split("\n")[0].substring(0, 120)}
-                                {draft.content.length > 120 ? "..." : ""}
-                              </div>
-                              <div
-                                className={`flex items-center justify-between text-xs ${
-                                  settings.theme === "Light"
-                                    ? "text-purple-600"
-                                    : "text-gray-400"
-                                }`}
-                              >
-                                <span
-                                  className={`px-2 py-1 rounded-full ${
+                                <h3
+                                  className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${
                                     settings.theme === "Light"
-                                      ? "bg-purple-100 text-purple-800"
-                                      : "bg-indigo-900/50 text-gray-300"
+                                      ? "text-purple-800"
+                                      : "text-gold-100"
                                   }`}
                                 >
-                                  {draft.template}
-                                </span>
-                                <span
-                                  className={
+                                  {draft.title}
+                                </h3>
+                                <div
+                                  className={`text-sm mb-2 line-clamp-3 leading-relaxed ${
                                     settings.theme === "Light"
-                                      ? "text-purple-500"
-                                      : "text-gray-500"
-                                  }
+                                      ? "text-purple-700"
+                                      : "text-gray-300"
+                                  }`}
                                 >
-                                  Click to view
-                                </span>
-                              </div>
-                            </div>
-                            <div className="mt-3 flex justify-between items-center">
-                              <div className="text-xs text-gray-400 flex items-center space-x-2">
-                                <span>Est. cost: ~$0.001</span>
-                                {!checkArweaveWallet() && (
-                                  <span className="text-orange-400 flex items-center space-x-1">
-                                    <span>⚠️</span>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const guide =
-                                          getArConnectInstallGuide();
-                                        setArConnectModal({
-                                          isOpen: true,
-                                          title: guide.title,
-                                          message: guide.message,
-                                          actionButton: guide.actionUrl
-                                            ? {
-                                                text: "Install ArConnect",
-                                                onClick: () => {
-                                                  window.open(
-                                                    guide.actionUrl,
-                                                    "_blank"
-                                                  );
-                                                  setArConnectModal((prev) => ({
-                                                    ...prev,
-                                                    isOpen: false,
-                                                  }));
-                                                },
-                                              }
-                                            : undefined,
-                                        });
-                                      }}
-                                      className="underline hover:text-orange-300 text-xs"
-                                    >
-                                      ArConnect needed
-                                    </button>
+                                  {draft.content.split("\n")[0].substring(0, 120)}
+                                  {draft.content.length > 120 ? "..." : ""}
+                                </div>
+                                <div
+                                  className={`flex items-center justify-between text-xs ${
+                                    settings.theme === "Light"
+                                      ? "text-purple-600"
+                                      : "text-gray-400"
+                                  }`}
+                                >
+                                  <span
+                                    className={`px-2 py-1 rounded-full ${
+                                      settings.theme === "Light"
+                                        ? "bg-purple-100 text-purple-800"
+                                        : "bg-indigo-900/50 text-gray-300"
+                                    }`}
+                                  >
+                                    {draft.template}
                                   </span>
-                                )}
-                              </div>
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    await publishDraftToBlockchain(draft);
-                                  }}
-                                  disabled={
-                                    publishingDrafts.has(draft.id) ||
-                                    isProcessingBatch
-                                  }
-                                  className={`text-sm disabled:opacity-50 ${
-                                    !checkArweaveWallet()
-                                      ? "text-orange-400 hover:text-orange-300"
-                                      : "text-green-400 hover:text-green-300"
-                                  } transition-colors duration-200`}
-                                >
-                                  {publishingDrafts.has(draft.id)
-                                    ? "Publishing..."
-                                    : "Publish"}
-                                </button>
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if (window.confirm("Delete this draft?")) {
-                                      await deleteDraft(draft.id);
+                                  <span
+                                    className={
+                                      settings.theme === "Light"
+                                        ? "text-purple-500"
+                                        : "text-gray-500"
                                     }
-                                  }}
-                                  className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm"
-                                >
-                                  Delete
-                                </button>
+                                  >
+                                    Click to view
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          </animated.div>
-                        ))}
-                      </div>
+                              <div className="mt-3 flex justify-between items-center">
+                                <div className="text-xs text-gray-400 flex items-center space-x-2">
+                                  <span>Est. cost: ~$0.001</span>
+                                  {!checkArweaveWallet() && (
+                                    <span className="text-orange-400 flex items-center space-x-1">
+                                      <span>⚠️</span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const guide =
+                                            getArConnectInstallGuide();
+                                          setArConnectModal({
+                                            isOpen: true,
+                                            title: guide.title,
+                                            message: guide.message,
+                                            actionButton: guide.actionUrl
+                                              ? {
+                                                  text: "Install ArConnect",
+                                                  onClick: () => {
+                                                    window.open(
+                                                      guide.actionUrl,
+                                                      "_blank"
+                                                    );
+                                                    setArConnectModal((prev) => ({
+                                                      ...prev,
+                                                      isOpen: false,
+                                                    }));
+                                                  },
+                                                }
+                                              : undefined,
+                                          });
+                                        }}
+                                        className="underline hover:text-orange-300 text-xs"
+                                      >
+                                        ArConnect needed
+                                      </button>
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      await publishDraftToBlockchain(draft);
+                                    }}
+                                    disabled={
+                                      publishingDrafts.has(draft.id) ||
+                                      isProcessingBatch
+                                    }
+                                    className={`text-sm disabled:opacity-50 ${
+                                      !checkArweaveWallet()
+                                        ? "text-orange-400 hover:text-orange-300"
+                                        : "text-green-400 hover:text-green-300"
+                                    } transition-colors duration-200`}
+                                  >
+                                    {publishingDrafts.has(draft.id)
+                                      ? "Publishing..."
+                                      : "Publish"}
+                                  </button>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (window.confirm("Delete this draft?")) {
+                                        await deleteDraft(draft.id);
+                                      }
+                                    }}
+                                    className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            </animated.div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  {(() => {
+                  )}                  {(() => {
                     let displayNotes = notes.filter(
                       (note) => mode !== "db" || !note.isPermanent
                     );
