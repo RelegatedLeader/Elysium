@@ -104,6 +104,68 @@ function getSortedNotes(notes: Note[], sorting: string) {
   });
 }
 
+// Animated note card component
+const AnimatedNoteCard = ({ note, index, settings, onClick }: { 
+  note: Note; 
+  index: number; 
+  settings: any; 
+  onClick: () => void; 
+}) => {
+  const springProps = useSpring({
+    from: { opacity: 0, transform: 'translateY(20px)' },
+    to: { opacity: 1, transform: 'translateY(0px)' },
+    delay: index * 100,
+    config: { tension: 300, friction: 20 }
+  });
+
+  return (
+    <animated.div
+      style={springProps}
+      className={`p-4 rounded-lg shadow-lg border cursor-pointer transition-all duration-300 hover:shadow-xl ${
+        settings.theme === "Light"
+          ? "bg-white border-purple-200 hover:border-purple-300"
+          : "bg-gray-800 border-gold-700 hover:border-gold-600"
+      }`}
+      onClick={onClick}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <h3
+          className={`font-semibold text-lg leading-tight line-clamp-2 ${
+            settings.theme === "Light"
+              ? "text-purple-900"
+              : "text-gold-100"
+          }`}
+        >
+          {note.title}
+        </h3>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(`https://viewblock.io/arweave/tx/${note.transactionHash}`, '_blank');
+          }}
+          className="ml-2 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors duration-200"
+        >
+          Track
+        </button>
+      </div>
+      <p
+        className={`text-sm line-clamp-3 ${
+          settings.theme === "Light" ? "text-gray-600" : "text-gray-300"
+        }`}
+      >
+        {note.content}
+      </p>
+      <div
+        className={`text-xs mt-2 ${
+          settings.theme === "Light" ? "text-gray-500" : "text-gray-400"
+        }`}
+      >
+        Published: {new Date(note.createdAt).toLocaleDateString()}
+      </div>
+    </animated.div>
+  );
+};
+
 function App() {
   const [user, setUser] = useState<any>(null);
   const [authSubscriptionRef, setAuthSubscriptionRef] = useState<any>(null);
@@ -4068,60 +4130,14 @@ function WelcomePage({
                         </h2>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
-                        {publishedNotes.map((note) => (
-                          <animated.div
+                        {publishedNotes.map((note, index) => (
+                          <AnimatedNoteCard
                             key={note.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className={`p-4 rounded-lg shadow-lg border cursor-pointer transition-all duration-300 hover:shadow-xl ${
-                              settings.theme === "Light"
-                                ? "bg-white border-purple-200 hover:border-purple-300"
-                                : "bg-gray-800 border-gold-700 hover:border-gold-600"
-                            }`}
+                            note={note}
+                            index={index}
+                            settings={settings}
                             onClick={() => setViewingNote(note)}
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <h3
-                                className={`font-semibold text-lg leading-tight line-clamp-2 ${
-                                  settings.theme === "Light"
-                                    ? "text-purple-900"
-                                    : "text-gold-100"
-                                }`}
-                              >
-                                {note.title}
-                              </h3>
-                            </div>
-                            <p
-                              className={`text-sm leading-relaxed line-clamp-3 mb-3 ${
-                                settings.theme === "Light"
-                                  ? "text-gray-700"
-                                  : "text-gray-300"
-                              }`}
-                            >
-                              {note.content}
-                            </p>
-                            <div className="flex justify-between items-center text-xs">
-                              <span
-                                className={
-                                  settings.theme === "Light"
-                                    ? "text-amber-600"
-                                    : "text-amber-400"
-                                }
-                              >
-                                Published {new Date(note.publishedAt).toLocaleDateString()}
-                              </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.open(`https://viewblock.io/arweave/tx/${note.transactionId}`, '_blank');
-                                }}
-                                className="ml-2 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors duration-200"
-                              >
-                                Track
-                              </button>
-                            </div>
-                          </animated.div>
+                          />
                         ))}
                       </div>
                     </div>
