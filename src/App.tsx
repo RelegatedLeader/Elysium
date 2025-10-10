@@ -3011,13 +3011,13 @@ function WelcomePage({
       setDrafts(prev => prev.filter(d => d.id !== draft.id));
       
       // Save to localStorage
-      const publishedKey = `published_notes_${walletAddress}`;
+      const publishedKey = `elysium_published_${walletAddress}`;
       const existingPublished = JSON.parse(localStorage.getItem(publishedKey) || '[]');
       existingPublished.push(publishedNote);
       localStorage.setItem(publishedKey, JSON.stringify(existingPublished));
       
       // Remove from drafts localStorage
-      const draftsKey = `drafts_${walletAddress}`;
+      const draftsKey = `elysium_drafts_${walletAddress}`;
       const existingDrafts = JSON.parse(localStorage.getItem(draftsKey) || '[]');
       const updatedDrafts = existingDrafts.filter((d: any) => d.id !== draft.id);
       localStorage.setItem(draftsKey, JSON.stringify(updatedDrafts));
@@ -3072,12 +3072,12 @@ function WelcomePage({
       setDrafts(prev => prev.filter(draft => !draftIds.includes(draft.id)));
       
       // Update localStorage
-      const publishedKey = `published_notes_${walletAddress}`;
+      const publishedKey = `elysium_published_${walletAddress}`;
       const existingPublished = JSON.parse(localStorage.getItem(publishedKey) || '[]');
       existingPublished.push(...publishedNotes);
       localStorage.setItem(publishedKey, JSON.stringify(existingPublished));
       
-      const draftsKey = `drafts_${walletAddress}`;
+      const draftsKey = `elysium_drafts_${walletAddress}`;
       const existingDrafts = JSON.parse(localStorage.getItem(draftsKey) || '[]');
       const updatedDrafts = existingDrafts.filter((d: any) => !draftIds.includes(d.id));
       localStorage.setItem(draftsKey, JSON.stringify(updatedDrafts));
@@ -4078,6 +4078,7 @@ function WelcomePage({
                       }`}>
                         ⚠️ Note may take up to 35 minutes to appear trackable on the blockchain
                       </p>
+                      {showPublishedNotes && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
                           {publishedNotes
                             .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
@@ -4175,6 +4176,7 @@ function WelcomePage({
                               );
                             })}
                         </div>
+                      )}
                     </div>
                   )}
 
