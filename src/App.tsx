@@ -61,7 +61,7 @@ async function deriveKey(
   const salt = customSalt || "elysium-eternal-salt";
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(userId + "elysium-persistent-key"),
+    new Uint8Array(encoder.encode(userId + "elysium-persistent-key")),
     "PBKDF2",
     false,
     ["deriveKey"]
@@ -69,7 +69,7 @@ async function deriveKey(
   return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: encoder.encode(salt),
+      salt: new Uint8Array(encoder.encode(salt)),
       iterations: 100000,
       hash: "SHA-256",
     },
@@ -555,7 +555,7 @@ function App() {
       const encrypted = await crypto.subtle.encrypt(
         { name: "AES-GCM", iv: nonce },
         fieldKey,
-        dataBuffer
+        new Uint8Array(dataBuffer)
       );
 
       // Combine nonce and encrypted data
@@ -1834,8 +1834,23 @@ function WelcomePage({
   );
 
   // Section visibility toggles
-  const [showDrafts, setShowDrafts] = useState(true);
-  const [showPublishedNotes, setShowPublishedNotes] = useState(true);
+  const [showDrafts, setShowDrafts] = useState(() => {
+    const saved = localStorage.getItem("elysium_showDrafts");
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [showPublishedNotes, setShowPublishedNotes] = useState(() => {
+    const saved = localStorage.getItem("elysium_showPublishedNotes");
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // Save toggle states to localStorage
+  useEffect(() => {
+    localStorage.setItem("elysium_showDrafts", JSON.stringify(showDrafts));
+  }, [showDrafts]);
+
+  useEffect(() => {
+    localStorage.setItem("elysium_showPublishedNotes", JSON.stringify(showPublishedNotes));
+  }, [showPublishedNotes]);
 
   // Batch processing for blockchain saves
   const [batchQueue, setBatchQueue] = useState<Note[]>([]);
@@ -2173,151 +2188,6 @@ function WelcomePage({
       console.log("Draft deleted:", draftId);
     } catch (error) {
       console.error("Error deleting draft:", error);
-    }
-  };
-
-  const publishDraftToBlockchain = async (draft: Note) => {
-    if (mode !== "web3" || !checkArweaveWallet()) return;
-
-    try {
-      // Add this draft to the publishing set
-      setPublishingDrafts((prev) => new Set(prev).add(draft.id));
-
-      // Publish to blockchain first
-      const result = await saveToBlockchain({
-        ...draft,
-        isPermanent: true,
-        updatedAt: new Date().toISOString(),
-      });
-
-      // Only remove from drafts after successful publishing
-      await deleteDraft(draft.id);
-
-      // Add the published note to the notes list with transaction details
-      const publishedNote: Note = {
-        ...draft,
-        arweaveHash: result.arweaveHash,
-        transactionHash: result.transactionHash,
-        isPermanent: result.isPermanent,
-        isDraft: false,
-        updatedAt: new Date().toISOString(),
-      };
-
-      setNotes((prev) => [...prev, publishedNote]);
-
-      // Also add to published notes for tracking
-      const publishedNoteWithTx = {
-        ...publishedNote,
-        transactionId: result.arweaveHash,
-        publishedAt: new Date().toISOString(),
-      };
-      setPublishedNotes((prev) => [...prev, publishedNoteWithTx]);
-
-      // Save published notes to localStorage
-      const publishedKey = `elysium_published_${walletAddress}`;
-      const existingPublished = JSON.parse(localStorage.getItem(publishedKey) || "[]");
-      existingPublished.push(publishedNoteWithTx);
-      localStorage.setItem(publishedKey, JSON.stringify(existingPublished));
-
-      console.log("Draft published to blockchain:", draft.id, result);
-      showNotification(
-        "Success",
-        `Note "${draft.title}" published to blockchain!`
-      );
-    } catch (error) {
-      console.error("Error publishing draft:", error);
-      // Don't delete draft on failure - let user try again
-      showNotification(
-        "Error",
-        `Failed to publish "${draft.title}" to blockchain. Please try again.`
-      );
-    } finally {
-      // Remove this draft from the publishing set
-      setPublishingDrafts((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(draft.id);
-        return newSet;
-      });
-    }
-  };
-
-  const batchPublishDrafts = async (draftIds: string[]) => {
-    if (mode !== "web3" || !checkArweaveWallet() || draftIds.length === 0) return;
-
-    try {
-      setIsProcessingBatch(true);
-
-      const draftsToPublish = drafts.filter((d) => draftIds.includes(d.id));
-
-      if (draftsToPublish.length === 0) return;
-
-      // Calculate estimated cost (rough estimate: $0.001 per note)
-      const estimatedCost = (draftIds.length * 0.001).toFixed(3);
-
-      // Show confirmation once for the entire batch
-      const confirmMessage =
-        draftsToPublish.length === 1
-          ? `Publish "${draftsToPublish[0].title}" to blockchain? This will make it permanent and cost ~$${estimatedCost}.`
-          : `Publish ${draftsToPublish.length} drafts to blockchain as a batch? This will make them permanent and cost ~$${estimatedCost}.`;
-
-      if (!window.confirm(confirmMessage)) return;
-
-      let successCount = 0;
-      let failureCount = 0;
-
-      // Process each draft sequentially (could be optimized to true batch later)
-      for (const draft of draftsToPublish) {
-        try {
-          // Publish to blockchain first
-          const result = await saveToBlockchain({
-            ...draft,
-            isPermanent: true,
-            updatedAt: new Date().toISOString(),
-          });
-
-          // Only remove from drafts after successful publishing
-          await deleteDraft(draft.id);
-
-          // Add the published note to the notes list with transaction details
-          const publishedNote: Note = {
-            ...draft,
-            arweaveHash: result.arweaveHash,
-            transactionHash: result.transactionHash,
-            isPermanent: result.isPermanent,
-            isDraft: false,
-            updatedAt: new Date().toISOString(),
-          };
-
-          setNotes((prev) => [...prev, publishedNote]);
-
-          successCount++;
-          console.log(`Successfully published draft: ${draft.title}`, result);
-        } catch (error) {
-          console.error(`Failed to publish draft "${draft.title}":`, error);
-          failureCount++;
-          // Draft remains in drafts list - no need to re-add
-        }
-      }
-
-      // Show results
-      if (successCount > 0) {
-        showNotification(
-          "Success",
-          `Published ${successCount} draft${
-            successCount === 1 ? "" : "s"
-          } to blockchain!${failureCount > 0 ? ` ${failureCount} failed.` : ""}`
-        );
-      } else {
-        showNotification(
-          "Error",
-          "Failed to publish any drafts. Please try again."
-        );
-      }
-    } catch (error) {
-      console.error("Error in batch publish:", error);
-      showNotification("Error", "Failed to publish drafts. Please try again.");
-    } finally {
-      setIsProcessingBatch(false);
     }
   };
 
@@ -2674,7 +2544,7 @@ function WelcomePage({
     const encrypted = await crypto.subtle.encrypt(
       { name: "AES-GCM", iv },
       key,
-      new TextEncoder().encode(data)
+      new Uint8Array(new TextEncoder().encode(data))
     );
     return {
       iv: Array.from(iv),
@@ -3115,9 +2985,112 @@ function WelcomePage({
     }
   };
 
-  const loadFromBlockchain = async () => {
-    // SOL blockchain loading disabled - Arweave-only mode
-    return;
+  const publishDraftToBlockchain = async (draft: Note) => {
+    if (!checkArweaveWallet()) {
+      alert("Please connect your ArConnect wallet first.");
+      return;
+    }
+
+    try {
+      setPublishingDrafts(prev => new Set(prev).add(draft.id));
+      
+      const result = await saveToBlockchain(draft);
+      
+      // Create published note
+      const publishedNote = {
+        ...draft,
+        arweaveHash: result.arweaveHash,
+        transactionId: result.transactionHash || result.arweaveHash,
+        publishedAt: new Date().toISOString(),
+        isPermanent: true,
+      };
+      
+      // Add to published notes
+      setPublishedNotes(prev => [...prev, publishedNote]);
+      
+      // Remove from drafts
+      setDrafts(prev => prev.filter(d => d.id !== draft.id));
+      
+      // Save to localStorage
+      const publishedKey = `published_notes_${walletAddress}`;
+      const existingPublished = JSON.parse(localStorage.getItem(publishedKey) || '[]');
+      existingPublished.push(publishedNote);
+      localStorage.setItem(publishedKey, JSON.stringify(existingPublished));
+      
+      // Remove from drafts localStorage
+      const draftsKey = `drafts_${walletAddress}`;
+      const existingDrafts = JSON.parse(localStorage.getItem(draftsKey) || '[]');
+      const updatedDrafts = existingDrafts.filter((d: any) => d.id !== draft.id);
+      localStorage.setItem(draftsKey, JSON.stringify(updatedDrafts));
+      
+      console.log("Draft published successfully:", draft.id);
+    } catch (error) {
+      console.error("Failed to publish draft:", error);
+      alert(`Failed to publish draft: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setPublishingDrafts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(draft.id);
+        return newSet;
+      });
+    }
+  };
+
+  const batchPublishDrafts = async (draftIds: string[]) => {
+    if (!checkArweaveWallet()) {
+      alert("Please connect your ArConnect wallet first.");
+      return;
+    }
+
+    try {
+      setIsProcessingBatch(true);
+      setPublishingDrafts(prev => new Set([...Array.from(prev), ...draftIds]));
+      
+      const draftsToPublish = drafts.filter(draft => draftIds.includes(draft.id));
+      const publishedNotes: Array<Note & { transactionId: string; publishedAt: string }> = [];
+      
+      for (const draft of draftsToPublish) {
+        try {
+          const result = await saveToBlockchain(draft);
+          
+          const publishedNote = {
+            ...draft,
+            arweaveHash: result.arweaveHash,
+            transactionId: result.transactionHash || result.arweaveHash,
+            publishedAt: new Date().toISOString(),
+            isPermanent: true,
+          };
+          
+          publishedNotes.push(publishedNote);
+          console.log("Draft published in batch:", draft.id);
+        } catch (error) {
+          console.error("Failed to publish draft in batch:", draft.id, error);
+        }
+      }
+      
+      // Update state
+      setPublishedNotes(prev => [...prev, ...publishedNotes]);
+      setDrafts(prev => prev.filter(draft => !draftIds.includes(draft.id)));
+      
+      // Update localStorage
+      const publishedKey = `published_notes_${walletAddress}`;
+      const existingPublished = JSON.parse(localStorage.getItem(publishedKey) || '[]');
+      existingPublished.push(...publishedNotes);
+      localStorage.setItem(publishedKey, JSON.stringify(existingPublished));
+      
+      const draftsKey = `drafts_${walletAddress}`;
+      const existingDrafts = JSON.parse(localStorage.getItem(draftsKey) || '[]');
+      const updatedDrafts = existingDrafts.filter((d: any) => !draftIds.includes(d.id));
+      localStorage.setItem(draftsKey, JSON.stringify(updatedDrafts));
+      
+      console.log(`Batch publishing completed: ${publishedNotes.length} drafts published`);
+    } catch (error) {
+      console.error("Batch publishing failed:", error);
+      alert(`Batch publishing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsProcessingBatch(false);
+      setPublishingDrafts(new Set());
+    }
   };
 
   const handleLogin = async () => {
@@ -4099,19 +4072,110 @@ function WelcomePage({
                           {showPublishedNotes ? "Hide" : "Show"} Notes
                         </button>
                       </div>
-                      {showPublishedNotes && (
+                      <p className={`text-sm mb-4 ${
+                        settings.theme === "Light"
+                          ? "text-purple-600"
+                          : "text-gray-300"
+                      }`}>
+                        ⚠️ Note may take up to 35 minutes to appear trackable on the blockchain
+                      </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
-                          {publishedNotes.map((note, index) => (
-                            <AnimatedNoteCard
-                              key={note.id}
-                              note={note}
-                              index={index}
-                              settings={settings}
-                              onClick={() => setViewingNote(note)}
-                            />
-                          ))}
+                          {publishedNotes
+                            .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+                            .map((note, index) => {
+                              const isTrackable = Date.now() - new Date(note.publishedAt).getTime() > 20 * 60 * 1000; // 20 minutes
+                              return (
+                                <animated.div
+                                  key={note.id}
+                                  style={noteSpring}
+                                  className={`group backdrop-blur-sm p-3 sm:p-4 rounded-lg shadow-xl flex flex-col justify-between cursor-pointer hover:scale-105 transition-all duration-300 border h-48 sm:h-52 ${
+                                    settings.theme === "Light"
+                                      ? "bg-gradient-to-br from-amber-50/90 via-yellow-50/90 to-orange-50/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)] border-amber-200/50"
+                                      : "bg-gradient-to-br from-amber-800/90 to-orange-700/90 hover:shadow-[0_0_15px_rgba(245,158,11,0.3)] border-amber-600/30"
+                                  }`}
+                                  onClick={() => setViewingNote(note)}
+                                >
+                                  <div className="flex-1 overflow-hidden">
+                                    <h3
+                                      className={`text-lg sm:text-xl font-semibold mb-2 font-serif line-clamp-2 leading-tight ${
+                                        settings.theme === "Light"
+                                          ? "text-amber-800"
+                                          : "text-amber-100"
+                                      }`}
+                                    >
+                                      {note.title}
+                                      <span className="text-xs text-amber-400 ml-1">
+                                        🌟
+                                      </span>
+                                    </h3>
+                                    <div
+                                      className={`text-sm mb-2 line-clamp-3 leading-relaxed ${
+                                        settings.theme === "Light"
+                                          ? "text-amber-700"
+                                          : "text-amber-200"
+                                      }`}
+                                    >
+                                      {note.content
+                                        .split("\n")[0]
+                                        .substring(0, 120)}
+                                      {note.content.length > 120 ? "..." : ""}
+                                    </div>
+                                    <div
+                                      className={`flex items-center justify-between text-xs ${
+                                        settings.theme === "Light"
+                                          ? "text-amber-600"
+                                          : "text-amber-400"
+                                      }`}
+                                    >
+                                      <span
+                                        className={`px-2 py-1 rounded-full ${
+                                          settings.theme === "Light"
+                                            ? "bg-amber-100 text-amber-800"
+                                            : "bg-amber-900/50 text-amber-300"
+                                        }`}
+                                      >
+                                        {note.template}
+                                      </span>
+                                      <span
+                                        className={
+                                          settings.theme === "Light"
+                                            ? "text-amber-500"
+                                            : "text-amber-500"
+                                        }
+                                      >
+                                        Click to view
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 flex justify-between items-center">
+                                    <div className="text-xs text-amber-400 flex items-center space-x-2">
+                                      <span>Published: {new Date(note.publishedAt).toLocaleDateString()}</span>
+                                      {note.transactionId && (
+                                        <>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (isTrackable) {
+                                                window.open(`https://viewblock.io/arweave/tx/${note.transactionId}`, '_blank');
+                                              }
+                                            }}
+                                            disabled={!isTrackable}
+                                            className={`px-3 py-1 rounded-full font-semibold text-xs transition-all duration-300 ${
+                                              isTrackable
+                                                ? "bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white shadow-lg hover:shadow-purple-500/25"
+                                                : "bg-gray-600 text-gray-400 cursor-not-allowed"
+                                            }`}
+                                          >
+                                            {isTrackable ? "Track" : "Processing..."}
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </animated.div>
+                              );
+                            })}
                         </div>
-                      )}
                     </div>
                   )}
 
