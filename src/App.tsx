@@ -105,17 +105,22 @@ function getSortedNotes(notes: Note[], sorting: string) {
 }
 
 // Animated note card component
-const AnimatedNoteCard = ({ note, index, settings, onClick }: { 
-  note: Note; 
-  index: number; 
-  settings: any; 
-  onClick: () => void; 
+const AnimatedNoteCard = ({
+  note,
+  index,
+  settings,
+  onClick,
+}: {
+  note: Note;
+  index: number;
+  settings: any;
+  onClick: () => void;
 }) => {
   const springProps = useSpring({
-    from: { opacity: 0, transform: 'translateY(20px)' },
-    to: { opacity: 1, transform: 'translateY(0px)' },
+    from: { opacity: 0, transform: "translateY(20px)" },
+    to: { opacity: 1, transform: "translateY(0px)" },
     delay: index * 100,
-    config: { tension: 300, friction: 20 }
+    config: { tension: 300, friction: 20 },
   });
 
   return (
@@ -131,9 +136,7 @@ const AnimatedNoteCard = ({ note, index, settings, onClick }: {
       <div className="flex justify-between items-start mb-2">
         <h3
           className={`font-semibold text-lg leading-tight line-clamp-2 ${
-            settings.theme === "Light"
-              ? "text-purple-900"
-              : "text-gold-100"
+            settings.theme === "Light" ? "text-purple-900" : "text-gold-100"
           }`}
         >
           {note.title}
@@ -141,7 +144,10 @@ const AnimatedNoteCard = ({ note, index, settings, onClick }: {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            window.open(`https://viewblock.io/arweave/tx/${note.transactionHash}`, '_blank');
+            window.open(
+              `https://viewblock.io/arweave/tx/${note.transactionHash}`,
+              "_blank"
+            );
           }}
           className="ml-2 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors duration-200"
         >
@@ -1753,9 +1759,7 @@ function App() {
     };
   }, []); // Only run once
 
-  return (
-    <WelcomePage user={user} setUser={setUser} />
-  );
+  return <WelcomePage user={user} setUser={setUser} />;
 }
 
 function getDefaultNotes(mode: "web3" | "db" | "cloud"): Note[] {
@@ -1775,7 +1779,9 @@ function WelcomePage({
   const [email, setEmail] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
-  const [walletPublicKey, setWalletPublicKey] = useState<Uint8Array | null>(null);
+  const [walletPublicKey, setWalletPublicKey] = useState<Uint8Array | null>(
+    null
+  );
 
   const [selectedMode, setSelectedMode] = useState<
     null | "web3" | "db" | "cloud"
@@ -1825,18 +1831,22 @@ function WelcomePage({
 
   // Draft system for blockchain mode
   const [drafts, setDrafts] = useState<Note[]>([]);
-  const [publishedNotes, setPublishedNotes] = useState<Array<Note & { transactionId: string; publishedAt: string }>>([]);
+  const [publishedNotes, setPublishedNotes] = useState<
+    Array<Note & { transactionId: string; publishedAt: string }>
+  >([]);
   const [currentDraft, setCurrentDraft] = useState<Note | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
 
   // Folder system for organizing eternal notes
-  const [folders, setFolders] = useState<Array<{
-    id: string;
-    name: string;
-    color: string;
-    noteIds: string[];
-    createdAt: string;
-  }>>([]);
+  const [folders, setFolders] = useState<
+    Array<{
+      id: string;
+      name: string;
+      color: string;
+      noteIds: string[];
+      createdAt: string;
+    }>
+  >([]);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
   const [showPublishFolderModal, setShowPublishFolderModal] = useState(false);
   const [viewingFolder, setViewingFolder] = useState<any>(null);
@@ -1867,7 +1877,10 @@ function WelcomePage({
   }, [showDrafts]);
 
   useEffect(() => {
-    localStorage.setItem("elysium_showPublishedNotes", JSON.stringify(showPublishedNotes));
+    localStorage.setItem(
+      "elysium_showPublishedNotes",
+      JSON.stringify(showPublishedNotes)
+    );
   }, [showPublishedNotes]);
 
   useEffect(() => {
@@ -2006,14 +2019,16 @@ function WelcomePage({
     if (mode !== "web3") return;
 
     // Allow saving drafts even without wallet connection
-    const draftKey = walletAddress ? `elysium_drafts_${walletAddress}` : 'elysium_drafts_local';
+    const draftKey = walletAddress
+      ? `elysium_drafts_${walletAddress}`
+      : "elysium_drafts_local";
 
     try {
       setIsAutoSaving(true);
 
       // Prepare the draft for saving
       let draftToSave = note;
-      
+
       // Encrypt the draft content using address-derived key
       if (walletAddress) {
         const dataStr = JSON.stringify({
@@ -2027,10 +2042,7 @@ function WelcomePage({
         const addressBytes = encoder.encode(walletAddress);
         const keyMaterial = nacl.hash(addressBytes).slice(0, 32);
 
-        const { encrypted, nonce } = encryptAndCompress(
-          dataStr,
-          keyMaterial
-        );
+        const { encrypted, nonce } = encryptAndCompress(dataStr, keyMaterial);
 
         draftToSave = {
           ...note,
@@ -2049,9 +2061,7 @@ function WelcomePage({
       }
 
       // Save to localStorage
-      const existingDrafts = JSON.parse(
-        localStorage.getItem(draftKey) || "[]"
-      );
+      const existingDrafts = JSON.parse(localStorage.getItem(draftKey) || "[]");
 
       // Update or add the draft
       const draftIndex = existingDrafts.findIndex((d: any) => d.id === note.id);
@@ -2062,7 +2072,7 @@ function WelcomePage({
       }
 
       localStorage.setItem(draftKey, JSON.stringify(existingDrafts));
-      
+
       // Update the drafts state with the decrypted version for immediate UI update
       const decryptedDraft = {
         ...note,
@@ -2093,18 +2103,23 @@ function WelcomePage({
       let allSavedDrafts: any[] = [];
 
       // Load from local key (drafts saved without wallet)
-      const localDrafts = JSON.parse(localStorage.getItem('elysium_drafts_local') || "[]");
+      const localDrafts = JSON.parse(
+        localStorage.getItem("elysium_drafts_local") || "[]"
+      );
       allSavedDrafts = [...allSavedDrafts, ...localDrafts];
 
       // Load from wallet-specific key if connected (drafts saved with wallet)
       if (walletAddress) {
-        const walletDrafts = JSON.parse(localStorage.getItem(`elysium_drafts_${walletAddress}`) || "[]");
+        const walletDrafts = JSON.parse(
+          localStorage.getItem(`elysium_drafts_${walletAddress}`) || "[]"
+        );
         allSavedDrafts = [...allSavedDrafts, ...walletDrafts];
       }
 
       // Remove duplicates based on id
-      const uniqueDrafts = allSavedDrafts.filter((draft, index, self) => 
-        index === self.findIndex(d => d.id === draft.id)
+      const uniqueDrafts = allSavedDrafts.filter(
+        (draft, index, self) =>
+          index === self.findIndex((d) => d.id === draft.id)
       );
 
       // Decrypt drafts for display
@@ -2118,7 +2133,7 @@ function WelcomePage({
                 const encoder = new TextEncoder();
                 const addressBytes = encoder.encode(walletAddress);
                 const keyMaterial = nacl.hash(addressBytes).slice(0, 32);
-                
+
                 const decryptedData = decryptNote(
                   new Uint8Array(Object.values(draft.encryptedContent)),
                   keyMaterial,
@@ -2135,7 +2150,11 @@ function WelcomePage({
                   isDraft: true,
                 };
               } catch (decryptError) {
-                console.error("Decryption failed for draft:", draft.id, decryptError);
+                console.error(
+                  "Decryption failed for draft:",
+                  draft.id,
+                  decryptError
+                );
                 // If decryption fails, try to use it as plain text if it has title/content
                 if (draft.title && draft.content) {
                   console.log("Using encrypted draft as plain text:", draft.id);
@@ -2182,7 +2201,9 @@ function WelcomePage({
 
     try {
       const publishedKey = `elysium_published_${walletAddress}`;
-      const savedPublished = JSON.parse(localStorage.getItem(publishedKey) || "[]");
+      const savedPublished = JSON.parse(
+        localStorage.getItem(publishedKey) || "[]"
+      );
       setPublishedNotes(savedPublished);
       console.log(`Loaded ${savedPublished.length} published notes`);
     } catch (error) {
@@ -2209,7 +2230,9 @@ function WelcomePage({
     if (mode !== "web3" || !checkArweaveWallet()) return;
 
     try {
-      const draftsKey = walletAddress ? `elysium_drafts_${walletAddress}` : 'elysium_drafts_local';
+      const draftsKey = walletAddress
+        ? `elysium_drafts_${walletAddress}`
+        : "elysium_drafts_local";
       const existingDrafts = JSON.parse(
         localStorage.getItem(draftsKey) || "[]"
       );
@@ -2458,17 +2481,24 @@ function WelcomePage({
         try {
           console.log("Attempting to reconnect Arweave wallet...");
           const { address, publicKey } = await connectArweaveWallet();
-          console.log("Reconnected wallet publicKey type:", typeof publicKey, "length:", publicKey?.length);
+          console.log(
+            "Reconnected wallet publicKey type:",
+            typeof publicKey,
+            "length:",
+            publicKey?.length
+          );
           setWalletAddress(address);
           setWalletPublicKey(publicKey);
           console.log("Successfully reconnected Arweave wallet:", address);
         } catch (error) {
-          console.log("Failed to reconnect Arweave wallet, staying in web3 mode but disconnected");
+          console.log(
+            "Failed to reconnect Arweave wallet, staying in web3 mode but disconnected"
+          );
           // Don't change mode, just stay disconnected
         }
       }
     };
-    
+
     // Small delay to ensure ArConnect is loaded
     const timer = setTimeout(reconnectWallet, 1000);
     return () => clearTimeout(timer);
@@ -2511,7 +2541,11 @@ function WelcomePage({
       }
     } catch (error) {
       console.error("Failed to connect Arweave wallet:", error);
-      alert(`Failed to connect Arweave wallet: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(
+        `Failed to connect Arweave wallet: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   };
 
@@ -2940,10 +2974,7 @@ function WelcomePage({
       const addressBytes = encoder.encode(walletAddress);
       const keyMaterial = nacl.hash(addressBytes).slice(0, 32);
 
-      const { encrypted, nonce } = encryptAndCompress(
-        dataStr,
-        keyMaterial
-      );
+      const { encrypted, nonce } = encryptAndCompress(dataStr, keyMaterial);
       console.log(
         "Encryption complete - nonce length:",
         nonce.length,
@@ -3029,10 +3060,10 @@ function WelcomePage({
     }
 
     try {
-      setPublishingDrafts(prev => new Set(prev).add(draft.id));
-      
+      setPublishingDrafts((prev) => new Set(prev).add(draft.id));
+
       const result = await saveToBlockchain(draft);
-      
+
       // Create published note
       const publishedNote = {
         ...draft,
@@ -3041,37 +3072,53 @@ function WelcomePage({
         publishedAt: new Date().toISOString(),
         isPermanent: true,
       };
-      
+
       // Add to published notes
-      setPublishedNotes(prev => [...prev, publishedNote]);
-      
+      setPublishedNotes((prev) => [...prev, publishedNote]);
+
       // Remove from drafts
-      setDrafts(prev => prev.filter(d => d.id !== draft.id));
-      
+      setDrafts((prev) => prev.filter((d) => d.id !== draft.id));
+
       // Save to localStorage
       const publishedKey = `elysium_published_${walletAddress}`;
-      const existingPublished = JSON.parse(localStorage.getItem(publishedKey) || '[]');
+      const existingPublished = JSON.parse(
+        localStorage.getItem(publishedKey) || "[]"
+      );
       existingPublished.push(publishedNote);
       localStorage.setItem(publishedKey, JSON.stringify(existingPublished));
-      
+
       // Remove from drafts localStorage (check both possible keys)
-      const draftsKey = walletAddress ? `elysium_drafts_${walletAddress}` : 'elysium_drafts_local';
-      const existingDrafts = JSON.parse(localStorage.getItem(draftsKey) || '[]');
-      const updatedDrafts = existingDrafts.filter((d: any) => d.id !== draft.id);
+      const draftsKey = walletAddress
+        ? `elysium_drafts_${walletAddress}`
+        : "elysium_drafts_local";
+      const existingDrafts = JSON.parse(
+        localStorage.getItem(draftsKey) || "[]"
+      );
+      const updatedDrafts = existingDrafts.filter(
+        (d: any) => d.id !== draft.id
+      );
       localStorage.setItem(draftsKey, JSON.stringify(updatedDrafts));
-      
+
       // Also check the other key in case the draft was saved there
-      const otherKey = walletAddress ? 'elysium_drafts_local' : `elysium_drafts_${walletAddress}`;
-      const otherDrafts = JSON.parse(localStorage.getItem(otherKey) || '[]');
-      const updatedOtherDrafts = otherDrafts.filter((d: any) => d.id !== draft.id);
+      const otherKey = walletAddress
+        ? "elysium_drafts_local"
+        : `elysium_drafts_${walletAddress}`;
+      const otherDrafts = JSON.parse(localStorage.getItem(otherKey) || "[]");
+      const updatedOtherDrafts = otherDrafts.filter(
+        (d: any) => d.id !== draft.id
+      );
       localStorage.setItem(otherKey, JSON.stringify(updatedOtherDrafts));
-      
+
       console.log("Draft published successfully:", draft.id);
     } catch (error) {
       console.error("Failed to publish draft:", error);
-      alert(`Failed to publish draft: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(
+        `Failed to publish draft: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
-      setPublishingDrafts(prev => {
+      setPublishingDrafts((prev) => {
         const newSet = new Set(prev);
         newSet.delete(draft.id);
         return newSet;
@@ -3087,15 +3134,21 @@ function WelcomePage({
 
     try {
       setIsProcessingBatch(true);
-      setPublishingDrafts(prev => new Set([...Array.from(prev), ...draftIds]));
-      
-      const draftsToPublish = drafts.filter(draft => draftIds.includes(draft.id));
-      const publishedNotes: Array<Note & { transactionId: string; publishedAt: string }> = [];
-      
+      setPublishingDrafts(
+        (prev) => new Set([...Array.from(prev), ...draftIds])
+      );
+
+      const draftsToPublish = drafts.filter((draft) =>
+        draftIds.includes(draft.id)
+      );
+      const publishedNotes: Array<
+        Note & { transactionId: string; publishedAt: string }
+      > = [];
+
       for (const draft of draftsToPublish) {
         try {
           const result = await saveToBlockchain(draft);
-          
+
           const publishedNote = {
             ...draft,
             arweaveHash: result.arweaveHash,
@@ -3103,39 +3156,55 @@ function WelcomePage({
             publishedAt: new Date().toISOString(),
             isPermanent: true,
           };
-          
+
           publishedNotes.push(publishedNote);
           console.log("Draft published in batch:", draft.id);
         } catch (error) {
           console.error("Failed to publish draft in batch:", draft.id, error);
         }
       }
-      
+
       // Update state
-      setPublishedNotes(prev => [...prev, ...publishedNotes]);
-      setDrafts(prev => prev.filter(draft => !draftIds.includes(draft.id)));
-      
+      setPublishedNotes((prev) => [...prev, ...publishedNotes]);
+      setDrafts((prev) => prev.filter((draft) => !draftIds.includes(draft.id)));
+
       // Update localStorage
       const publishedKey = `elysium_published_${walletAddress}`;
-      const existingPublished = JSON.parse(localStorage.getItem(publishedKey) || '[]');
+      const existingPublished = JSON.parse(
+        localStorage.getItem(publishedKey) || "[]"
+      );
       existingPublished.push(...publishedNotes);
       localStorage.setItem(publishedKey, JSON.stringify(existingPublished));
-      
+
       const draftsKey = `elysium_drafts_${walletAddress}`;
-      const existingDrafts = JSON.parse(localStorage.getItem(draftsKey) || '[]');
-      const updatedDrafts = existingDrafts.filter((d: any) => !draftIds.includes(d.id));
+      const existingDrafts = JSON.parse(
+        localStorage.getItem(draftsKey) || "[]"
+      );
+      const updatedDrafts = existingDrafts.filter(
+        (d: any) => !draftIds.includes(d.id)
+      );
       localStorage.setItem(draftsKey, JSON.stringify(updatedDrafts));
-      
+
       // Also remove from local key in case drafts were saved there
-      const localDraftsKey = 'elysium_drafts_local';
-      const existingLocalDrafts = JSON.parse(localStorage.getItem(localDraftsKey) || '[]');
-      const updatedLocalDrafts = existingLocalDrafts.filter((d: any) => !draftIds.includes(d.id));
+      const localDraftsKey = "elysium_drafts_local";
+      const existingLocalDrafts = JSON.parse(
+        localStorage.getItem(localDraftsKey) || "[]"
+      );
+      const updatedLocalDrafts = existingLocalDrafts.filter(
+        (d: any) => !draftIds.includes(d.id)
+      );
       localStorage.setItem(localDraftsKey, JSON.stringify(updatedLocalDrafts));
-      
-      console.log(`Batch publishing completed: ${publishedNotes.length} drafts published`);
+
+      console.log(
+        `Batch publishing completed: ${publishedNotes.length} drafts published`
+      );
     } catch (error) {
       console.error("Batch publishing failed:", error);
-      alert(`Batch publishing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(
+        `Batch publishing failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setIsProcessingBatch(false);
       setPublishingDrafts(new Set());
@@ -3307,13 +3376,7 @@ function WelcomePage({
       setNotes(getDefaultNotes(mode));
       // Arweave notes are loaded from localStorage drafts only
     }
-  }, [
-    mode,
-    user,
-    fetchNotes,
-    cloudStorage.user,
-    cloudStorage.notes,
-  ]);
+  }, [mode, user, fetchNotes, cloudStorage.user, cloudStorage.notes]);
 
   useEffect(() => {
     if (mode === "cloud" && !cloudStorage.user) {
@@ -3328,9 +3391,14 @@ function WelcomePage({
     const checkExistingConnection = async () => {
       if (checkArweaveWallet()) {
         try {
-          const address = await (window as any).arweaveWallet.getActiveAddress();
+          const address = await (
+            window as any
+          ).arweaveWallet.getActiveAddress();
           if (address) {
-            console.log("Restored existing Arweave wallet connection:", address);
+            console.log(
+              "Restored existing Arweave wallet connection:",
+              address
+            );
             setWalletAddress(address);
           }
         } catch (error) {
@@ -3343,7 +3411,9 @@ function WelcomePage({
     checkExistingConnection();
   }, []);
 
-  const shortenedAddress = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : "";
+  const shortenedAddress = walletAddress
+    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+    : "";
 
   const renderList = (
     noteId: string,
@@ -3662,7 +3732,7 @@ function WelcomePage({
           style={{ ...titleSpring, color: "#e5e7eb" }}
           className="text-lg sm:text-xl italic mb-6 max-w-md text-center"
         >
-          Store Your Notes Securely in the Cloud
+          Your Notes, your choice.
         </animated.p>
         <div className="flex flex-col sm:flex-row w-full max-w-6xl mx-auto space-y-4 sm:space-y-0 sm:space-x-4">
           <div
@@ -3823,9 +3893,12 @@ function WelcomePage({
               settings.theme === "Light" ? "text-purple-700" : "text-silver-200"
             }`}
           >
-            Store Your Notes Permanently on Arweave
+            Unlock Your Eternal Notes in a Decentralized Realm
           </animated.p>
-          <animated.div style={buttonSpring} className="flex flex-col items-center space-y-4">
+          <animated.div
+            style={buttonSpring}
+            className="flex flex-col items-center space-y-4"
+          >
             <button
               onClick={handleSelectWallet}
               className="relative bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-700 hover:from-purple-700 hover:via-blue-700 hover:to-indigo-800 text-white font-bold py-4 px-8 sm:px-10 rounded-full shadow-2xl transition-all duration-300 text-lg sm:text-xl transform hover:scale-105 hover:shadow-purple-500/25 border-2 border-purple-400/50"
@@ -4104,7 +4177,6 @@ function WelcomePage({
                       </button>
                     )}
                   </div>
-
                   {/* Folders section for blockchain mode */}
                   {mode === "web3" && folders.length > 0 && (
                     <div className="mb-8">
@@ -4131,98 +4203,115 @@ function WelcomePage({
                       </div>
                       {showFolders && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8">
-                        {folders.map((folder) => {
-                          const folderNotes = publishedNotes.filter(note => folder.noteIds.includes(note.id));
-                          return (
-                            <animated.div
-                              key={folder.id}
-                              style={{
-                                ...noteSpring,
-                                background: `linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.6) 100%)`,
-                                borderColor: `${folder.color}30`,
-                                boxShadow: `0 4px 20px rgba(0,0,0,0.08), 0 2px 8px ${folder.color}15`
-                              }}
-                              className="group relative overflow-hidden rounded-2xl border backdrop-blur-sm cursor-pointer hover:scale-[1.02] transition-all duration-300 h-44 sm:h-48"
-                              onClick={() => setViewingFolder(folder)}
-                            >
-                              {/* Top color accent */}
-                              <div
-                                className="absolute top-0 left-0 right-0 h-1"
-                                style={{ backgroundColor: folder.color }}
-                              />
+                          {folders.map((folder) => {
+                            const folderNotes = publishedNotes.filter((note) =>
+                              folder.noteIds.includes(note.id)
+                            );
+                            return (
+                              <animated.div
+                                key={folder.id}
+                                style={{
+                                  ...noteSpring,
+                                  background: `linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.6) 100%)`,
+                                  borderColor: `${folder.color}30`,
+                                  boxShadow: `0 4px 20px rgba(0,0,0,0.08), 0 2px 8px ${folder.color}15`,
+                                }}
+                                className="group relative overflow-hidden rounded-2xl border backdrop-blur-sm cursor-pointer hover:scale-[1.02] transition-all duration-300 h-44 sm:h-48"
+                                onClick={() => setViewingFolder(folder)}
+                              >
+                                {/* Top color accent */}
+                                <div
+                                  className="absolute top-0 left-0 right-0 h-1"
+                                  style={{ backgroundColor: folder.color }}
+                                />
 
-                              {/* Main content */}
-                              <div className="relative z-10 p-4 sm:p-5 h-full flex flex-col">
+                                {/* Main content */}
+                                <div className="relative z-10 p-4 sm:p-5 h-full flex flex-col">
+                                  {/* Header section */}
+                                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                                    <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                                      {/* Folder icon */}
+                                      <div
+                                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shadow-md flex-shrink-0"
+                                        style={{
+                                          backgroundColor: folder.color,
+                                        }}
+                                      >
+                                        <span className="text-white font-bold text-sm sm:text-lg">
+                                          📁
+                                        </span>
+                                      </div>
 
-                                {/* Header section */}
-                                <div className="flex items-center justify-between mb-3 sm:mb-4">
-                                  <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
-                                    {/* Folder icon */}
-                                    <div
-                                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shadow-md flex-shrink-0"
-                                      style={{ backgroundColor: folder.color }}
+                                      <div className="flex-1 min-w-0">
+                                        <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate leading-tight">
+                                          {folder.name}
+                                        </h3>
+                                        <p className="text-xs sm:text-sm text-gray-600 font-medium">
+                                          {folderNotes.length}{" "}
+                                          {folderNotes.length === 1
+                                            ? "note"
+                                            : "notes"}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Delete button */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setFolderToDelete(folder);
+                                        setShowDeleteFolderModal(true);
+                                      }}
+                                      className="opacity-70 hover:opacity-100 transition-opacity duration-200 p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 flex-shrink-0"
+                                      title="Delete folder"
                                     >
-                                      <span className="text-white font-bold text-sm sm:text-lg">📁</span>
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                      <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate leading-tight">
-                                        {folder.name}
-                                      </h3>
-                                      <p className="text-xs sm:text-sm text-gray-600 font-medium">
-                                        {folderNotes.length} {folderNotes.length === 1 ? 'note' : 'notes'}
-                                      </p>
-                                    </div>
+                                      <svg
+                                        className="w-4 h-4 sm:w-5 sm:h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                        />
+                                      </svg>
+                                    </button>
                                   </div>
 
-                                  {/* Delete button */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setFolderToDelete(folder);
-                                      setShowDeleteFolderModal(true);
-                                    }}
-                                    className="opacity-70 hover:opacity-100 transition-opacity duration-200 p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 flex-shrink-0"
-                                    title="Delete folder"
-                                  >
-                                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
-                                </div>
+                                  {/* Action buttons */}
+                                  <div className="flex space-x-2 mt-auto">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setViewingFolder(folder);
+                                      }}
+                                      className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all duration-200 text-xs sm:text-sm font-medium"
+                                    >
+                                      View Notes
+                                    </button>
 
-                                {/* Action buttons */}
-                                <div className="flex space-x-2 mt-auto">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setViewingFolder(folder);
-                                    }}
-                                    className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all duration-200 text-xs sm:text-sm font-medium"
-                                  >
-                                    View Notes
-                                  </button>
-
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setShowPublishFolderModal(true);
-                                    }}
-                                    className="px-2 sm:px-3 py-1.5 sm:py-2 text-white rounded-lg transition-all duration-200 text-xs sm:text-sm font-medium"
-                                    style={{ backgroundColor: folder.color }}
-                                  >
-                                    Publish
-                                  </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowPublishFolderModal(true);
+                                      }}
+                                      className="px-2 sm:px-3 py-1.5 sm:py-2 text-white rounded-lg transition-all duration-200 text-xs sm:text-sm font-medium"
+                                      style={{ backgroundColor: folder.color }}
+                                    >
+                                      Publish
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            </animated.div>
-                          );
-                        })}
-                      </div>
+                              </animated.div>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
                   )}
-
                   {/* Published Eternal Notes section for blockchain mode */}
                   {mode === "web3" && publishedNotes.length > 0 && (
                     <div className="mb-8">
@@ -4237,7 +4326,9 @@ function WelcomePage({
                           Published Eternal Notes ({publishedNotes.length})
                         </h2>
                         <button
-                          onClick={() => setShowPublishedNotes(!showPublishedNotes)}
+                          onClick={() =>
+                            setShowPublishedNotes(!showPublishedNotes)
+                          }
                           className={`px-4 py-2 rounded-full font-semibold transition-all duration-300 ${
                             showPublishedNotes
                               ? "bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white shadow-lg"
@@ -4247,19 +4338,29 @@ function WelcomePage({
                           {showPublishedNotes ? "Hide" : "Show"} Notes
                         </button>
                       </div>
-                      <p className={`text-sm mb-4 ${
-                        settings.theme === "Light"
-                          ? "text-purple-600"
-                          : "text-gray-300"
-                      }`}>
-                        ⚠️ Note may take up to 35 minutes to appear trackable on the blockchain
+                      <p
+                        className={`text-sm mb-4 ${
+                          settings.theme === "Light"
+                            ? "text-purple-600"
+                            : "text-gray-300"
+                        }`}
+                      >
+                        ⚠️ Note may take up to 35 minutes to appear trackable on
+                        the blockchain
                       </p>
                       {showPublishedNotes && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
                           {publishedNotes
-                            .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+                            .sort(
+                              (a, b) =>
+                                new Date(b.publishedAt).getTime() -
+                                new Date(a.publishedAt).getTime()
+                            )
                             .map((note, index) => {
-                              const isTrackable = Date.now() - new Date(note.publishedAt).getTime() > 20 * 60 * 1000; // 20 minutes
+                              const isTrackable =
+                                Date.now() -
+                                  new Date(note.publishedAt).getTime() >
+                                20 * 60 * 1000; // 20 minutes
                               return (
                                 <animated.div
                                   key={note.id}
@@ -4325,27 +4426,46 @@ function WelcomePage({
                                   </div>
                                   <div className="mt-3 flex justify-between items-center">
                                     <div className="text-xs text-amber-400 flex items-center space-x-2">
-                                      <span>Published: {new Date(note.publishedAt).toLocaleDateString()}</span>
+                                      <span>
+                                        Published:{" "}
+                                        {new Date(
+                                          note.publishedAt
+                                        ).toLocaleDateString()}
+                                      </span>
                                       {note.transactionId && (
                                         <>
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              const txId = note.transactionId || note.arweaveHash;
+                                              const txId =
+                                                note.transactionId ||
+                                                note.arweaveHash;
                                               if (txId) {
-                                                window.open(`https://viewblock.io/arweave/tx/${txId}`, '_blank');
+                                                window.open(
+                                                  `https://viewblock.io/arweave/tx/${txId}`,
+                                                  "_blank"
+                                                );
                                               } else {
-                                                alert('Transaction ID not available yet. Please wait for the note to be fully processed.');
+                                                alert(
+                                                  "Transaction ID not available yet. Please wait for the note to be fully processed."
+                                                );
                                               }
                                             }}
-                                            disabled={!note.transactionId && !note.arweaveHash}
+                                            disabled={
+                                              !note.transactionId &&
+                                              !note.arweaveHash
+                                            }
                                             className={`px-3 py-1 rounded-full font-semibold text-xs transition-all duration-300 ${
-                                              (note.transactionId || note.arweaveHash)
+                                              note.transactionId ||
+                                              note.arweaveHash
                                                 ? "bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white shadow-lg hover:shadow-purple-500/25"
                                                 : "bg-gray-600 text-gray-400 cursor-not-allowed"
                                             }`}
                                           >
-                                            {(note.transactionId || note.arweaveHash) ? "Track" : "Processing..."}
+                                            {note.transactionId ||
+                                            note.arweaveHash
+                                              ? "Track"
+                                              : "Processing..."}
                                           </button>
                                         </>
                                       )}
@@ -4358,7 +4478,6 @@ function WelcomePage({
                       )}
                     </div>
                   )}
-
                   {/* Drafts section for blockchain mode */}
                   {mode === "web3" && drafts.length > 0 && (
                     <div className="mb-8">
@@ -4388,7 +4507,9 @@ function WelcomePage({
                               {selectedDrafts.size > 0 && (
                                 <button
                                   onClick={() => {
-                                    batchPublishDrafts(Array.from(selectedDrafts));
+                                    batchPublishDrafts(
+                                      Array.from(selectedDrafts)
+                                    );
                                     setSelectedDrafts(new Set());
                                   }}
                                   disabled={isProcessingBatch}
@@ -4481,7 +4602,9 @@ function WelcomePage({
                                       : "text-gray-300"
                                   }`}
                                 >
-                                  {draft.content.split("\n")[0].substring(0, 120)}
+                                  {draft.content
+                                    .split("\n")[0]
+                                    .substring(0, 120)}
                                   {draft.content.length > 120 ? "..." : ""}
                                 </div>
                                 <div
@@ -4534,10 +4657,12 @@ function WelcomePage({
                                                       guide.actionUrl,
                                                       "_blank"
                                                     );
-                                                    setArConnectModal((prev) => ({
-                                                      ...prev,
-                                                      isOpen: false,
-                                                    }));
+                                                    setArConnectModal(
+                                                      (prev) => ({
+                                                        ...prev,
+                                                        isOpen: false,
+                                                      })
+                                                    );
                                                   },
                                                 }
                                               : undefined,
@@ -4573,7 +4698,9 @@ function WelcomePage({
                                   <button
                                     onClick={async (e) => {
                                       e.stopPropagation();
-                                      if (window.confirm("Delete this draft?")) {
+                                      if (
+                                        window.confirm("Delete this draft?")
+                                      ) {
                                         await deleteDraft(draft.id);
                                       }
                                     }}
@@ -4588,7 +4715,8 @@ function WelcomePage({
                         </div>
                       )}
                     </div>
-                  )}                  {(() => {
+                  )}{" "}
+                  {(() => {
                     let displayNotes = notes.filter(
                       (note) => mode !== "db" || !note.isPermanent
                     );
@@ -4613,9 +4741,11 @@ function WelcomePage({
                     }
 
                     // In web3 mode, don't show "No notes yet" if there are drafts or published notes
-                    const hasWeb3Content = mode === "web3" && 
-                      (drafts.length > 0 || publishedNotes.length > 0 || 
-                       notes.filter((note) => note.isPermanent).length > 0);
+                    const hasWeb3Content =
+                      mode === "web3" &&
+                      (drafts.length > 0 ||
+                        publishedNotes.length > 0 ||
+                        notes.filter((note) => note.isPermanent).length > 0);
 
                     return displayNotes.length > 0 || hasWeb3Content ? (
                       <>
@@ -4864,7 +4994,10 @@ function WelcomePage({
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          window.open(`https://viewblock.io/arweave/tx/${note.arweaveHash}`, '_blank');
+                                          window.open(
+                                            `https://viewblock.io/arweave/tx/${note.arweaveHash}`,
+                                            "_blank"
+                                          );
                                         }}
                                         className="text-blue-400 hover:text-blue-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
                                         title="Track on Viewblock"
@@ -5366,7 +5499,8 @@ function WelcomePage({
                           <div className="max-h-60 overflow-y-auto space-y-2 bg-indigo-950/50 rounded-lg p-3">
                             {publishedNotes.length === 0 ? (
                               <p className="text-gray-400 text-sm">
-                                No published eternal notes available. Publish some drafts first!
+                                No published eternal notes available. Publish
+                                some drafts first!
                               </p>
                             ) : (
                               publishedNotes.map((note) => (
@@ -5383,9 +5517,14 @@ function WelcomePage({
                                     htmlFor={`note-${note.id}`}
                                     className="flex-1 text-sm text-gray-200 cursor-pointer"
                                   >
-                                    <div className="font-medium">{note.title}</div>
+                                    <div className="font-medium">
+                                      {note.title}
+                                    </div>
                                     <div className="text-xs text-gray-400">
-                                      Published: {new Date(note.publishedAt).toLocaleDateString()}
+                                      Published:{" "}
+                                      {new Date(
+                                        note.publishedAt
+                                      ).toLocaleDateString()}
                                     </div>
                                   </label>
                                 </div>
@@ -5404,18 +5543,28 @@ function WelcomePage({
                         </button>
                         <button
                           onClick={() => {
-                            const folderName = (document.getElementById('folderName') as HTMLInputElement)?.value?.trim();
-                            const folderColor = (document.getElementById('folderColor') as HTMLInputElement)?.value;
+                            const folderName = (
+                              document.getElementById(
+                                "folderName"
+                              ) as HTMLInputElement
+                            )?.value?.trim();
+                            const folderColor = (
+                              document.getElementById(
+                                "folderColor"
+                              ) as HTMLInputElement
+                            )?.value;
 
                             if (!folderName) {
-                              alert('Please enter a folder name');
+                              alert("Please enter a folder name");
                               return;
                             }
 
                             // Get selected notes
                             const selectedNotes: string[] = [];
-                            publishedNotes.forEach(note => {
-                              const checkbox = document.getElementById(`note-${note.id}`) as HTMLInputElement;
+                            publishedNotes.forEach((note) => {
+                              const checkbox = document.getElementById(
+                                `note-${note.id}`
+                              ) as HTMLInputElement;
                               if (checkbox?.checked) {
                                 selectedNotes.push(note.id);
                               }
@@ -5423,20 +5572,27 @@ function WelcomePage({
 
                             // Create folder
                             const newFolder = {
-                              id: `folder_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                              id: `folder_${Date.now()}_${Math.random()
+                                .toString(36)
+                                .substr(2, 9)}`,
                               name: folderName,
-                              color: folderColor || '#6366f1',
+                              color: folderColor || "#6366f1",
                               noteIds: selectedNotes,
                               createdAt: new Date().toISOString(),
                             };
 
-                            setFolders(prev => [...prev, newFolder]);
+                            setFolders((prev) => [...prev, newFolder]);
 
                             // Save to localStorage
                             const foldersKey = `elysium_folders_${walletAddress}`;
-                            const existingFolders = JSON.parse(localStorage.getItem(foldersKey) || '[]');
+                            const existingFolders = JSON.parse(
+                              localStorage.getItem(foldersKey) || "[]"
+                            );
                             existingFolders.push(newFolder);
-                            localStorage.setItem(foldersKey, JSON.stringify(existingFolders));
+                            localStorage.setItem(
+                              foldersKey,
+                              JSON.stringify(existingFolders)
+                            );
 
                             setShowCreateFolderModal(false);
                           }}
@@ -5477,7 +5633,9 @@ function WelcomePage({
                           <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-indigo-300 bg-clip-text text-transparent mb-2">
                             Folder Publishing Revolution
                           </h2>
-                          <p className="text-purple-200 text-base font-medium">Coming Soon to Elysium</p>
+                          <p className="text-purple-200 text-base font-medium">
+                            Coming Soon to Elysium
+                          </p>
                         </div>
 
                         <button
@@ -5492,7 +5650,11 @@ function WelcomePage({
                       <div className="space-y-6">
                         <div className="text-center">
                           <p className="text-gray-300 text-lg leading-relaxed mb-6">
-                            Transform your folder into a <span className="text-purple-300 font-semibold">blockchain-powered collection</span> that lives forever on the decentralized web.
+                            Transform your folder into a{" "}
+                            <span className="text-purple-300 font-semibold">
+                              blockchain-powered collection
+                            </span>{" "}
+                            that lives forever on the decentralized web.
                           </p>
                         </div>
 
@@ -5503,9 +5665,14 @@ function WelcomePage({
                               <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
                                 <span className="text-xl">📁</span>
                               </div>
-                              <h4 className="text-purple-200 font-semibold text-sm">Organized Collections</h4>
+                              <h4 className="text-purple-200 font-semibold text-sm">
+                                Organized Collections
+                              </h4>
                             </div>
-                            <p className="text-gray-400 text-xs">Publish folders as interconnected eternal note collections.</p>
+                            <p className="text-gray-400 text-xs">
+                              Publish folders as interconnected eternal note
+                              collections.
+                            </p>
                           </div>
 
                           <div className="group bg-gradient-to-br from-indigo-800/50 to-indigo-900/50 p-4 rounded-xl border border-indigo-500/20 hover:border-indigo-400/40 transition-all duration-300 hover:scale-[1.02]">
@@ -5513,9 +5680,14 @@ function WelcomePage({
                               <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center">
                                 <span className="text-xl">🔗</span>
                               </div>
-                              <h4 className="text-indigo-200 font-semibold text-sm">Smart Connections</h4>
+                              <h4 className="text-indigo-200 font-semibold text-sm">
+                                Smart Connections
+                              </h4>
                             </div>
-                            <p className="text-gray-400 text-xs">Notes maintain relationships and can reference each other.</p>
+                            <p className="text-gray-400 text-xs">
+                              Notes maintain relationships and can reference
+                              each other.
+                            </p>
                           </div>
 
                           <div className="group bg-gradient-to-br from-pink-800/50 to-pink-900/50 p-4 rounded-xl border border-pink-500/20 hover:border-pink-400/40 transition-all duration-300 hover:scale-[1.02]">
@@ -5523,9 +5695,13 @@ function WelcomePage({
                               <div className="w-8 h-8 bg-pink-500/20 rounded-lg flex items-center justify-center">
                                 <span className="text-xl">📊</span>
                               </div>
-                              <h4 className="text-pink-200 font-semibold text-sm">Advanced Analytics</h4>
+                              <h4 className="text-pink-200 font-semibold text-sm">
+                                Advanced Analytics
+                              </h4>
                             </div>
-                            <p className="text-gray-400 text-xs">Track views, engagement, and popularity metrics.</p>
+                            <p className="text-gray-400 text-xs">
+                              Track views, engagement, and popularity metrics.
+                            </p>
                           </div>
 
                           <div className="group bg-gradient-to-br from-cyan-800/50 to-cyan-900/50 p-4 rounded-xl border border-cyan-500/20 hover:border-cyan-400/40 transition-all duration-300 hover:scale-[1.02]">
@@ -5533,31 +5709,46 @@ function WelcomePage({
                               <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
                                 <span className="text-xl">🌐</span>
                               </div>
-                              <h4 className="text-cyan-200 font-semibold text-sm">Shareable Links</h4>
+                              <h4 className="text-cyan-200 font-semibold text-sm">
+                                Shareable Links
+                              </h4>
                             </div>
-                            <p className="text-gray-400 text-xs">Generate permanent, shareable links to collections.</p>
+                            <p className="text-gray-400 text-xs">
+                              Generate permanent, shareable links to
+                              collections.
+                            </p>
                           </div>
                         </div>
 
                         {/* Special features */}
                         <div className="bg-gradient-to-r from-purple-900/30 via-pink-900/30 to-indigo-900/30 rounded-xl p-4 border border-purple-500/20">
-                          <h4 className="text-lg font-bold text-center text-white mb-3">✨ Premium Features</h4>
+                          <h4 className="text-lg font-bold text-center text-white mb-3">
+                            ✨ Premium Features
+                          </h4>
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div className="flex items-center space-x-2">
                               <span className="text-purple-400">🎨</span>
-                              <span className="text-gray-300">Custom themes</span>
+                              <span className="text-gray-300">
+                                Custom themes
+                              </span>
                             </div>
                             <div className="flex items-center space-x-2">
                               <span className="text-pink-400">📈</span>
-                              <span className="text-gray-300">Popularity tracking</span>
+                              <span className="text-gray-300">
+                                Popularity tracking
+                              </span>
                             </div>
                             <div className="flex items-center space-x-2">
                               <span className="text-indigo-400">🔍</span>
-                              <span className="text-gray-300">Advanced search</span>
+                              <span className="text-gray-300">
+                                Advanced search
+                              </span>
                             </div>
                             <div className="flex items-center space-x-2">
                               <span className="text-cyan-400">📱</span>
-                              <span className="text-gray-300">Mobile optimized</span>
+                              <span className="text-gray-300">
+                                Mobile optimized
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -5567,10 +5758,12 @@ function WelcomePage({
                       <div className="text-center space-y-4">
                         <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 rounded-xl p-4 border border-purple-500/20">
                           <p className="text-purple-200 font-medium">
-                            🚀 This revolutionary feature is currently in development
+                            🚀 This revolutionary feature is currently in
+                            development
                           </p>
                           <p className="text-gray-400 text-sm mt-1">
-                            Join our community to get early access when it launches!
+                            Join our community to get early access when it
+                            launches!
                           </p>
                         </div>
 
@@ -5620,21 +5813,36 @@ function WelcomePage({
                           Are you sure?
                         </h3>
                         <p className="text-gray-300 text-sm leading-relaxed">
-                          You're about to delete the folder <strong className="text-white">"{folderToDelete.name}"</strong>.
+                          You're about to delete the folder{" "}
+                          <strong className="text-white">
+                            "{folderToDelete.name}"
+                          </strong>
+                          .
                         </p>
 
                         <div className="bg-red-900/50 rounded-lg p-4 text-left border border-red-500/20">
-                          <h4 className="font-semibold text-red-200 mb-2 text-sm">Important:</h4>
+                          <h4 className="font-semibold text-red-200 mb-2 text-sm">
+                            Important:
+                          </h4>
                           <ul className="text-xs text-gray-300 space-y-1">
                             <li>• 📁 The folder will be permanently deleted</li>
-                            <li>• 📝 Eternal notes inside will NOT be deleted</li>
-                            <li>• 🔄 Notes will remain in your published collection</li>
+                            <li>
+                              • 📝 Eternal notes inside will NOT be deleted
+                            </li>
+                            <li>
+                              • 🔄 Notes will remain in your published
+                              collection
+                            </li>
                             <li>• ❌ This action cannot be undone</li>
                           </ul>
                         </div>
 
                         <p className="text-xs text-gray-400">
-                          The {folderToDelete.noteIds.length} eternal {folderToDelete.noteIds.length === 1 ? 'note' : 'notes'} in this folder will remain safely published.
+                          The {folderToDelete.noteIds.length} eternal{" "}
+                          {folderToDelete.noteIds.length === 1
+                            ? "note"
+                            : "notes"}{" "}
+                          in this folder will remain safely published.
                         </p>
                       </div>
 
@@ -5642,12 +5850,21 @@ function WelcomePage({
                         <button
                           onClick={() => {
                             if (folderToDelete) {
-                              setFolders(prev => prev.filter(f => f.id !== folderToDelete.id));
+                              setFolders((prev) =>
+                                prev.filter((f) => f.id !== folderToDelete.id)
+                              );
                               // Remove from localStorage
                               const foldersKey = `elysium_folders_${walletAddress}`;
-                              const existingFolders = JSON.parse(localStorage.getItem(foldersKey) || '[]');
-                              const updatedFolders = existingFolders.filter((f: any) => f.id !== folderToDelete.id);
-                              localStorage.setItem(foldersKey, JSON.stringify(updatedFolders));
+                              const existingFolders = JSON.parse(
+                                localStorage.getItem(foldersKey) || "[]"
+                              );
+                              const updatedFolders = existingFolders.filter(
+                                (f: any) => f.id !== folderToDelete.id
+                              );
+                              localStorage.setItem(
+                                foldersKey,
+                                JSON.stringify(updatedFolders)
+                              );
                             }
                             setShowDeleteFolderModal(false);
                             setFolderToDelete(null);
@@ -5678,15 +5895,23 @@ function WelcomePage({
                     <div className="p-6 space-y-6 max-h-[90vh] overflow-y-auto">
                       <div className="flex justify-between items-center">
                         <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ backgroundColor: viewingFolder.color }}>
-                            <span className="text-white font-bold text-xl">📁</span>
+                          <div
+                            className="w-12 h-12 rounded-lg flex items-center justify-center"
+                            style={{ backgroundColor: viewingFolder.color }}
+                          >
+                            <span className="text-white font-bold text-xl">
+                              📁
+                            </span>
                           </div>
                           <div>
                             <h2 className="text-2xl font-semibold text-gold-100">
                               {viewingFolder.name}
                             </h2>
                             <p className="text-sm text-gray-300">
-                              {viewingFolder.noteIds.length} eternal {viewingFolder.noteIds.length === 1 ? 'note' : 'notes'}
+                              {viewingFolder.noteIds.length} eternal{" "}
+                              {viewingFolder.noteIds.length === 1
+                                ? "note"
+                                : "notes"}
                             </p>
                           </div>
                         </div>
@@ -5699,54 +5924,70 @@ function WelcomePage({
                       </div>
 
                       <div className="space-y-4">
-                        {publishedNotes.filter(note => viewingFolder.noteIds.includes(note.id)).length === 0 ? (
+                        {publishedNotes.filter((note) =>
+                          viewingFolder.noteIds.includes(note.id)
+                        ).length === 0 ? (
                           <div className="text-center py-12">
                             <div className="text-6xl mb-4">📝</div>
-                            <h3 className="text-xl font-semibold text-white mb-2">No Notes in This Folder</h3>
-                            <p className="text-gray-300">This folder is empty. Add some eternal notes to get started!</p>
+                            <h3 className="text-xl font-semibold text-white mb-2">
+                              No Notes in This Folder
+                            </h3>
+                            <p className="text-gray-300">
+                              This folder is empty. Add some eternal notes to
+                              get started!
+                            </p>
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {publishedNotes.filter(note => viewingFolder.noteIds.includes(note.id)).map((note) => (
-                              <div
-                                key={note.id}
-                                className="bg-indigo-950/50 backdrop-blur-sm border border-indigo-700/50 rounded-lg p-4 hover:bg-indigo-900/50 transition-all duration-200 cursor-pointer"
-                                onClick={() => setViewingNote(note)}
-                              >
-                                <div className="flex items-start justify-between mb-2">
-                                  <h4 className="font-semibold text-white text-lg line-clamp-2 flex-1 mr-2 hover:text-gold-100 transition-colors cursor-pointer">
-                                    {note.title}
-                                  </h4>
-                                  <div className="flex space-x-2">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        // Copy note link to clipboard
-                                        const noteUrl = `${window.location.origin}/note/${note.id}`;
-                                        navigator.clipboard.writeText(noteUrl);
-                                        // Could add a toast notification here
-                                      }}
-                                      className="text-gray-400 hover:text-white transition-colors p-1"
-                                      title="Copy note link"
-                                    >
-                                      🔗
-                                    </button>
+                            {publishedNotes
+                              .filter((note) =>
+                                viewingFolder.noteIds.includes(note.id)
+                              )
+                              .map((note) => (
+                                <div
+                                  key={note.id}
+                                  className="bg-indigo-950/50 backdrop-blur-sm border border-indigo-700/50 rounded-lg p-4 hover:bg-indigo-900/50 transition-all duration-200 cursor-pointer"
+                                  onClick={() => setViewingNote(note)}
+                                >
+                                  <div className="flex items-start justify-between mb-2">
+                                    <h4 className="font-semibold text-white text-lg line-clamp-2 flex-1 mr-2 hover:text-gold-100 transition-colors cursor-pointer">
+                                      {note.title}
+                                    </h4>
+                                    <div className="flex space-x-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // Copy note link to clipboard
+                                          const noteUrl = `${window.location.origin}/note/${note.id}`;
+                                          navigator.clipboard.writeText(
+                                            noteUrl
+                                          );
+                                          // Could add a toast notification here
+                                        }}
+                                        className="text-gray-400 hover:text-white transition-colors p-1"
+                                        title="Copy note link"
+                                      >
+                                        🔗
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <p className="text-gray-300 text-sm line-clamp-3 mb-3">
+                                    {note.content.substring(0, 150)}...
+                                  </p>
+                                  <div className="flex items-center justify-between text-xs text-gray-400">
+                                    <span>
+                                      Published:{" "}
+                                      {new Date(
+                                        note.publishedAt
+                                      ).toLocaleDateString()}
+                                    </span>
+                                    <span className="flex items-center space-x-1">
+                                      <span>🔗</span>
+                                      <span>{note.id.substring(0, 8)}...</span>
+                                    </span>
                                   </div>
                                 </div>
-                                <p className="text-gray-300 text-sm line-clamp-3 mb-3">
-                                  {note.content.substring(0, 150)}...
-                                </p>
-                                <div className="flex items-center justify-between text-xs text-gray-400">
-                                  <span>
-                                    Published: {new Date(note.publishedAt).toLocaleDateString()}
-                                  </span>
-                                  <span className="flex items-center space-x-1">
-                                    <span>🔗</span>
-                                    <span>{note.id.substring(0, 8)}...</span>
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
+                              ))}
                           </div>
                         )}
                       </div>
