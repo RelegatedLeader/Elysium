@@ -3662,7 +3662,7 @@ function WelcomePage({
           style={{ ...titleSpring, color: "#e5e7eb" }}
           className="text-lg sm:text-xl italic mb-6 max-w-md text-center"
         >
-          Store Your Notes Permanently on Arweave
+          Store Your Notes Securely in the Cloud
         </animated.p>
         <div className="flex flex-col sm:flex-row w-full max-w-6xl mx-auto space-y-4 sm:space-y-0 sm:space-x-4">
           <div
@@ -3868,7 +3868,7 @@ function WelcomePage({
           </button>
           <header className="w-full p-2 sm:p-4 flex justify-end absolute top-0 left-0 items-center">
             <div className="flex items-center space-x-2 sm:space-x-4">
-              {checkArweaveWallet() && (
+              {mode === "web3" && checkArweaveWallet() && (
                 <button
                   onClick={handleWalletAction}
                   className="bg-gradient-to-r from-purple-600 to-blue-700 hover:from-purple-700 hover:to-blue-800 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl transition-all duration-300 text-sm sm:text-base"
