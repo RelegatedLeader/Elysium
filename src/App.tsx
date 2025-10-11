@@ -1856,6 +1856,10 @@ function WelcomePage({
     const saved = localStorage.getItem("elysium_showPublishedNotes");
     return saved !== null ? JSON.parse(saved) : true;
   });
+  const [showFolders, setShowFolders] = useState(() => {
+    const saved = localStorage.getItem("elysium_showFolders");
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
   // Save toggle states to localStorage
   useEffect(() => {
@@ -1865,6 +1869,10 @@ function WelcomePage({
   useEffect(() => {
     localStorage.setItem("elysium_showPublishedNotes", JSON.stringify(showPublishedNotes));
   }, [showPublishedNotes]);
+
+  useEffect(() => {
+    localStorage.setItem("elysium_showFolders", JSON.stringify(showFolders));
+  }, [showFolders]);
 
   // Batch processing for blockchain saves
   const [batchQueue, setBatchQueue] = useState<Note[]>([]);
@@ -3118,6 +3126,12 @@ function WelcomePage({
       const updatedDrafts = existingDrafts.filter((d: any) => !draftIds.includes(d.id));
       localStorage.setItem(draftsKey, JSON.stringify(updatedDrafts));
       
+      // Also remove from local key in case drafts were saved there
+      const localDraftsKey = 'elysium_drafts_local';
+      const existingLocalDrafts = JSON.parse(localStorage.getItem(localDraftsKey) || '[]');
+      const updatedLocalDrafts = existingLocalDrafts.filter((d: any) => !draftIds.includes(d.id));
+      localStorage.setItem(localDraftsKey, JSON.stringify(updatedLocalDrafts));
+      
       console.log(`Batch publishing completed: ${publishedNotes.length} drafts published`);
     } catch (error) {
       console.error("Batch publishing failed:", error);
@@ -4104,8 +4118,19 @@ function WelcomePage({
                         >
                           📁 Your Folders ({folders.length})
                         </h2>
+                        <button
+                          onClick={() => setShowFolders(!showFolders)}
+                          className={`px-4 py-2 rounded-full font-semibold transition-all duration-300 ${
+                            showFolders
+                              ? "bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white shadow-lg"
+                              : "bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white shadow-lg"
+                          }`}
+                        >
+                          {showFolders ? "Hide Folders" : "Show Folders"}
+                        </button>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                      {showFolders && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
                         {folders.map((folder) => {
                           const folderNotes = publishedNotes.filter(note => folder.noteIds.includes(note.id));
                           return (
@@ -4113,31 +4138,31 @@ function WelcomePage({
                               key={folder.id}
                               style={{
                                 ...noteSpring,
-                                background: `linear-gradient(135deg, ${folder.color}15 0%, ${folder.color}08 50%, ${folder.color}12 100%)`,
+                                background: `linear-gradient(135deg, ${folder.color}20 0%, ${folder.color}15 50%, ${folder.color}25 100%)`,
                                 borderColor: folder.color,
-                                boxShadow: `0 0 25px ${folder.color}40, inset 0 1px 0 ${folder.color}20`
+                                boxShadow: `0 0 30px ${folder.color}50, inset 0 1px 0 ${folder.color}30`
                               }}
-                              className="group backdrop-blur-md p-5 rounded-xl shadow-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.02] transition-all duration-500 border-2 h-56 sm:h-60 relative overflow-hidden"
+                              className="group backdrop-blur-md p-6 rounded-2xl shadow-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.03] transition-all duration-500 border-2 h-64 sm:h-68 relative overflow-hidden"
                               onClick={() => setViewingFolder(folder)}
                             >
                               <div className="flex-1 overflow-hidden">
                                 {/* Decorative elements */}
-                                <div className="absolute top-0 right-0 w-20 h-20 opacity-20">
+                                <div className="absolute top-0 right-0 w-24 h-24 opacity-30">
                                   <div className="w-full h-full rounded-full" style={{ backgroundColor: folder.color }}></div>
                                 </div>
-                                <div className="absolute bottom-0 left-0 w-16 h-16 opacity-15">
+                                <div className="absolute bottom-0 left-0 w-20 h-20 opacity-25">
                                   <div className="w-full h-full rounded-full" style={{ backgroundColor: folder.color }}></div>
                                 </div>
 
                                 {/* Folder header */}
-                                <div className="flex items-center justify-between mb-3 relative z-10">
+                                <div className="flex items-center justify-between mb-4 relative z-10">
                                   <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: folder.color }}>
-                                      <span className="text-white font-bold text-lg">📁</span>
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg" style={{ backgroundColor: folder.color }}>
+                                      <span className="text-white font-bold text-xl">📁</span>
                                     </div>
                                     <div>
-                                      <h3 className="font-bold text-lg text-gray-800 truncate max-w-[120px] sm:max-w-[150px]">{folder.name}</h3>
-                                      <p className="text-sm text-gray-600">{folderNotes.length} notes</p>
+                                      <h3 className="font-bold text-xl text-gray-900 truncate max-w-[140px] sm:max-w-[170px] leading-tight">{folder.name}</h3>
+                                      <p className="text-sm text-gray-700 font-medium">{folderNotes.length} notes</p>
                                     </div>
                                   </div>
                                   <button
@@ -4146,7 +4171,7 @@ function WelcomePage({
                                       setFolderToDelete(folder);
                                       setShowDeleteFolderModal(true);
                                     }}
-                                    className="text-gray-400 hover:text-red-500 transition-colors duration-200 p-1 rounded-full hover:bg-red-50"
+                                    className="text-gray-600 hover:text-red-600 transition-colors duration-200 p-2 rounded-full hover:bg-red-50 opacity-70 hover:opacity-100"
                                   >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -4158,27 +4183,32 @@ function WelcomePage({
                                 <div className="flex-1 relative z-10">
                                   <div className="space-y-2">
                                     {folderNotes.slice(0, 3).map((note, index) => (
-                                      <div key={note.id} className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm rounded-lg p-2">
+                                      <div key={note.id} className="flex items-center space-x-2 bg-white/70 backdrop-blur-sm rounded-lg p-2 border border-white/50">
                                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: folder.color }}></div>
-                                        <span className="text-sm text-gray-700 truncate flex-1">{note.title}</span>
+                                        <span className="text-sm text-gray-800 truncate flex-1 font-medium">{note.title}</span>
                                       </div>
                                     ))}
                                     {folderNotes.length > 3 && (
-                                      <div className="text-xs text-gray-500 text-center py-1">
+                                      <div className="text-xs text-gray-600 text-center py-1 bg-white/50 rounded-lg font-medium">
                                         +{folderNotes.length - 3} more notes
+                                      </div>
+                                    )}
+                                    {folderNotes.length === 0 && (
+                                      <div className="text-sm text-gray-500 text-center py-4 italic">
+                                        No notes yet
                                       </div>
                                     )}
                                   </div>
                                 </div>
 
                                 {/* Folder actions */}
-                                <div className="flex justify-between items-center mt-3 relative z-10">
+                                <div className="flex justify-between items-center relative z-10">
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setViewingFolder(folder);
                                     }}
-                                    className="px-4 py-2 bg-white/80 backdrop-blur-sm text-gray-700 rounded-lg hover:bg-white transition-all duration-200 text-sm font-medium shadow-sm"
+                                    className="px-5 py-2.5 bg-white/90 backdrop-blur-sm text-gray-800 rounded-xl hover:bg-white transition-all duration-200 text-sm font-semibold shadow-md border border-white/50"
                                   >
                                     View Notes
                                   </button>
@@ -4187,7 +4217,7 @@ function WelcomePage({
                                       e.stopPropagation();
                                       alert('Publish folder feature coming soon!');
                                     }}
-                                    className="px-4 py-2 text-white rounded-lg transition-all duration-200 text-sm font-medium shadow-sm"
+                                    className="px-5 py-2.5 text-white rounded-xl transition-all duration-200 text-sm font-semibold shadow-md"
                                     style={{ backgroundColor: folder.color }}
                                   >
                                     Publish
@@ -4198,6 +4228,7 @@ function WelcomePage({
                           );
                         })}
                       </div>
+                      )}
                     </div>
                   )}
 
@@ -5600,15 +5631,17 @@ function WelcomePage({
                             {publishedNotes.filter(note => viewingFolder.noteIds.includes(note.id)).map((note) => (
                               <div
                                 key={note.id}
-                                className="bg-indigo-950/50 backdrop-blur-sm border border-indigo-700/50 rounded-lg p-4 hover:bg-indigo-900/50 transition-all duration-200"
+                                className="bg-indigo-950/50 backdrop-blur-sm border border-indigo-700/50 rounded-lg p-4 hover:bg-indigo-900/50 transition-all duration-200 cursor-pointer"
+                                onClick={() => setViewingNote(note)}
                               >
                                 <div className="flex items-start justify-between mb-2">
-                                  <h4 className="font-semibold text-white text-lg line-clamp-2 flex-1 mr-2">
+                                  <h4 className="font-semibold text-white text-lg line-clamp-2 flex-1 mr-2 hover:text-gold-100 transition-colors cursor-pointer">
                                     {note.title}
                                   </h4>
                                   <div className="flex space-x-2">
                                     <button
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         // Copy note link to clipboard
                                         const noteUrl = `${window.location.origin}/note/${note.id}`;
                                         navigator.clipboard.writeText(noteUrl);
