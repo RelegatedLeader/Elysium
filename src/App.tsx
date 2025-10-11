@@ -4130,7 +4130,7 @@ function WelcomePage({
                         </button>
                       </div>
                       {showFolders && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8">
                         {folders.map((folder) => {
                           const folderNotes = publishedNotes.filter(note => folder.noteIds.includes(note.id));
                           return (
@@ -4142,7 +4142,7 @@ function WelcomePage({
                                 borderColor: `${folder.color}30`,
                                 boxShadow: `0 4px 20px rgba(0,0,0,0.08), 0 2px 8px ${folder.color}15`
                               }}
-                              className="group relative overflow-hidden rounded-2xl border backdrop-blur-sm cursor-pointer hover:scale-[1.02] transition-all duration-300 h-48"
+                              className="group relative overflow-hidden rounded-2xl border backdrop-blur-sm cursor-pointer hover:scale-[1.02] transition-all duration-300 h-44 sm:h-48"
                               onClick={() => setViewingFolder(folder)}
                             >
                               {/* Top color accent */}
@@ -4152,24 +4152,24 @@ function WelcomePage({
                               />
 
                               {/* Main content */}
-                              <div className="relative z-10 p-5 h-full flex flex-col">
+                              <div className="relative z-10 p-4 sm:p-5 h-full flex flex-col">
 
                                 {/* Header section */}
-                                <div className="flex items-center justify-between mb-4">
-                                  <div className="flex items-center space-x-3">
+                                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                                  <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
                                     {/* Folder icon */}
                                     <div
-                                      className="w-10 h-10 rounded-lg flex items-center justify-center shadow-md"
+                                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shadow-md flex-shrink-0"
                                       style={{ backgroundColor: folder.color }}
                                     >
-                                      <span className="text-white font-bold text-lg">📁</span>
+                                      <span className="text-white font-bold text-sm sm:text-lg">📁</span>
                                     </div>
 
                                     <div className="flex-1 min-w-0">
-                                      <h3 className="text-lg font-bold text-gray-900 truncate leading-tight">
+                                      <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate leading-tight">
                                         {folder.name}
                                       </h3>
-                                      <p className="text-sm text-gray-600 font-medium">
+                                      <p className="text-xs sm:text-sm text-gray-600 font-medium">
                                         {folderNotes.length} {folderNotes.length === 1 ? 'note' : 'notes'}
                                       </p>
                                     </div>
@@ -4182,9 +4182,10 @@ function WelcomePage({
                                       setFolderToDelete(folder);
                                       setShowDeleteFolderModal(true);
                                     }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600"
+                                    className="opacity-70 hover:opacity-100 transition-opacity duration-200 p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 flex-shrink-0"
+                                    title="Delete folder"
                                   >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
                                   </button>
@@ -4197,7 +4198,7 @@ function WelcomePage({
                                       e.stopPropagation();
                                       setViewingFolder(folder);
                                     }}
-                                    className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all duration-200 text-sm font-medium"
+                                    className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all duration-200 text-xs sm:text-sm font-medium"
                                   >
                                     View Notes
                                   </button>
@@ -4205,9 +4206,9 @@ function WelcomePage({
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      alert('Publish folder feature coming soon!');
+                                      setShowPublishFolderModal(true);
                                     }}
-                                    className="px-3 py-2 text-white rounded-lg transition-all duration-200 text-sm font-medium"
+                                    className="px-2 sm:px-3 py-1.5 sm:py-2 text-white rounded-lg transition-all duration-200 text-xs sm:text-sm font-medium"
                                     style={{ backgroundColor: folder.color }}
                                   >
                                     Publish
@@ -5450,55 +5451,143 @@ function WelcomePage({
               </div>
             )}
             {showPublishFolderModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-                <div className="w-full max-w-lg max-h-[90vh] overflow-hidden">
-                  <div className="bg-gradient-to-br from-purple-900/95 via-purple-800/95 to-indigo-700/95 backdrop-blur-lg border border-purple-500/50 rounded-xl shadow-[0_0_30px_rgba(147,51,234,0.3)] overflow-hidden">
+              <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="w-full max-w-lg max-h-[95vh] overflow-y-auto">
+                  {/* Animated background effects */}
+                  <div className="absolute inset-0 overflow-hidden">
+                    <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+                    <div className="absolute bottom-1/4 right-1/4 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-pink-500/20 rounded-full blur-2xl animate-bounce"></div>
+                  </div>
+
+                  <div className="relative bg-gradient-to-br from-slate-900/95 via-purple-900/95 to-indigo-900/95 backdrop-blur-xl border border-purple-500/30 rounded-3xl shadow-[0_0_50px_rgba(147,51,234,0.4)] overflow-hidden">
+                    {/* Animated top border */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500 animate-pulse"></div>
+
                     <div className="p-6 space-y-6">
-                      <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-semibold text-gold-100">
-                          🚀 Publish Folder - Coming Soon!
-                        </h2>
-                        <button
-                          onClick={() => setShowPublishFolderModal(false)}
-                          className="text-gray-400 hover:text-white transition-colors"
-                        >
-                          ×
-                        </button>
-                      </div>
-
-                      <div className="text-center space-y-4">
-                        <div className="text-6xl">🚀</div>
-                        <h3 className="text-xl font-semibold text-white">
-                          Folder Publishing Feature
-                        </h3>
-                        <p className="text-gray-300 leading-relaxed">
-                          We're working on an exciting new feature that will allow you to publish entire folders of eternal notes to the blockchain as a single, organized collection!
-                        </p>
-
-                        <div className="bg-purple-900/50 rounded-lg p-4 text-left">
-                          <h4 className="font-semibold text-purple-200 mb-2">Coming Soon:</h4>
-                          <ul className="text-sm text-gray-300 space-y-1">
-                            <li>• 📁 Publish folders as organized collections</li>
-                            <li>• 🔗 Interconnected eternal notes</li>
-                            <li>• 📊 Advanced folder analytics</li>
-                            <li>• 🌐 Shareable folder links</li>
-                            <li>• 🎨 Custom folder themes on blockchain</li>
-                            <li>• 📈 Folder popularity tracking</li>
-                          </ul>
+                      {/* Header with animated elements */}
+                      <div className="text-center relative">
+                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-xl animate-bounce">
+                            <span className="text-2xl animate-pulse">🚀</span>
+                          </div>
                         </div>
 
-                        <p className="text-sm text-gray-400">
-                          This feature is currently in development. Stay tuned for updates!
-                        </p>
-                      </div>
+                        <div className="pt-6">
+                          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-indigo-300 bg-clip-text text-transparent mb-2">
+                            Folder Publishing Revolution
+                          </h2>
+                          <p className="text-purple-200 text-base font-medium">Coming Soon to Elysium</p>
+                        </div>
 
-                      <div className="flex justify-center">
                         <button
                           onClick={() => setShowPublishFolderModal(false)}
-                          className="px-6 py-2 bg-gradient-to-r from-purple-500 to-indigo-700 text-white font-bold rounded-full hover:from-purple-600 hover:to-indigo-800 transition-all"
+                          className="absolute top-4 right-4 w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110"
                         >
-                          Got it! 🎉
+                          <span className="text-lg">×</span>
                         </button>
+                      </div>
+
+                      {/* Feature showcase */}
+                      <div className="space-y-6">
+                        <div className="text-center">
+                          <p className="text-gray-300 text-lg leading-relaxed mb-6">
+                            Transform your folder into a <span className="text-purple-300 font-semibold">blockchain-powered collection</span> that lives forever on the decentralized web.
+                          </p>
+                        </div>
+
+                        {/* Feature grid */}
+                        <div className="grid grid-cols-1 gap-3">
+                          <div className="group bg-gradient-to-br from-purple-800/50 to-purple-900/50 p-4 rounded-xl border border-purple-500/20 hover:border-purple-400/40 transition-all duration-300 hover:scale-[1.02]">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                <span className="text-xl">📁</span>
+                              </div>
+                              <h4 className="text-purple-200 font-semibold text-sm">Organized Collections</h4>
+                            </div>
+                            <p className="text-gray-400 text-xs">Publish folders as interconnected eternal note collections.</p>
+                          </div>
+
+                          <div className="group bg-gradient-to-br from-indigo-800/50 to-indigo-900/50 p-4 rounded-xl border border-indigo-500/20 hover:border-indigo-400/40 transition-all duration-300 hover:scale-[1.02]">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+                                <span className="text-xl">🔗</span>
+                              </div>
+                              <h4 className="text-indigo-200 font-semibold text-sm">Smart Connections</h4>
+                            </div>
+                            <p className="text-gray-400 text-xs">Notes maintain relationships and can reference each other.</p>
+                          </div>
+
+                          <div className="group bg-gradient-to-br from-pink-800/50 to-pink-900/50 p-4 rounded-xl border border-pink-500/20 hover:border-pink-400/40 transition-all duration-300 hover:scale-[1.02]">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <div className="w-8 h-8 bg-pink-500/20 rounded-lg flex items-center justify-center">
+                                <span className="text-xl">📊</span>
+                              </div>
+                              <h4 className="text-pink-200 font-semibold text-sm">Advanced Analytics</h4>
+                            </div>
+                            <p className="text-gray-400 text-xs">Track views, engagement, and popularity metrics.</p>
+                          </div>
+
+                          <div className="group bg-gradient-to-br from-cyan-800/50 to-cyan-900/50 p-4 rounded-xl border border-cyan-500/20 hover:border-cyan-400/40 transition-all duration-300 hover:scale-[1.02]">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                                <span className="text-xl">🌐</span>
+                              </div>
+                              <h4 className="text-cyan-200 font-semibold text-sm">Shareable Links</h4>
+                            </div>
+                            <p className="text-gray-400 text-xs">Generate permanent, shareable links to collections.</p>
+                          </div>
+                        </div>
+
+                        {/* Special features */}
+                        <div className="bg-gradient-to-r from-purple-900/30 via-pink-900/30 to-indigo-900/30 rounded-xl p-4 border border-purple-500/20">
+                          <h4 className="text-lg font-bold text-center text-white mb-3">✨ Premium Features</h4>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-purple-400">🎨</span>
+                              <span className="text-gray-300">Custom themes</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-pink-400">📈</span>
+                              <span className="text-gray-300">Popularity tracking</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-indigo-400">🔍</span>
+                              <span className="text-gray-300">Advanced search</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-cyan-400">📱</span>
+                              <span className="text-gray-300">Mobile optimized</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Call to action */}
+                      <div className="text-center space-y-4">
+                        <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 rounded-xl p-4 border border-purple-500/20">
+                          <p className="text-purple-200 font-medium">
+                            🚀 This revolutionary feature is currently in development
+                          </p>
+                          <p className="text-gray-400 text-sm mt-1">
+                            Join our community to get early access when it launches!
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => setShowPublishFolderModal(false)}
+                            className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-full transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                          >
+                            Can't Wait! 🎉
+                          </button>
+                          <button
+                            onClick={() => setShowPublishFolderModal(false)}
+                            className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all duration-300 border border-white/20 text-sm"
+                          >
+                            Maybe Later
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -5506,12 +5595,12 @@ function WelcomePage({
               </div>
             )}
             {showDeleteFolderModal && folderToDelete && (
-              <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-                <div className="w-full max-w-md max-h-[90vh] overflow-hidden">
-                  <div className="bg-gradient-to-br from-red-900/95 via-red-800/95 to-orange-700/95 backdrop-blur-lg border border-red-500/50 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.3)] overflow-hidden">
-                    <div className="p-6 space-y-6">
+              <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="w-full max-w-sm sm:max-w-md max-h-[95vh] overflow-y-auto">
+                  <div className="bg-gradient-to-br from-red-900/95 via-red-800/95 to-orange-700/95 backdrop-blur-lg border border-red-500/50 rounded-2xl shadow-[0_0_30px_rgba(239,68,68,0.3)] overflow-hidden">
+                    <div className="p-5 space-y-5">
                       <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-semibold text-white">
+                        <h2 className="text-xl font-semibold text-white">
                           🗑️ Delete Folder
                         </h2>
                         <button
@@ -5519,24 +5608,24 @@ function WelcomePage({
                             setShowDeleteFolderModal(false);
                             setFolderToDelete(null);
                           }}
-                          className="text-gray-400 hover:text-white transition-colors"
+                          className="text-gray-400 hover:text-white transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"
                         >
                           ×
                         </button>
                       </div>
 
                       <div className="text-center space-y-4">
-                        <div className="text-6xl">⚠️</div>
-                        <h3 className="text-xl font-semibold text-white">
+                        <div className="text-5xl">⚠️</div>
+                        <h3 className="text-lg font-semibold text-white">
                           Are you sure?
                         </h3>
-                        <p className="text-gray-300 leading-relaxed">
+                        <p className="text-gray-300 text-sm leading-relaxed">
                           You're about to delete the folder <strong className="text-white">"{folderToDelete.name}"</strong>.
                         </p>
 
-                        <div className="bg-red-900/50 rounded-lg p-4 text-left">
-                          <h4 className="font-semibold text-red-200 mb-2">Important:</h4>
-                          <ul className="text-sm text-gray-300 space-y-1">
+                        <div className="bg-red-900/50 rounded-lg p-4 text-left border border-red-500/20">
+                          <h4 className="font-semibold text-red-200 mb-2 text-sm">Important:</h4>
+                          <ul className="text-xs text-gray-300 space-y-1">
                             <li>• 📁 The folder will be permanently deleted</li>
                             <li>• 📝 Eternal notes inside will NOT be deleted</li>
                             <li>• 🔄 Notes will remain in your published collection</li>
@@ -5544,21 +5633,12 @@ function WelcomePage({
                           </ul>
                         </div>
 
-                        <p className="text-sm text-gray-400">
+                        <p className="text-xs text-gray-400">
                           The {folderToDelete.noteIds.length} eternal {folderToDelete.noteIds.length === 1 ? 'note' : 'notes'} in this folder will remain safely published.
                         </p>
                       </div>
 
-                      <div className="flex justify-end space-x-4">
-                        <button
-                          onClick={() => {
-                            setShowDeleteFolderModal(false);
-                            setFolderToDelete(null);
-                          }}
-                          className="px-4 py-2 bg-gray-700/80 text-white rounded-lg hover:bg-gray-600/80 transition-colors"
-                        >
-                          Cancel
-                        </button>
+                      <div className="flex flex-col gap-3">
                         <button
                           onClick={() => {
                             if (folderToDelete) {
@@ -5572,9 +5652,18 @@ function WelcomePage({
                             setShowDeleteFolderModal(false);
                             setFolderToDelete(null);
                           }}
-                          className="px-6 py-2 bg-gradient-to-r from-red-500 to-red-700 text-white font-bold rounded-full hover:from-red-600 hover:to-red-800 transition-all"
+                          className="w-full px-4 py-3 bg-gradient-to-r from-red-500 to-red-700 text-white font-bold rounded-lg hover:from-red-600 hover:to-red-800 transition-all duration-300 shadow-lg"
                         >
                           Delete Folder
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowDeleteFolderModal(false);
+                            setFolderToDelete(null);
+                          }}
+                          className="w-full px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-300 border border-white/20"
+                        >
+                          Cancel
                         </button>
                       </div>
                     </div>
