@@ -4138,86 +4138,76 @@ function WelcomePage({
                               key={folder.id}
                               style={{
                                 ...noteSpring,
-                                background: `linear-gradient(135deg, ${folder.color}20 0%, ${folder.color}15 50%, ${folder.color}25 100%)`,
-                                borderColor: folder.color,
-                                boxShadow: `0 0 30px ${folder.color}50, inset 0 1px 0 ${folder.color}30`
+                                background: `linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.6) 100%)`,
+                                borderColor: `${folder.color}30`,
+                                boxShadow: `0 4px 20px rgba(0,0,0,0.08), 0 2px 8px ${folder.color}15`
                               }}
-                              className="group backdrop-blur-md p-6 rounded-2xl shadow-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.03] transition-all duration-500 border-2 h-64 sm:h-68 relative overflow-hidden"
+                              className="group relative overflow-hidden rounded-2xl border backdrop-blur-sm cursor-pointer hover:scale-[1.02] transition-all duration-300 h-48"
                               onClick={() => setViewingFolder(folder)}
                             >
-                              <div className="flex-1 overflow-hidden">
-                                {/* Decorative elements */}
-                                <div className="absolute top-0 right-0 w-24 h-24 opacity-30">
-                                  <div className="w-full h-full rounded-full" style={{ backgroundColor: folder.color }}></div>
-                                </div>
-                                <div className="absolute bottom-0 left-0 w-20 h-20 opacity-25">
-                                  <div className="w-full h-full rounded-full" style={{ backgroundColor: folder.color }}></div>
-                                </div>
+                              {/* Top color accent */}
+                              <div
+                                className="absolute top-0 left-0 right-0 h-1"
+                                style={{ backgroundColor: folder.color }}
+                              />
 
-                                {/* Folder header */}
-                                <div className="flex items-center justify-between mb-4 relative z-10">
+                              {/* Main content */}
+                              <div className="relative z-10 p-5 h-full flex flex-col">
+
+                                {/* Header section */}
+                                <div className="flex items-center justify-between mb-4">
                                   <div className="flex items-center space-x-3">
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg" style={{ backgroundColor: folder.color }}>
-                                      <span className="text-white font-bold text-xl">📁</span>
+                                    {/* Folder icon */}
+                                    <div
+                                      className="w-10 h-10 rounded-lg flex items-center justify-center shadow-md"
+                                      style={{ backgroundColor: folder.color }}
+                                    >
+                                      <span className="text-white font-bold text-lg">📁</span>
                                     </div>
-                                    <div>
-                                      <h3 className="font-bold text-xl text-gray-900 truncate max-w-[140px] sm:max-w-[170px] leading-tight">{folder.name}</h3>
-                                      <p className="text-sm text-gray-700 font-medium">{folderNotes.length} notes</p>
+
+                                    <div className="flex-1 min-w-0">
+                                      <h3 className="text-lg font-bold text-gray-900 truncate leading-tight">
+                                        {folder.name}
+                                      </h3>
+                                      <p className="text-sm text-gray-600 font-medium">
+                                        {folderNotes.length} {folderNotes.length === 1 ? 'note' : 'notes'}
+                                      </p>
                                     </div>
                                   </div>
+
+                                  {/* Delete button */}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setFolderToDelete(folder);
                                       setShowDeleteFolderModal(true);
                                     }}
-                                    className="text-gray-600 hover:text-red-600 transition-colors duration-200 p-2 rounded-full hover:bg-red-50 opacity-70 hover:opacity-100"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600"
                                   >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
                                   </button>
                                 </div>
 
-                                {/* Notes preview */}
-                                <div className="flex-1 relative z-10">
-                                  <div className="space-y-2">
-                                    {folderNotes.slice(0, 3).map((note, index) => (
-                                      <div key={note.id} className="flex items-center space-x-2 bg-white/70 backdrop-blur-sm rounded-lg p-2 border border-white/50">
-                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: folder.color }}></div>
-                                        <span className="text-sm text-gray-800 truncate flex-1 font-medium">{note.title}</span>
-                                      </div>
-                                    ))}
-                                    {folderNotes.length > 3 && (
-                                      <div className="text-xs text-gray-600 text-center py-1 bg-white/50 rounded-lg font-medium">
-                                        +{folderNotes.length - 3} more notes
-                                      </div>
-                                    )}
-                                    {folderNotes.length === 0 && (
-                                      <div className="text-sm text-gray-500 text-center py-4 italic">
-                                        No notes yet
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Folder actions */}
-                                <div className="flex justify-between items-center relative z-10">
+                                {/* Action buttons */}
+                                <div className="flex space-x-2 mt-auto">
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setViewingFolder(folder);
                                     }}
-                                    className="px-5 py-2.5 bg-white/90 backdrop-blur-sm text-gray-800 rounded-xl hover:bg-white transition-all duration-200 text-sm font-semibold shadow-md border border-white/50"
+                                    className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all duration-200 text-sm font-medium"
                                   >
                                     View Notes
                                   </button>
+
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       alert('Publish folder feature coming soon!');
                                     }}
-                                    className="px-5 py-2.5 text-white rounded-xl transition-all duration-200 text-sm font-semibold shadow-md"
+                                    className="px-3 py-2 text-white rounded-lg transition-all duration-200 text-sm font-medium"
                                     style={{ backgroundColor: folder.color }}
                                   >
                                     Publish
