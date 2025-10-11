@@ -58,6 +58,7 @@ const Settings: React.FC<SettingsProps> = ({
   const [apiTestResult, setApiTestResult] = useState<string>("");
   const [isTestingApi, setIsTestingApi] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [copyButtonText, setCopyButtonText] = useState("Copy");
 
   // Track changes to settings
   useEffect(() => {
@@ -885,6 +886,55 @@ const Settings: React.FC<SettingsProps> = ({
               </button>
             </div>
           )}
+
+          {/* Support Section */}
+          <div className="mt-8 p-4 rounded-lg border border-gray-600 bg-gray-800/50">
+            <h3 className={`text-lg font-semibold mb-3 ${
+              theme === "Light" ? "text-gray-800" : "text-gray-100"
+            }`}>
+              💝 Support Elysium
+            </h3>
+            <p className={`text-sm mb-3 ${
+              theme === "Light" ? "text-gray-600" : "text-gray-300"
+            }`}>
+              Help keep Elysium free and open-source! Your support means the world to us.
+            </p>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value="aIpHglLytKVYcPiIt6ag9RG6FhtetMk_ThaDUWKrPYk"
+                readOnly
+                className={`flex-1 px-3 py-2 text-xs font-mono rounded border ${
+                  theme === "Light"
+                    ? "bg-gray-100 border-gray-300 text-gray-800"
+                    : "bg-gray-700 border-gray-600 text-gray-200"
+                }`}
+                onClick={(e) => e.currentTarget.select()}
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText("aIpHglLytKVYcPiIt6ag9RG6FhtetMk_ThaDUWKrPYk");
+                  setCopyButtonText("Copied!");
+                  setTimeout(() => setCopyButtonText("Copy"), 2000);
+                }}
+                className={`px-3 py-2 text-xs rounded transition-all duration-200 ${
+                  copyButtonText === "Copied!"
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : theme === "Light"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                    : "bg-blue-700 hover:bg-blue-800 text-white"
+                }`}
+              >
+                {copyButtonText}
+              </button>
+            </div>
+            <p className={`text-xs mt-2 ${
+              theme === "Light" ? "text-gray-500" : "text-gray-400"
+            }`}>
+              Arweave Address • Click to copy
+            </p>
+          </div>
+
           {onLogout && (
             <div className="flex justify-center mt-6">
               <button
