@@ -3946,42 +3946,86 @@ function WelcomePage({
           />
           <button onClick={handleLogoButton}>
             <div className="fixed top-4 sm:top-6 left-1/2 transform -translate-x-1/2 z-40">
-              <ElysiumLogo className="w-12 h-12 sm:w-16 sm:h-16" />
+              <ElysiumLogo className="w-10 h-10 sm:w-12 sm:h-12" />
             </div>
           </button>
+
+          {/* Mobile layout adjustments for cloud mode */}
+          {mode === "cloud" && cloudStorage.user && (
+            <div className="fixed top-16 sm:top-20 left-4 z-30 flex flex-col space-y-2">
+              <button
+                onClick={() => setActivePage("settings")}
+                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-full shadow-lg text-xs sm:text-sm cursor-pointer transition-all duration-300"
+              >
+                {cloudStorage.user.email}
+              </button>
+              <button
+                onClick={handleExitToMainMenu}
+                className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-full shadow-lg transition-all duration-300 text-xs sm:text-sm"
+              >
+                Main Menu
+              </button>
+            </div>
+          )}
+
+          {/* Mobile layout adjustments for db mode */}
+          {mode === "db" && user && (
+            <div className="fixed top-16 sm:top-20 left-4 z-30 flex flex-col space-y-2">
+              <button
+                onClick={() => setActivePage("settings")}
+                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-full shadow-lg text-xs sm:text-sm cursor-pointer transition-all duration-300"
+              >
+                {user.email}
+              </button>
+              <button
+                onClick={handleExitToMainMenu}
+                className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-full shadow-lg transition-all duration-300 text-xs sm:text-sm"
+              >
+                Main Menu
+              </button>
+            </div>
+          )}
+
           <header className="w-full p-2 sm:p-4 flex justify-end absolute top-0 left-0 items-center">
             <div className="flex items-center space-x-2 sm:space-x-4">
               {mode === "web3" && checkArweaveWallet() && (
                 <button
                   onClick={handleWalletAction}
-                  className="bg-gradient-to-r from-purple-600 to-blue-700 hover:from-purple-700 hover:to-blue-800 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl transition-all duration-300 text-sm sm:text-base"
+                  className="bg-gradient-to-r from-purple-600 to-blue-700 hover:from-purple-700 hover:to-blue-800 text-white font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-full shadow-lg transition-all duration-300 text-xs sm:text-sm"
                 >
                   {shortenedAddress}
                 </button>
               )}
+              {/* Hide cloud/db buttons on mobile - they're now positioned below drawer */}
               {mode === "cloud" && cloudStorage.user && (
-                <button
-                  onClick={() => setActivePage("settings")}
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl text-sm sm:text-base cursor-pointer"
-                >
-                  {cloudStorage.user.email}
-                </button>
+                <div className="hidden sm:block">
+                  <button
+                    onClick={() => setActivePage("settings")}
+                    className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl text-sm sm:text-base cursor-pointer"
+                  >
+                    {cloudStorage.user.email}
+                  </button>
+                </div>
               )}
               {mode === "db" && user && (
-                <button
-                  onClick={() => setActivePage("settings")}
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl text-sm sm:text-base cursor-pointer"
-                >
-                  {user.email}
-                </button>
+                <div className="hidden sm:block">
+                  <button
+                    onClick={() => setActivePage("settings")}
+                    className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl text-sm sm:text-base cursor-pointer"
+                  >
+                    {user.email}
+                  </button>
+                </div>
               )}
               {mode !== "web3" && (
-                <button
-                  onClick={handleExitToMainMenu}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl transition-all duration-300 text-sm sm:text-base"
-                >
-                  Exit to Main Menu
-                </button>
+                <div className="hidden sm:block">
+                  <button
+                    onClick={handleExitToMainMenu}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl transition-all duration-300 text-sm sm:text-base"
+                  >
+                    Exit to Main Menu
+                  </button>
+                </div>
               )}
             </div>
           </header>
