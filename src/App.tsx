@@ -3954,19 +3954,19 @@ function WelcomePage({
             isOnline={isOnline}
           />
 
-          {/* Mobile/tablet horizontal button layout around centered logo for cloud mode */}
+          {/* Universal horizontal button layout around centered logo for cloud mode */}
           {mode === "cloud" && cloudStorage.user && (
             <>
               <button onClick={() => setActivePage("settings")}>
-                <div className="fixed top-4 left-[30%] transform -translate-x-1/2 z-40 block lg:hidden">
-                  <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1 px-1.5 rounded-full shadow-lg text-xs cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px]">
+                <div className="fixed top-4 left-[25%] transform -translate-x-1/2 z-40">
+                  <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1.5 px-2 rounded-full shadow-lg text-xs sm:text-sm cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px] sm:max-w-[100px]">
                     {cloudStorage.user.email}
                   </div>
                 </div>
               </button>
               <button onClick={handleExitToMainMenu}>
-                <div className="fixed top-4 left-[70%] transform -translate-x-1/2 z-40 block lg:hidden">
-                  <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1 px-1.5 rounded-full shadow-lg transition-all duration-300 text-xs whitespace-nowrap">
+                <div className="fixed top-4 left-[75%] transform -translate-x-1/2 z-40">
+                  <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1.5 px-2 rounded-full shadow-lg transition-all duration-300 text-xs sm:text-sm whitespace-nowrap">
                     Main Menu
                   </div>
                 </div>
@@ -3974,19 +3974,19 @@ function WelcomePage({
             </>
           )}
 
-          {/* Mobile/tablet horizontal button layout around centered logo for db mode */}
+          {/* Universal horizontal button layout around centered logo for db mode */}
           {mode === "db" && user && (
             <>
               <button onClick={() => setActivePage("settings")}>
-                <div className="fixed top-4 left-[30%] transform -translate-x-1/2 z-40 block lg:hidden">
-                  <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1 px-1.5 rounded-full shadow-lg text-xs cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px]">
+                <div className="fixed top-4 left-[25%] transform -translate-x-1/2 z-40">
+                  <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1.5 px-2 rounded-full shadow-lg text-xs sm:text-sm cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px] sm:max-w-[100px]">
                     {user.email}
                   </div>
                 </div>
               </button>
               <button onClick={handleExitToMainMenu}>
-                <div className="fixed top-4 left-[70%] transform -translate-x-1/2 z-40 block lg:hidden">
-                  <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1 px-1.5 rounded-full shadow-lg transition-all duration-300 text-xs whitespace-nowrap">
+                <div className="fixed top-4 left-[75%] transform -translate-x-1/2 z-40">
+                  <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1.5 px-2 rounded-full shadow-lg transition-all duration-300 text-xs sm:text-sm whitespace-nowrap">
                     Main Menu
                   </div>
                 </div>
@@ -3994,59 +3994,17 @@ function WelcomePage({
             </>
           )}
 
-          {/* Shared mobile/tablet logo button for both cloud and db modes */}
+          {/* Shared universal logo button for both cloud and db modes */}
           {(mode === "cloud" && cloudStorage.user) ||
           (mode === "db" && user) ? (
             <button onClick={handleLogoButton}>
-              <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 block lg:hidden">
-                <ElysiumLogo className="w-8 h-8" />
+              <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40">
+                <ElysiumLogo className="w-8 h-8 sm:w-10 sm:h-10" />
               </div>
             </button>
           ) : null}
 
-          {/* Desktop layout - centered logo */}
-          <button onClick={handleLogoButton}>
-            <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-40 hidden lg:block">
-              <ElysiumLogo className="w-12 h-12" />
-            </div>
-          </button>
 
-          <header className="w-full p-2 sm:p-4 flex justify-end absolute top-0 left-0 items-center hidden lg:flex">
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              {mode === "web3" && checkArweaveWallet() && (
-                <button
-                  onClick={handleWalletAction}
-                  className="bg-gradient-to-r from-purple-600 to-blue-700 hover:from-purple-700 hover:to-blue-800 text-white font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-full shadow-lg transition-all duration-300 text-xs sm:text-sm"
-                >
-                  {shortenedAddress}
-                </button>
-              )}
-              {mode === "cloud" && cloudStorage.user && (
-                <button
-                  onClick={() => setActivePage("settings")}
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl text-sm sm:text-base cursor-pointer"
-                >
-                  {cloudStorage.user.email}
-                </button>
-              )}
-              {mode === "db" && user && (
-                <button
-                  onClick={() => setActivePage("settings")}
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl text-sm sm:text-base cursor-pointer"
-                >
-                  {user.email}
-                </button>
-              )}
-              {mode !== "web3" && (
-                <button
-                  onClick={handleExitToMainMenu}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-2 px-4 sm:px-6 rounded-full shadow-xl transition-all duration-300 text-sm sm:text-base"
-                >
-                  Exit to Main Menu
-                </button>
-              )}
-            </div>
-          </header>
           {showPopup && mode === "web3" && (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
               <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-black p-4 sm:p-6 rounded-lg shadow-2xl text-white w-11/12 max-w-md sm:w-80 transform transition-all duration-300 ease-in-out">
