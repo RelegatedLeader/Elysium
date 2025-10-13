@@ -234,13 +234,6 @@ const Settings: React.FC<SettingsProps> = ({
                   Account
                 </h3>
               </div>
-              {userEmail && (
-                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                    Current User: {userEmail}
-                  </p>
-                </div>
-              )}
               <div>
                 <label
                   className={`block text-sm font-medium mb-2 ${
@@ -941,15 +934,20 @@ const Settings: React.FC<SettingsProps> = ({
 
           {/* Support Section */}
           <div className="mt-8 p-4 rounded-lg border border-gray-600 bg-gray-800/50">
-            <h3 className={`text-lg font-semibold mb-3 ${
-              theme === "Light" ? "text-gray-800" : "text-gray-100"
-            }`}>
+            <h3
+              className={`text-lg font-semibold mb-3 ${
+                theme === "Light" ? "text-gray-800" : "text-gray-100"
+              }`}
+            >
               💝 Support Elysium
             </h3>
-            <p className={`text-sm mb-3 ${
-              theme === "Light" ? "text-gray-600" : "text-gray-300"
-            }`}>
-              Help keep Elysium free and open-source! Your support means the world to us.
+            <p
+              className={`text-sm mb-3 ${
+                theme === "Light" ? "text-gray-600" : "text-gray-300"
+              }`}
+            >
+              Help keep Elysium free and open-source! Your support means the
+              world to us.
             </p>
             <div className="flex items-center space-x-2">
               <input
@@ -965,7 +963,9 @@ const Settings: React.FC<SettingsProps> = ({
               />
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText("aIpHglLytKVYcPiIt6ag9RG6FhtetMk_ThaDUWKrPYk");
+                  navigator.clipboard.writeText(
+                    "aIpHglLytKVYcPiIt6ag9RG6FhtetMk_ThaDUWKrPYk"
+                  );
                   setCopyButtonText("Copied!");
                   setTimeout(() => setCopyButtonText("Copy"), 2000);
                 }}
@@ -980,9 +980,11 @@ const Settings: React.FC<SettingsProps> = ({
                 {copyButtonText}
               </button>
             </div>
-            <p className={`text-xs mt-2 ${
-              theme === "Light" ? "text-gray-500" : "text-gray-400"
-            }`}>
+            <p
+              className={`text-xs mt-2 ${
+                theme === "Light" ? "text-gray-500" : "text-gray-400"
+              }`}
+            >
               Arweave Address • Click to copy
             </p>
           </div>
