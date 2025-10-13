@@ -3949,19 +3949,19 @@ function WelcomePage({
           {mode === "cloud" && cloudStorage.user && (
             <>
               <button onClick={() => setActivePage("settings")}>
-                <div className="fixed top-4 left-[35%] transform -translate-x-1/2 z-40 sm:hidden">
+                <div className="fixed top-4 left-[30%] transform -translate-x-1/2 z-40 block sm:hidden">
                   <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1 px-2 rounded-full shadow-lg text-xs cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[70px]">
                     {cloudStorage.user.email}
                   </div>
                 </div>
               </button>
               <button onClick={handleLogoButton}>
-                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 sm:top-6">
-                  <ElysiumLogo className="w-8 h-8 sm:w-12 sm:h-12" />
+                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 block sm:hidden">
+                  <ElysiumLogo className="w-8 h-8" />
                 </div>
               </button>
               <button onClick={handleExitToMainMenu}>
-                <div className="fixed top-4 left-[65%] transform -translate-x-1/2 z-40 sm:hidden">
+                <div className="fixed top-4 left-[70%] transform -translate-x-1/2 z-40 block sm:hidden">
                   <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1 px-2 rounded-full shadow-lg transition-all duration-300 text-xs whitespace-nowrap">
                     Main Menu
                   </div>
@@ -3974,19 +3974,19 @@ function WelcomePage({
           {mode === "db" && user && (
             <>
               <button onClick={() => setActivePage("settings")}>
-                <div className="fixed top-4 left-[35%] transform -translate-x-1/2 z-40 sm:hidden">
+                <div className="fixed top-4 left-[30%] transform -translate-x-1/2 z-40 block sm:hidden">
                   <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1 px-2 rounded-full shadow-lg text-xs cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[70px]">
                     {user.email}
                   </div>
                 </div>
               </button>
               <button onClick={handleLogoButton}>
-                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 sm:top-6">
-                  <ElysiumLogo className="w-8 h-8 sm:w-12 sm:h-12" />
+                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 block sm:hidden">
+                  <ElysiumLogo className="w-8 h-8" />
                 </div>
               </button>
               <button onClick={handleExitToMainMenu}>
-                <div className="fixed top-4 left-[65%] transform -translate-x-1/2 z-40 sm:hidden">
+                <div className="fixed top-4 left-[70%] transform -translate-x-1/2 z-40 block sm:hidden">
                   <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1 px-2 rounded-full shadow-lg transition-all duration-300 text-xs whitespace-nowrap">
                     Main Menu
                   </div>
@@ -3995,14 +3995,12 @@ function WelcomePage({
             </>
           )}
 
-          {/* Default logo button for other modes */}
-          {mode !== "cloud" && mode !== "db" && (
-            <button onClick={handleLogoButton}>
-              <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 sm:top-6">
-                <ElysiumLogo className="w-8 h-8 sm:w-12 sm:h-12" />
-              </div>
-            </button>
-          )}
+          {/* Desktop/tablet layout - centered logo */}
+          <button onClick={handleLogoButton}>
+            <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-40 hidden sm:block">
+              <ElysiumLogo className="w-12 h-12" />
+            </div>
+          </button>
 
           <header className="w-full p-2 sm:p-4 flex justify-end absolute top-0 left-0 items-center">
             <div className="flex items-center space-x-2 sm:space-x-4">
@@ -5257,6 +5255,7 @@ function WelcomePage({
                   initialDefaultTemplate={settings.defaultTemplate}
                   initialNoteSorting={settings.noteSorting}
                   initialDataRetention={settings.dataRetention}
+                  userEmail={mode === "cloud" ? cloudStorage.user?.email : user?.email}
                 />
               )}
               {activePage === "logout" && (

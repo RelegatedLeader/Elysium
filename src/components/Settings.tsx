@@ -24,6 +24,7 @@ interface SettingsProps {
   initialDefaultTemplate?: string;
   initialNoteSorting?: string;
   initialDataRetention?: number;
+  userEmail?: string;
 }
 
 const Settings: React.FC<SettingsProps> = ({
@@ -40,6 +41,7 @@ const Settings: React.FC<SettingsProps> = ({
   initialDefaultTemplate = "Blank",
   initialNoteSorting = "Date Created",
   initialDataRetention = 365,
+  userEmail,
 }) => {
   const [theme, setTheme] = useState(initialTheme);
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -216,6 +218,49 @@ const Settings: React.FC<SettingsProps> = ({
             Settings
           </h2>
           <div className="space-y-6">
+            {/* Account Settings - Email */}
+            <div
+              className={`border-b pb-6 ${
+                theme === "Light" ? "border-purple-200" : "border-indigo-600"
+              }`}
+            >
+              <div className="flex items-center mb-4">
+                <span className="text-2xl mr-3">👤</span>
+                <h3
+                  className={`text-xl font-bold ${
+                    theme === "Light" ? "text-purple-800" : "text-gold-100"
+                  }`}
+                >
+                  Account
+                </h3>
+              </div>
+              <div>
+                <label
+                  className={`block text-sm font-medium mb-2 ${
+                    theme === "Light" ? "text-purple-700" : "text-gray-200"
+                  }`}
+                >
+                  Email Address
+                </label>
+                <div
+                  className={`w-full p-3 border rounded-lg text-sm ${
+                    theme === "Light"
+                      ? "bg-gray-100/90 border-purple-300 text-purple-800"
+                      : "bg-indigo-950/90 border-indigo-600 text-white"
+                  }`}
+                >
+                  {userEmail || "Not logged in"}
+                </div>
+                <p
+                  className={`text-xs mt-1 ${
+                    theme === "Light" ? "text-purple-600" : "text-gray-400"
+                  }`}
+                >
+                  Your account email address
+                </p>
+              </div>
+            </div>
+
             {/* Appearance Settings */}
             <div
               className={`border-b pb-6 ${
