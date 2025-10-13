@@ -1805,9 +1805,22 @@ function WelcomePage({
   const [showCloudAuthModal, setShowCloudAuthModal] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [isCloudButtonClicked, setIsCloudButtonClicked] = useState(false);
+  const [showWalletDropdown, setShowWalletDropdown] = useState(false);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Close wallet dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showWalletDropdown && !(event.target as Element).closest('.wallet-dropdown')) {
+        setShowWalletDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showWalletDropdown]);
 
   // Note viewing/editing state
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
@@ -4003,6 +4016,40 @@ function WelcomePage({
               </div>
             </button>
           ) : null}
+
+          {/* Web3 wallet button */}
+          {mode === "web3" && checkArweaveWallet() && walletAddress && (
+            <div className="fixed top-4 right-4 z-40 wallet-dropdown">
+              <button
+                onClick={() => setShowWalletDropdown(!showWalletDropdown)}
+                className="bg-gradient-to-r from-purple-600 to-blue-700 hover:from-purple-700 hover:to-blue-800 text-white font-bold py-2 px-3 sm:py-2.5 sm:px-4 rounded-full shadow-lg text-xs sm:text-sm transition-all duration-300"
+              >
+                {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+              </button>
+              {showWalletDropdown && (
+                <div className="absolute top-full mt-2 right-0 bg-indigo-950/95 border border-indigo-700/50 rounded-lg shadow-xl p-2 min-w-[160px]">
+                  <button
+                    onClick={() => {
+                      setActivePage("settings");
+                      setShowWalletDropdown(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-white hover:bg-indigo-800/50 rounded transition-colors"
+                  >
+                    ⚙️ Settings
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleExitToMainMenu();
+                      setShowWalletDropdown(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-red-300 hover:bg-red-800/50 rounded transition-colors"
+                  >
+                    🚪 Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
 
           {showPopup && mode === "web3" && (
