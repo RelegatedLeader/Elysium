@@ -3958,14 +3958,14 @@ function WelcomePage({
           {mode === "cloud" && cloudStorage.user && (
             <>
               <button onClick={() => setActivePage("settings")}>
-                <div className="fixed top-4 left-[40%] transform -translate-x-1/2 z-40 block sm:hidden">
+                <div className="fixed top-4 left-[30%] transform -translate-x-1/2 z-40 block sm:hidden">
                   <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1 px-1.5 rounded-full shadow-lg text-xs cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px]">
                     {cloudStorage.user.email}
                   </div>
                 </div>
               </button>
               <button onClick={handleExitToMainMenu}>
-                <div className="fixed top-4 left-[60%] transform -translate-x-1/2 z-40 block sm:hidden">
+                <div className="fixed top-4 left-[70%] transform -translate-x-1/2 z-40 block sm:hidden">
                   <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1 px-1.5 rounded-full shadow-lg transition-all duration-300 text-xs whitespace-nowrap">
                     Main Menu
                   </div>
@@ -3978,14 +3978,14 @@ function WelcomePage({
           {mode === "db" && user && (
             <>
               <button onClick={() => setActivePage("settings")}>
-                <div className="fixed top-4 left-[40%] transform -translate-x-1/2 z-40 block sm:hidden">
+                <div className="fixed top-4 left-[30%] transform -translate-x-1/2 z-40 block sm:hidden">
                   <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1 px-1.5 rounded-full shadow-lg text-xs cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px]">
                     {user.email}
                   </div>
                 </div>
               </button>
               <button onClick={handleExitToMainMenu}>
-                <div className="fixed top-4 left-[60%] transform -translate-x-1/2 z-40 block sm:hidden">
+                <div className="fixed top-4 left-[70%] transform -translate-x-1/2 z-40 block sm:hidden">
                   <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1 px-1.5 rounded-full shadow-lg transition-all duration-300 text-xs whitespace-nowrap">
                     Main Menu
                   </div>
