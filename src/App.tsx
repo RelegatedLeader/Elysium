@@ -4039,7 +4039,7 @@ function WelcomePage({
                   </button>
                   <button
                     onClick={() => {
-                      handleExitToMainMenu();
+                      handleLogout();
                       setShowWalletDropdown(false);
                     }}
                     className="w-full text-left px-3 py-2 text-sm text-red-300 hover:bg-red-800/50 rounded transition-colors"
@@ -4049,6 +4049,13 @@ function WelcomePage({
                 </div>
               )}
             </div>
+          )}
+
+          {/* Web3 logo button - centered */}
+          {mode === "web3" && checkArweaveWallet() && walletAddress && (
+            <button onClick={handleLogoButton} className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40">
+              <ElysiumLogo className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12" />
+            </button>
           )}
 
 

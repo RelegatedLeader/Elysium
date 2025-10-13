@@ -27,16 +27,25 @@ const initTestWallet = async () => {
 };
 
 export const disconnectArweaveWallet = async (): Promise<void> => {
-  if (!checkArweaveWallet()) {
-    return;
-  }
+  const isMobile = isMobileDevice();
+  const walletType = getWalletType();
 
-  try {
-    await (window as any).arweaveWallet.disconnect();
-    console.log("Disconnected from Arweave wallet");
-  } catch (error) {
-    console.error("Error disconnecting from Arweave wallet:", error);
-    // Don't throw error for disconnect - it's not critical
+  if (isMobile && checkWanderWallet()) {
+    try {
+      await (window as any).wanderWallet.disconnect();
+      console.log("Disconnected from Wander wallet");
+    } catch (error) {
+      console.error("Error disconnecting from Wander wallet:", error);
+      // Don't throw error for disconnect - it's not critical
+    }
+  } else if (checkArweaveWallet()) {
+    try {
+      await (window as any).arweaveWallet.disconnect();
+      console.log("Disconnected from Arweave wallet");
+    } catch (error) {
+      console.error("Error disconnecting from Arweave wallet:", error);
+      // Don't throw error for disconnect - it's not critical
+    }
   }
 };
 
@@ -44,24 +53,31 @@ export const disconnectArweaveWallet = async (): Promise<void> => {
 export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
   console.log("🚀 Starting Arweave upload process...");
 
+  const isMobile = isMobileDevice();
+  const walletType = getWalletType();
+
   if (!checkArweaveWallet()) {
-    console.error("❌ ArConnect wallet not found");
+    const walletName = isMobile ? "Wander wallet" : "ArConnect wallet";
+    console.error(`❌ ${walletName} not found`);
     throw new Error(
-      "ArConnect wallet required. Please install it and try again."
+      `${walletName} required. Please install it and try again.`
     );
   }
 
   // Check if wallet is connected and has proper permissions
   let address: string;
+  const wallet = isMobile ? (window as any).wanderWallet : (window as any).arweaveWallet;
+  const walletName = isMobile ? "Wander" : "ArConnect";
+
   try {
-    console.log("🔗 Checking ArConnect wallet connection...");
-    address = await (window as any).arweaveWallet.getActiveAddress();
-    console.log("✅ ArConnect wallet connected:", address);
+    console.log(`🔗 Checking ${walletName} wallet connection...`);
+    address = await wallet.getActiveAddress();
+    console.log(`✅ ${walletName} wallet connected:`, address);
   } catch (error) {
-    console.log("🔄 ArConnect wallet not connected, attempting to connect...");
+    console.log(`🔄 ${walletName} wallet not connected, attempting to connect...`);
     try {
       // Request permissions for mainnet Arweave
-      await (window as any).arweaveWallet.connect([
+      await wallet.connect([
         "ACCESS_ADDRESS",
         "ACCESS_PUBLIC_KEY",
         "SIGN_TRANSACTION",
@@ -69,11 +85,11 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
       ]);
       // Small delay to ensure connection is fully established
       await new Promise((resolve) => setTimeout(resolve, 500));
-      address = await (window as any).arweaveWallet.getActiveAddress();
-      console.log("✅ Successfully connected to ArConnect:", address);
+      address = await wallet.getActiveAddress();
+      console.log(`✅ Successfully connected to ${walletName}:`, address);
     } catch (connectError) {
-      console.error("❌ Failed to connect ArConnect wallet:", connectError);
-      throw new Error("Please unlock your ArConnect wallet and try again.");
+      console.error(`❌ Failed to connect ${walletName} wallet:`, connectError);
+      throw new Error(`Please unlock your ${walletName} wallet and try again.`);
     }
   }
 
@@ -106,11 +122,11 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
     size: data.length + " bytes",
   });
 
-  // Sign transaction with ArConnect - this should show the popup immediately
-  console.log("✍️ Requesting ArConnect signature...");
+  // Sign transaction with wallet - this should show the popup immediately
+  console.log(`✍️ Requesting ${walletName} signature...`);
   try {
-    const signedTx = await (window as any).arweaveWallet.sign(transaction);
-    console.log("✅ Transaction signed by ArConnect, signed tx:", signedTx.id);
+    const signedTx = await wallet.sign(transaction);
+    console.log(`✅ Transaction signed by ${walletName}, signed tx:`, signedTx.id);
     // Use the signed transaction for posting
     transaction = signedTx;
   } catch (error) {
@@ -124,7 +140,7 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
       }
     }
     throw new Error(
-      "Transaction signing failed. Please try again and approve the transaction in ArConnect."
+      `Transaction signing failed. Please try again and approve the transaction in ${walletName}.`
     );
   }
 
@@ -151,17 +167,76 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
   }
 };
 
-// Check if ArConnect wallet is available
+// Check if ArConnect or Wander wallet is available
 export const checkArweaveWallet = (): boolean => {
-  return typeof window !== "undefined" && (window as any).arweaveWallet;
+  if (typeof window === "undefined") return false;
+
+  // Check for ArConnect or Wander wallet
+  const hasArConnect = (window as any).arweaveWallet;
+  const hasWander = (window as any).wander || (window as any).arweaveWallet?.isWander;
+
+  return hasArConnect || hasWander;
 };
 
-// Guide user to install ArConnect
+// Check if Wander wallet is specifically available
+export const checkWanderWallet = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return (window as any).wanderWallet !== "undefined";
+};
+
+// Check if we're on a mobile device
+export const isMobileDevice = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+// Get wallet type for better user guidance
+export const getWalletType = (): 'arconnect' | 'wander' | 'unknown' => {
+  if (typeof window === "undefined") return 'unknown';
+
+  if ((window as any).arweaveWallet?.isWander) return 'wander';
+  if ((window as any).wander) return 'wander';
+  if ((window as any).arweaveWallet) return 'arconnect';
+
+  return 'unknown';
+};
+
+// Guide user to install appropriate wallet
 export const getArConnectInstallGuide = (): {
   title: string;
   message: string;
   actionUrl?: string;
 } => {
+  const isMobile = isMobileDevice();
+  const walletType = getWalletType();
+
+  if (isMobile) {
+    return {
+      title: "Wander Wallet Required",
+      message: `For mobile devices, use Wander wallet to connect to Arweave:
+
+📱 INSTALL WANDER WALLET:
+1. Visit: https://wander.app
+2. Download the Wander app
+3. Create or import your Arweave wallet
+4. Return to this page and connect
+
+💰 GET AR TOKENS (after setting up Wander):
+• Visit any exchange: Binance, Coinbase, KuCoin, or Gate.io
+• Search for "AR" (Arweave token)
+• Buy ~$20-30 worth of AR tokens
+• Send AR to your Wander wallet
+
+💡 Why Arweave?
+• Permanent storage (never disappears)
+• Censorship-resistant
+• Very cheap (~$0.001 per note)
+
+After installing Wander and getting AR tokens, try connecting again!`,
+      actionUrl: "https://wander.app",
+    };
+  }
+
   return {
     title: "ArConnect Wallet Required",
     message: `To permanently store your notes on Arweave, you need the ArConnect browser extension:
@@ -190,42 +265,87 @@ After installing ArConnect and getting AR tokens, try publishing again!`,
 
 // Connect to Arweave wallet
 export const connectArweaveWallet = async (): Promise<{address: string, publicKey: Uint8Array}> => {
-  if (!checkArweaveWallet()) {
-    throw new Error(
-      "ArConnect wallet not found. Please install ArConnect browser extension."
-    );
-  }
+  const isMobile = isMobileDevice();
+  const walletType = getWalletType();
 
-  try {
-    // Check if already connected
-    try {
-      const existingAddress = await (window as any).arweaveWallet.getActiveAddress();
-      if (existingAddress) {
-        console.log("Already connected to Arweave wallet:", existingAddress);
-        const publicKey = await (window as any).arweaveWallet.getActivePublicKey();
-        return { address: existingAddress, publicKey: new Uint8Array(publicKey) };
-      }
-    } catch (error) {
-      // Not connected yet, continue with connection
+  if (isMobile) {
+    // Use Wander wallet for mobile devices
+    if (!checkWanderWallet()) {
+      throw new Error(
+        "Wander wallet not found. Please install Wander wallet app."
+      );
     }
 
-    // Connect to wallet with required permissions
-    await (window as any).arweaveWallet.connect([
-      "ACCESS_ADDRESS",
-      "ACCESS_PUBLIC_KEY",
-      "SIGN_TRANSACTION",
-    ]);
-    
-    const address = await (window as any).arweaveWallet.getActiveAddress();
-    const publicKey = await (window as any).arweaveWallet.getActivePublicKey();
-    console.log("Connected to Arweave wallet:", address);
+    try {
+      // Check if already connected
+      try {
+        const existingAddress = await (window as any).wanderWallet.getActiveAddress();
+        if (existingAddress) {
+          console.log("Already connected to Wander wallet:", existingAddress);
+          const publicKey = await (window as any).wanderWallet.getActivePublicKey();
+          return { address: existingAddress, publicKey: new Uint8Array(publicKey) };
+        }
+      } catch (error) {
+        // Not connected yet, continue with connection
+      }
 
-    return { address, publicKey: new Uint8Array(publicKey) };
-  } catch (error) {
-    console.error("Failed to connect Arweave wallet:", error);
-    throw new Error(
-      "Failed to connect to Arweave wallet. Please make sure ArConnect is unlocked."
-    );
+      // Connect to Wander wallet with required permissions
+      await (window as any).wanderWallet.connect([
+        "ACCESS_ADDRESS",
+        "ACCESS_PUBLIC_KEY",
+        "SIGN_TRANSACTION",
+      ]);
+
+      const address = await (window as any).wanderWallet.getActiveAddress();
+      const publicKey = await (window as any).wanderWallet.getActivePublicKey();
+      console.log("Connected to Wander wallet:", address);
+
+      return { address, publicKey: new Uint8Array(publicKey) };
+    } catch (error) {
+      console.error("Failed to connect Wander wallet:", error);
+      throw new Error(
+        "Failed to connect to Wander wallet. Please make sure Wander is unlocked."
+      );
+    }
+  } else {
+    // Use ArConnect for desktop browsers
+    if (!checkArweaveWallet()) {
+      throw new Error(
+        "ArConnect wallet not found. Please install ArConnect browser extension."
+      );
+    }
+
+    try {
+      // Check if already connected
+      try {
+        const existingAddress = await (window as any).arweaveWallet.getActiveAddress();
+        if (existingAddress) {
+          console.log("Already connected to Arweave wallet:", existingAddress);
+          const publicKey = await (window as any).arweaveWallet.getActivePublicKey();
+          return { address: existingAddress, publicKey: new Uint8Array(publicKey) };
+        }
+      } catch (error) {
+        // Not connected yet, continue with connection
+      }
+
+      // Connect to wallet with required permissions
+      await (window as any).arweaveWallet.connect([
+        "ACCESS_ADDRESS",
+        "ACCESS_PUBLIC_KEY",
+        "SIGN_TRANSACTION",
+      ]);
+
+      const address = await (window as any).arweaveWallet.getActiveAddress();
+      const publicKey = await (window as any).arweaveWallet.getActivePublicKey();
+      console.log("Connected to Arweave wallet:", address);
+
+      return { address, publicKey: new Uint8Array(publicKey) };
+    } catch (error) {
+      console.error("Failed to connect Arweave wallet:", error);
+      throw new Error(
+        "Failed to connect to Arweave wallet. Please make sure ArConnect is unlocked."
+      );
+    }
   }
 };
 
