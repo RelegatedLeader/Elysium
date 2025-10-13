@@ -6,6 +6,7 @@ import CreateNote from "./components/CreateNote";
 import Settings from "./components/Settings";
 import Logout from "./components/Logout";
 import CloudAuth from "./components/CloudAuth";
+import MobileWalletSetup from "./components/MobileWalletSetup";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
 import nacl from "tweetnacl";
 import {
@@ -16,6 +17,7 @@ import {
   getArweaveFundingInfo,
   getArConnectInstallGuide,
   disconnectArweaveWallet,
+  isMobileDevice,
 } from "./utils/arweave-utils";
 import ArConnectModal from "./components/ArConnectModal";
 import { supabase } from "./SUPABASE/supabaseClient";
@@ -1776,6 +1778,7 @@ function WelcomePage({
 }) {
   const [hasBeenConnected, setHasBeenConnected] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [showMobileWalletSetup, setShowMobileWalletSetup] = useState(false);
   const [email, setEmail] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
@@ -2543,22 +2546,38 @@ function WelcomePage({
     return () => clearInterval(autoSaveInterval);
   }, [currentDraft, mode]);
 
+  const handleMobileWalletConnected = (address: string, publicKey: Uint8Array) => {
+    setWalletAddress(address);
+    setWalletPublicKey(publicKey);
+    setShowMobileWalletSetup(false);
+    // Reload drafts after wallet connection
+    if (mode === "web3") {
+      loadDraftsFromLocal();
+    }
+  };
+
   const handleSelectWallet = async () => {
-    try {
-      const { address, publicKey } = await connectArweaveWallet();
-      setWalletAddress(address);
-      setWalletPublicKey(publicKey);
-      // Reload drafts after wallet connection
-      if (mode === "web3") {
-        loadDraftsFromLocal();
+    if (isMobileDevice()) {
+      // Show mobile wallet setup popup for mobile devices
+      setShowMobileWalletSetup(true);
+    } else {
+      // Direct connection for desktop
+      try {
+        const { address, publicKey } = await connectArweaveWallet();
+        setWalletAddress(address);
+        setWalletPublicKey(publicKey);
+        // Reload drafts after wallet connection
+        if (mode === "web3") {
+          loadDraftsFromLocal();
+        }
+      } catch (error) {
+        console.error("Failed to connect Arweave wallet:", error);
+        alert(
+          `Failed to connect Arweave wallet: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
       }
-    } catch (error) {
-      console.error("Failed to connect Arweave wallet:", error);
-      alert(
-        `Failed to connect Arweave wallet: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
     }
   };
 
@@ -3939,7 +3958,7 @@ function WelcomePage({
                 <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
                   <span className="text-white text-sm">🔗</span>
                 </div>
-                <span>Access Via Arweave</span>
+                <span>Connect Wallet</span>
               </div>
               <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-blue-400/20 rounded-full animate-pulse"></div>
             </button>
@@ -4123,6 +4142,14 @@ function WelcomePage({
               </div>
             </div>
           )}
+
+          <MobileWalletSetup
+            isOpen={showMobileWalletSetup}
+            onClose={() => setShowMobileWalletSetup(false)}
+            onWalletConnected={handleMobileWalletConnected}
+            theme={settings.theme}
+          />
+
           <div
             className="flex flex-col items-center justify-start flex-1 mt-16 sm:mt-20 overflow-y-auto px-4 sm:px-6"
             style={{
