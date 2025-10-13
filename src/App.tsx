@@ -3958,7 +3958,7 @@ function WelcomePage({
           {mode === "cloud" && cloudStorage.user && (
             <>
               <button onClick={() => setActivePage("settings")}>
-                <div className="fixed top-4 left-[22%] transform -translate-x-1/2 z-40">
+                <div className="fixed top-4 left-[28%] transform -translate-x-1/2 z-40">
                   <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-3 sm:py-2.5 sm:px-4 md:py-3 md:px-5 rounded-full shadow-lg text-xs sm:text-sm md:text-base cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px] sm:max-w-[140px] md:max-w-[180px] lg:max-w-[220px]">
                     {cloudStorage.user.email}
                   </div>
@@ -3978,7 +3978,7 @@ function WelcomePage({
           {mode === "db" && user && (
             <>
               <button onClick={() => setActivePage("settings")}>
-                <div className="fixed top-4 left-[22%] transform -translate-x-1/2 z-40">
+                <div className="fixed top-4 left-[28%] transform -translate-x-1/2 z-40">
                   <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-2 px-3 sm:py-2.5 sm:px-4 md:py-3 md:px-5 rounded-full shadow-lg text-xs sm:text-sm md:text-base cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px] sm:max-w-[140px] md:max-w-[180px] lg:max-w-[220px]">
                     {user.email}
                   </div>
