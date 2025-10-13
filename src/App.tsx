@@ -3760,7 +3760,10 @@ function WelcomePage({
                   >
                     Database Version (Supabase)
                   </h2>
-                  <p className="text-sm sm:text-base flex-1 flex items-center" style={{ color: "#e5e7eb" }}>
+                  <p
+                    className="text-sm sm:text-base flex-1 flex items-center"
+                    style={{ color: "#e5e7eb" }}
+                  >
                     Secure, private notes with user authentication. Perfect for
                     personal organization with reliable cloud backup and instant
                     sync across devices.
@@ -3784,10 +3787,13 @@ function WelcomePage({
                   >
                     Cloud Version
                   </h2>
-                  <p className="text-sm sm:text-base flex-1 flex items-center" style={{ color: "#e5e7eb" }}>
+                  <p
+                    className="text-sm sm:text-base flex-1 flex items-center"
+                    style={{ color: "#e5e7eb" }}
+                  >
                     Fast, offline-capable note storage with seamless device
-                    synchronization. Ideal for quick notes and collaborative work
-                    with automatic backup.
+                    synchronization. Ideal for quick notes and collaborative
+                    work with automatic backup.
                   </p>
                 </div>
               </div>
@@ -3808,7 +3814,10 @@ function WelcomePage({
                   >
                     Blockchain Version (Arweave)
                   </h2>
-                  <p className="text-sm sm:text-base flex-1 flex items-center" style={{ color: "#e5e7eb" }}>
+                  <p
+                    className="text-sm sm:text-base flex-1 flex items-center"
+                    style={{ color: "#e5e7eb" }}
+                  >
                     <strong>? PREMIUM:</strong> Eternal, censorship-resistant
                     storage on Arweave. Your notes become immutable digital
                     artifacts, preserved forever in the decentralized web. True
@@ -3949,20 +3958,15 @@ function WelcomePage({
           {mode === "cloud" && cloudStorage.user && (
             <>
               <button onClick={() => setActivePage("settings")}>
-                <div className="fixed top-4 left-[30%] transform -translate-x-1/2 z-40 block sm:hidden">
-                  <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1 px-2 rounded-full shadow-lg text-xs cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[70px]">
+                <div className="fixed top-4 left-[40%] transform -translate-x-1/2 z-40 block sm:hidden">
+                  <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1 px-1.5 rounded-full shadow-lg text-xs cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px]">
                     {cloudStorage.user.email}
                   </div>
                 </div>
               </button>
-              <button onClick={handleLogoButton}>
-                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 block sm:hidden">
-                  <ElysiumLogo className="w-8 h-8" />
-                </div>
-              </button>
               <button onClick={handleExitToMainMenu}>
-                <div className="fixed top-4 left-[70%] transform -translate-x-1/2 z-40 block sm:hidden">
-                  <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1 px-2 rounded-full shadow-lg transition-all duration-300 text-xs whitespace-nowrap">
+                <div className="fixed top-4 left-[60%] transform -translate-x-1/2 z-40 block sm:hidden">
+                  <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1 px-1.5 rounded-full shadow-lg transition-all duration-300 text-xs whitespace-nowrap">
                     Main Menu
                   </div>
                 </div>
@@ -3974,26 +3978,31 @@ function WelcomePage({
           {mode === "db" && user && (
             <>
               <button onClick={() => setActivePage("settings")}>
-                <div className="fixed top-4 left-[30%] transform -translate-x-1/2 z-40 block sm:hidden">
-                  <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1 px-2 rounded-full shadow-lg text-xs cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[70px]">
+                <div className="fixed top-4 left-[40%] transform -translate-x-1/2 z-40 block sm:hidden">
+                  <div className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-1 px-1.5 rounded-full shadow-lg text-xs cursor-pointer transition-all duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px]">
                     {user.email}
                   </div>
                 </div>
               </button>
-              <button onClick={handleLogoButton}>
-                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 block sm:hidden">
-                  <ElysiumLogo className="w-8 h-8" />
-                </div>
-              </button>
               <button onClick={handleExitToMainMenu}>
-                <div className="fixed top-4 left-[70%] transform -translate-x-1/2 z-40 block sm:hidden">
-                  <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1 px-2 rounded-full shadow-lg transition-all duration-300 text-xs whitespace-nowrap">
+                <div className="fixed top-4 left-[60%] transform -translate-x-1/2 z-40 block sm:hidden">
+                  <div className="bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 text-white font-bold py-1 px-1.5 rounded-full shadow-lg transition-all duration-300 text-xs whitespace-nowrap">
                     Main Menu
                   </div>
                 </div>
               </button>
             </>
           )}
+
+          {/* Shared mobile logo button for both cloud and db modes */}
+          {(mode === "cloud" && cloudStorage.user) ||
+          (mode === "db" && user) ? (
+            <button onClick={handleLogoButton}>
+              <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 block sm:hidden">
+                <ElysiumLogo className="w-8 h-8" />
+              </div>
+            </button>
+          ) : null}
 
           {/* Desktop/tablet layout - centered logo */}
           <button onClick={handleLogoButton}>
@@ -4002,7 +4011,7 @@ function WelcomePage({
             </div>
           </button>
 
-          <header className="w-full p-2 sm:p-4 flex justify-end absolute top-0 left-0 items-center">
+          <header className="w-full p-2 sm:p-4 flex justify-end absolute top-0 left-0 items-center hidden sm:flex">
             <div className="flex items-center space-x-2 sm:space-x-4">
               {mode === "web3" && checkArweaveWallet() && (
                 <button
@@ -5255,7 +5264,9 @@ function WelcomePage({
                   initialDefaultTemplate={settings.defaultTemplate}
                   initialNoteSorting={settings.noteSorting}
                   initialDataRetention={settings.dataRetention}
-                  userEmail={mode === "cloud" ? cloudStorage.user?.email : user?.email}
+                  userEmail={
+                    mode === "cloud" ? cloudStorage.user?.email : user?.email
+                  }
                 />
               )}
               {activePage === "logout" && (
