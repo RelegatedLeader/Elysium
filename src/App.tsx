@@ -2557,13 +2557,18 @@ function WelcomePage({
   };
 
   const handleSelectWallet = async () => {
+    console.log("handleSelectWallet called, mode:", mode, "isMobile:", isMobileDevice());
+
     if (isMobileDevice()) {
+      console.log("Showing mobile wallet setup popup");
       // Show mobile wallet setup popup for mobile devices
       setShowMobileWalletSetup(true);
     } else {
+      console.log("Attempting direct wallet connection for desktop");
       // Direct connection for desktop
       try {
         const { address, publicKey } = await connectArweaveWallet();
+        console.log("Wallet connected successfully:", address);
         setWalletAddress(address);
         setWalletPublicKey(publicKey);
         // Reload drafts after wallet connection
@@ -3880,7 +3885,7 @@ function WelcomePage({
           </animated.div>
           <animated.h1
             style={titleSpring}
-            className={`text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 font-serif ${
+            className={`text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 font-serif text-center ${
               settings.theme === "Light" ? "text-purple-900" : "text-gold-100"
             }`}
           >
@@ -3932,7 +3937,7 @@ function WelcomePage({
           </animated.div>
           <animated.h1
             style={titleSpring}
-            className={`text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 font-serif ${
+            className={`text-4xl sm:text-5xl font-extrabold tracking-wide mb-2 font-serif text-center ${
               settings.theme === "Light" ? "text-purple-900" : "text-gold-100"
             }`}
           >
@@ -4143,12 +4148,14 @@ function WelcomePage({
             </div>
           )}
 
-          <MobileWalletSetup
-            isOpen={showMobileWalletSetup}
-            onClose={() => setShowMobileWalletSetup(false)}
-            onWalletConnected={handleMobileWalletConnected}
-            theme={settings.theme}
-          />
+          {mode === "web3" && (
+            <MobileWalletSetup
+              isOpen={showMobileWalletSetup}
+              onClose={() => setShowMobileWalletSetup(false)}
+              onWalletConnected={handleMobileWalletConnected}
+              theme={settings.theme}
+            />
+          )}
 
           <div
             className="flex flex-col items-center justify-start flex-1 mt-16 sm:mt-20 overflow-y-auto px-4 sm:px-6"
