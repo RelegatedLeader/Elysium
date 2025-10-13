@@ -47,7 +47,7 @@ export const useCloudStorage = (): UseCloudStorageReturn => {
   useEffect(() => {
     if (!firebaseAvailable) {
       setLoading(false);
-      setError("Firebase not configured. Please set up your Firebase project.");
+      setError("Firebase not configured. Please set up your Firebase project and configure environment variables in Netlify dashboard.");
       return;
     }
 

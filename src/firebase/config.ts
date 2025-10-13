@@ -9,25 +9,30 @@ import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "demo-api-key",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "demo-project.firebaseapp.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "demo-project",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "demo-project.appspot.com",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "123456789",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:123456789:web:abcdef123456",
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-ABCDEFGHIJ",
 };
 
 // Validate Firebase configuration
 const isFirebaseConfigured = () => {
-  return (
-    firebaseConfig.apiKey &&
-    firebaseConfig.authDomain &&
-    firebaseConfig.projectId &&
-    firebaseConfig.apiKey !== "your_firebase_api_key_here" &&
-    firebaseConfig.authDomain !== "your-project.firebaseapp.com" &&
-    firebaseConfig.projectId !== "your-project-id"
-  );
+  const hasValidApiKey = firebaseConfig.apiKey &&
+    firebaseConfig.apiKey !== "demo-api-key" &&
+    firebaseConfig.apiKey !== "your_firebase_api_key_here";
+
+  const hasValidDomain = firebaseConfig.authDomain &&
+    firebaseConfig.authDomain !== "demo-project.firebaseapp.com" &&
+    firebaseConfig.authDomain !== "your-project.firebaseapp.com";
+
+  const hasValidProject = firebaseConfig.projectId &&
+    firebaseConfig.projectId !== "demo-project" &&
+    firebaseConfig.projectId !== "your-project-id";
+
+  return hasValidApiKey && hasValidDomain && hasValidProject;
 };
 
 // Initialize Firebase only if properly configured
@@ -58,13 +63,25 @@ if (isFirebaseConfigured()) {
     });
 
     storage = getStorage(app);
+    console.log("Firebase initialized successfully");
   } catch (error) {
-    console.warn("Firebase initialization failed:", error);
+    console.error("Firebase initialization failed:", error);
+    // Reset services to null on failure
+    auth = null;
+    db = null;
+    storage = null;
   }
 } else {
   console.warn(
-    "Firebase not configured. Please set up your Firebase project and update the environment variables."
+    "Firebase not configured properly. Please set up your Firebase project and update the environment variables in Netlify dashboard:"
   );
+  console.warn("- REACT_APP_FIREBASE_API_KEY");
+  console.warn("- REACT_APP_FIREBASE_AUTH_DOMAIN");
+  console.warn("- REACT_APP_FIREBASE_PROJECT_ID");
+  console.warn("- REACT_APP_FIREBASE_STORAGE_BUCKET");
+  console.warn("- REACT_APP_FIREBASE_MESSAGING_SENDER_ID");
+  console.warn("- REACT_APP_FIREBASE_APP_ID");
+  console.warn("- REACT_APP_FIREBASE_MEASUREMENT_ID (optional)");
 }
 
 export { auth, db, storage };

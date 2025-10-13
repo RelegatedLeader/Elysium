@@ -3707,7 +3707,7 @@ function WelcomePage({
   if (!selectedMode) {
     return (
       <div
-        className="min-h-screen h-screen flex flex-col items-center justify-center text-white relative overflow-hidden px-4 sm:px-6 bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
+        className="min-h-screen h-screen flex flex-col text-white relative overflow-hidden bg-gradient-to-br from-purple-900 via-indigo-900 to-black"
         style={{
           backgroundImage: `url(${mainMenuGif})`,
           backgroundSize: "cover",
@@ -3716,96 +3716,106 @@ function WelcomePage({
         }}
       >
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"></div>
-        <animated.div
-          style={logoSpring}
-          className="mb-6 sm:mb-8 flex items-center"
-        >
-          <h1
-            className="text-4xl sm:text-5xl font-extrabold tracking-wide mr-4 font-serif"
-            style={{ color: "white" }}
+
+        {/* Fixed header with title and logo */}
+        <div className="flex-shrink-0 px-4 sm:px-6 pt-6 pb-4 relative z-10">
+          <animated.div
+            style={logoSpring}
+            className="flex items-center justify-center relative z-10"
           >
-            Elysium
-          </h1>
-          <ElysiumLogo className="w-12 h-12 sm:w-16 sm:h-16" />
-        </animated.div>
-        <animated.p
-          style={{ ...titleSpring, color: "#e5e7eb" }}
-          className="text-lg sm:text-xl italic mb-6 max-w-md text-center"
-        >
-          Your Notes, your choice.
-        </animated.p>
-        <div className="flex flex-col sm:flex-row w-full max-w-6xl mx-auto space-y-4 sm:space-y-0 sm:space-x-4">
-          <div
-            className="flex-1 p-6 sm:p-8 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl"
-            onClick={() => setSelectedMode("db")}
-            style={{
-              backgroundImage: `url(${databaseGif})`,
-              backgroundSize: "cover",
-              backgroundRepeat: "repeat",
-              backgroundPosition: "center",
-            }}
+            <h1
+              className="text-4xl sm:text-5xl font-extrabold tracking-wide mr-4 font-serif text-center"
+              style={{ color: "white" }}
+            >
+              Elysium
+            </h1>
+            <ElysiumLogo className="w-12 h-12 sm:w-16 sm:h-16" />
+          </animated.div>
+          <animated.p
+            style={{ ...titleSpring, color: "#e5e7eb" }}
+            className="text-lg sm:text-xl italic mt-4 mb-6 text-center max-w-md mx-auto relative z-10"
           >
-            <div className="bg-black/60 p-4 rounded text-center">
-              <h2
-                className="text-2xl sm:text-3xl font-bold mb-2 font-serif"
-                style={{ color: "white" }}
+            Your Notes, your choice.
+          </animated.p>
+        </div>
+
+        {/* Scrollable menu options */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+              <div
+                className="p-4 sm:p-6 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl min-h-[200px] sm:min-h-[250px]"
+                onClick={() => setSelectedMode("db")}
+                style={{
+                  backgroundImage: `url(${databaseGif})`,
+                  backgroundSize: "cover",
+                  backgroundRepeat: "repeat",
+                  backgroundPosition: "center",
+                }}
               >
-                Database Version (Supabase)
-              </h2>
-              <p className="text-sm sm:text-base" style={{ color: "#e5e7eb" }}>
-                Secure, private notes with user authentication. Perfect for
-                personal organization with reliable cloud backup and instant
-                sync across devices.
-              </p>
-            </div>
-          </div>
-          <div
-            className="flex-1 p-6 sm:p-8 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl"
-            onClick={() => setSelectedMode("cloud")}
-            style={{
-              backgroundImage: `url(${cloudGif})`,
-              backgroundSize: "cover",
-              backgroundRepeat: "repeat",
-              backgroundPosition: "center",
-            }}
-          >
-            <div className="bg-black/60 p-4 rounded text-center">
-              <h2
-                className="text-2xl sm:text-3xl font-bold mb-2 font-serif"
-                style={{ color: "white" }}
+                <div className="bg-black/60 p-4 rounded text-center h-full flex flex-col justify-center">
+                  <h2
+                    className="text-xl sm:text-2xl font-bold mb-3 font-serif"
+                    style={{ color: "white" }}
+                  >
+                    Database Version (Supabase)
+                  </h2>
+                  <p className="text-sm sm:text-base flex-1 flex items-center" style={{ color: "#e5e7eb" }}>
+                    Secure, private notes with user authentication. Perfect for
+                    personal organization with reliable cloud backup and instant
+                    sync across devices.
+                  </p>
+                </div>
+              </div>
+              <div
+                className="p-4 sm:p-6 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl min-h-[200px] sm:min-h-[250px]"
+                onClick={() => setSelectedMode("cloud")}
+                style={{
+                  backgroundImage: `url(${cloudGif})`,
+                  backgroundSize: "cover",
+                  backgroundRepeat: "repeat",
+                  backgroundPosition: "center",
+                }}
               >
-                Cloud Version
-              </h2>
-              <p className="text-sm sm:text-base" style={{ color: "#e5e7eb" }}>
-                Fast, offline-capable note storage with seamless device
-                synchronization. Ideal for quick notes and collaborative work
-                with automatic backup.
-              </p>
-            </div>
-          </div>
-          <div
-            className="flex-1 p-6 sm:p-8 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl"
-            onClick={() => setSelectedMode("web3")}
-            style={{
-              backgroundImage: `url(${blockchainGif})`,
-              backgroundSize: "cover",
-              backgroundRepeat: "repeat",
-              backgroundPosition: "center",
-            }}
-          >
-            <div className="bg-black/60 p-4 rounded text-center">
-              <h2
-                className="text-2xl sm:text-3xl font-bold mb-2 font-serif"
-                style={{ color: "white" }}
+                <div className="bg-black/60 p-4 rounded text-center h-full flex flex-col justify-center">
+                  <h2
+                    className="text-xl sm:text-2xl font-bold mb-3 font-serif"
+                    style={{ color: "white" }}
+                  >
+                    Cloud Version
+                  </h2>
+                  <p className="text-sm sm:text-base flex-1 flex items-center" style={{ color: "#e5e7eb" }}>
+                    Fast, offline-capable note storage with seamless device
+                    synchronization. Ideal for quick notes and collaborative work
+                    with automatic backup.
+                  </p>
+                </div>
+              </div>
+              <div
+                className="p-4 sm:p-6 rounded-xl cursor-pointer transform transition-all duration-300 hover:scale-105 bg-opacity-80 shadow-2xl min-h-[200px] sm:min-h-[250px]"
+                onClick={() => setSelectedMode("web3")}
+                style={{
+                  backgroundImage: `url(${blockchainGif})`,
+                  backgroundSize: "cover",
+                  backgroundRepeat: "repeat",
+                  backgroundPosition: "center",
+                }}
               >
-                Blockchain Version (Arweave)
-              </h2>
-              <p className="text-sm sm:text-base" style={{ color: "#e5e7eb" }}>
-                <strong>? PREMIUM:</strong> Eternal, censorship-resistant
-                storage on Arweave. Your notes become immutable digital
-                artifacts, preserved forever in the decentralized web. True
-                ownership, zero data loss, maximum security.
-              </p>
+                <div className="bg-black/60 p-4 rounded text-center h-full flex flex-col justify-center">
+                  <h2
+                    className="text-xl sm:text-2xl font-bold mb-3 font-serif"
+                    style={{ color: "white" }}
+                  >
+                    Blockchain Version (Arweave)
+                  </h2>
+                  <p className="text-sm sm:text-base flex-1 flex items-center" style={{ color: "#e5e7eb" }}>
+                    <strong>? PREMIUM:</strong> Eternal, censorship-resistant
+                    storage on Arweave. Your notes become immutable digital
+                    artifacts, preserved forever in the decentralized web. True
+                    ownership, zero data loss, maximum security.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

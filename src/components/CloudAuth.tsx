@@ -145,8 +145,24 @@ const CloudAuth: React.FC<CloudAuthProps> = ({ onAuthenticated, onCancel }) => {
                   3
                 </span>
                 <p>
-                  Copy your Firebase config values to the{" "}
-                  <code className="bg-gray-100 px-1 rounded">.env</code> file
+                  Copy your Firebase config values to environment variables in{" "}
+                  <a
+                    href="https://app.netlify.com/sites/elysiumnotes/settings/env"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    Netlify Dashboard
+                  </a>{" "}
+                  (Site settings → Environment variables)
+                </p>
+              </div>
+              <div className="flex items-start">
+                <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium mr-3 mt-0.5">
+                  4
+                </span>
+                <p>
+                  Redeploy the site for changes to take effect
                 </p>
               </div>
             </div>
