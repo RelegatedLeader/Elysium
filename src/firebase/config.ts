@@ -9,12 +9,12 @@ import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA_FZyRy_p1QNX0giy53UK3OzGKVXROEFE",
-  authDomain: "elysium-ef45c.firebaseapp.com",
-  projectId: "elysium-ef45c",
-  storageBucket: "elysium-ef45c.firebasestorage.app",
-  messagingSenderId: "438129451511",
-  appId: "1:438129451511:web:2207b9e739b961682b4ef2"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 // Validate Firebase configuration
@@ -31,8 +31,7 @@ const isFirebaseConfigured = () => {
 
   const hasValidProject = firebaseConfig.projectId &&
     firebaseConfig.projectId !== "demo-project" &&
-    firebaseConfig.projectId !== "your-project-id" &&
-    firebaseConfig.projectId === "elysium-ef45c";
+    firebaseConfig.projectId !== "your-project-id";
 
   return hasValidApiKey && hasValidDomain && hasValidProject;
 };
