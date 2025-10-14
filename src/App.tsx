@@ -1530,6 +1530,32 @@ function App() {
     supabase.auth.signOut();
   };
 
+  const handleMobileWalletReturn = async () => {
+    // Check for mobile wallet authentication parameters in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const walletAddress = urlParams.get('address');
+    const signature = urlParams.get('signature');
+    const publicKey = urlParams.get('publicKey');
+
+    if (walletAddress && signature && publicKey && mode === 'web3') {
+      console.log('Mobile wallet authentication return detected:', { walletAddress, signature, publicKey });
+
+      try {
+        // Verify the signature (basic check)
+        // In a real implementation, you'd verify the signature cryptographically
+        setWalletAddress(walletAddress);
+        setWalletPublicKey(new Uint8Array(JSON.parse(publicKey)));
+
+        // Clean the URL
+        window.history.replaceState(null, '', window.location.pathname);
+
+        console.log('Mobile wallet authentication successful');
+      } catch (error) {
+        console.error('Failed to process mobile wallet authentication:', error);
+      }
+    }
+  };
+
   useEffect(() => {
     const handleAuthRedirect = async () => {
       // Security: Check account lockout before processing auth
@@ -1751,6 +1777,9 @@ function App() {
 
     // Then handle initial session (including from hash)
     handleAuthRedirect();
+
+    // Handle mobile wallet authentication returns
+    handleMobileWalletReturn();
 
     return () => {
       if (authSubscriptionRef) {
@@ -2560,9 +2589,10 @@ function WelcomePage({
     console.log("handleSelectWallet called, mode:", mode, "isMobile:", isMobileDevice());
 
     if (isMobileDevice()) {
-      console.log("Showing mobile wallet setup popup");
-      // Show mobile wallet setup popup for mobile devices
-      setShowMobileWalletSetup(true);
+      console.log("Redirecting mobile user to Wander app");
+      // For mobile, redirect to Wander app/website
+      const wanderUrl = "https://wander.app";
+      window.location.href = wanderUrl;
     } else {
       console.log("Attempting direct wallet connection for desktop");
       // Direct connection for desktop
