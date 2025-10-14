@@ -2610,55 +2610,14 @@ function WelcomePage({
     );
 
     if (isMobileDevice()) {
-      console.log("Attempting to open Wander app for mobile user");
+      console.log("Mobile device detected - redirecting to ArConnect mobile web");
 
-      // Try multiple possible URL schemes for Wander app
-      const wanderSchemes = [
-        "wander://app",        // Wander app scheme
-        "wander://",           // Primary Wander scheme
-        "arweave://",          // Alternative Arweave scheme
-        "https://wander.app"   // Web fallback
-      ];
+      // For mobile devices, redirect to ArConnect mobile web
+      // This provides a web-based wallet connection without app installation
+      const arConnectMobileUrl = "https://arconnect.io";
 
-      let appOpened = false;
-
-      // Set up visibility change listener
-      const handleVisibilityChange = () => {
-        if (document.visibilityState === 'hidden') {
-          appOpened = true;
-          console.log("Page hidden - Wander app opened successfully");
-          document.removeEventListener('visibilitychange', handleVisibilityChange);
-        }
-      };
-
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-
-      // Try to open Wander app with different schemes
-      for (const scheme of wanderSchemes) {
-        try {
-          console.log("Attempting to open with scheme:", scheme);
-          if (scheme.startsWith('http')) {
-            // For web URLs, use window.open
-            window.open(scheme, '_blank');
-          } else {
-            // For app schemes, use location.replace (more reliable than href)
-            window.location.replace(scheme);
-          }
-          break; // Try the first one that doesn't throw an error
-        } catch (error) {
-          console.log("Failed to open with scheme:", scheme, error);
-        }
-      }
-
-      // Check after timeout if app opened
-      setTimeout(() => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-
-        if (!appOpened && document.visibilityState === 'visible') {
-          console.log("Wander app not detected, showing download popup");
-          setShowWanderDownloadPopup(true);
-        }
-      }, 3000); // 3 second timeout
+      console.log("Redirecting to ArConnect mobile web:", arConnectMobileUrl);
+      window.location.href = arConnectMobileUrl;
     } else {
       console.log("Attempting direct wallet connection for desktop");
       // Direct connection for desktop

@@ -14,7 +14,7 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
   if (!isOpen) return null;
 
   const handleDownload = () => {
-    window.open("https://wander.app", "_blank");
+    window.open("https://arconnect.io", "_blank");
     onClose();
   };
 
@@ -57,15 +57,15 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
                 theme === "Light" ? "text-purple-900" : "text-gold-100"
               }`}
             >
-              Get Wander Wallet
+              Connect with ArConnect Web
             </h2>
             <p
               className={`text-sm leading-relaxed ${
                 theme === "Light" ? "text-purple-600" : "text-gold-300"
               }`}
             >
-              To connect your Arweave wallet on mobile, you'll need the Wander app.
-              It's the most secure and user-friendly wallet for the Arweave ecosystem.
+              Use ArConnect's web interface to connect your Arweave wallet on mobile.
+              No app installation required - works directly in your browser.
             </p>
           </div>
 
@@ -78,27 +78,27 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
                   theme === "Light" ? "text-purple-700" : "text-gold-200"
                 }`}
               >
+                Browser-based wallet connection
+              </span>
+            </div>
+            <div className="flex items-center justify-center space-x-3">
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <span
+                className={`text-sm ${
+                  theme === "Light" ? "text-purple-700" : "text-gold-200"
+                }`}
+              >
+                No app installation required
+              </span>
+            </div>
+            <div className="flex items-center justify-center space-x-3">
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <span
+                className={`text-sm ${
+                  theme === "Light" ? "text-purple-700" : "text-gold-200"
+                }`}
+              >
                 Secure Arweave transactions
-              </span>
-            </div>
-            <div className="flex items-center justify-center space-x-3">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <span
-                className={`text-sm ${
-                  theme === "Light" ? "text-purple-700" : "text-gold-200"
-                }`}
-              >
-                Seamless mobile integration
-              </span>
-            </div>
-            <div className="flex items-center justify-center space-x-3">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <span
-                className={`text-sm ${
-                  theme === "Light" ? "text-purple-700" : "text-gold-200"
-                }`}
-              >
-                Easy authentication flow
               </span>
             </div>
           </div>
@@ -108,7 +108,7 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
             onClick={handleDownload}
             className="w-full py-4 px-6 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-600 to-gold-600 hover:from-purple-700 hover:to-gold-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl mb-4"
           >
-            Download Wander App
+            Open ArConnect Web Wallet
           </button>
 
           {/* Alternative */}
