@@ -2612,35 +2612,53 @@ function WelcomePage({
     if (isMobileDevice()) {
       console.log("Attempting to open Wander app for mobile user");
 
-      // Try to open Wander app directly using custom URL scheme
-      const wanderAppUrl = "wander://"; // Custom URL scheme for Wander app
-      const wanderWebUrl = "https://wander.app";
+      // Try multiple possible URL schemes for Wander app
+      const wanderSchemes = [
+        "wander://app",        // Wander app scheme
+        "wander://",           // Primary Wander scheme
+        "arweave://",          // Alternative Arweave scheme
+        "https://wander.app"   // Web fallback
+      ];
 
-      // Track if app opened
       let appOpened = false;
 
-      // Set up visibility change listener to detect if app opened
+      // Set up visibility change listener
       const handleVisibilityChange = () => {
-        appOpened = true;
-        console.log("Wander app opened successfully");
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        if (document.visibilityState === 'hidden') {
+          appOpened = true;
+          console.log("Page hidden - Wander app opened successfully");
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+        }
       };
 
       document.addEventListener('visibilitychange', handleVisibilityChange);
 
-      // Try to open the app
-      window.location.href = wanderAppUrl;
+      // Try to open Wander app with different schemes
+      for (const scheme of wanderSchemes) {
+        try {
+          console.log("Attempting to open with scheme:", scheme);
+          if (scheme.startsWith('http')) {
+            // For web URLs, use window.open
+            window.open(scheme, '_blank');
+          } else {
+            // For app schemes, use location.replace (more reliable than href)
+            window.location.replace(scheme);
+          }
+          break; // Try the first one that doesn't throw an error
+        } catch (error) {
+          console.log("Failed to open with scheme:", scheme, error);
+        }
+      }
 
-      // Check after a short delay if we're still on the page
+      // Check after timeout if app opened
       setTimeout(() => {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
 
-        if (!appOpened && document.hasFocus()) {
-          // App didn't open, show download popup
-          console.log("Wander app not installed, showing download popup");
+        if (!appOpened && document.visibilityState === 'visible') {
+          console.log("Wander app not detected, showing download popup");
           setShowWanderDownloadPopup(true);
         }
-      }, 2000); // 2 second timeout
+      }, 3000); // 3 second timeout
     } else {
       console.log("Attempting direct wallet connection for desktop");
       // Direct connection for desktop
