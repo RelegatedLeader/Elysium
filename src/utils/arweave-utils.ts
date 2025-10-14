@@ -59,14 +59,14 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
   if (!checkArweaveWallet()) {
     const walletName = isMobile ? "Wander wallet" : "ArConnect wallet";
     console.error(`❌ ${walletName} not found`);
-    throw new Error(
-      `${walletName} required. Please install it and try again.`
-    );
+    throw new Error(`${walletName} required. Please install it and try again.`);
   }
 
   // Check if wallet is connected and has proper permissions
   let address: string;
-  const wallet = isMobile ? (window as any).wanderWallet : (window as any).arweaveWallet;
+  const wallet = isMobile
+    ? (window as any).wanderWallet
+    : (window as any).arweaveWallet;
   const walletName = isMobile ? "Wander" : "ArConnect";
 
   try {
@@ -74,7 +74,9 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
     address = await wallet.getActiveAddress();
     console.log(`✅ ${walletName} wallet connected:`, address);
   } catch (error) {
-    console.log(`🔄 ${walletName} wallet not connected, attempting to connect...`);
+    console.log(
+      `🔄 ${walletName} wallet not connected, attempting to connect...`
+    );
     try {
       // Request permissions for mainnet Arweave
       await wallet.connect([
@@ -126,7 +128,10 @@ export const uploadToArweave = async (data: Uint8Array): Promise<string> => {
   console.log(`✍️ Requesting ${walletName} signature...`);
   try {
     const signedTx = await wallet.sign(transaction);
-    console.log(`✅ Transaction signed by ${walletName}, signed tx:`, signedTx.id);
+    console.log(
+      `✅ Transaction signed by ${walletName}, signed tx:`,
+      signedTx.id
+    );
     // Use the signed transaction for posting
     transaction = signedTx;
   } catch (error) {
@@ -173,7 +178,8 @@ export const checkArweaveWallet = (): boolean => {
 
   // Check for ArConnect or Wander wallet
   const hasArConnect = (window as any).arweaveWallet;
-  const hasWander = (window as any).wander || (window as any).arweaveWallet?.isWander;
+  const hasWander =
+    (window as any).wander || (window as any).arweaveWallet?.isWander;
 
   return hasArConnect || hasWander;
 };
@@ -187,18 +193,20 @@ export const checkWanderWallet = (): boolean => {
 // Check if we're on a mobile device
 export const isMobileDevice = (): boolean => {
   if (typeof window === "undefined") return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
 };
 
 // Get wallet type for better user guidance
-export const getWalletType = (): 'arconnect' | 'wander' | 'unknown' => {
-  if (typeof window === "undefined") return 'unknown';
+export const getWalletType = (): "arconnect" | "wander" | "unknown" => {
+  if (typeof window === "undefined") return "unknown";
 
-  if ((window as any).arweaveWallet?.isWander) return 'wander';
-  if ((window as any).wander) return 'wander';
-  if ((window as any).arweaveWallet) return 'arconnect';
+  if ((window as any).arweaveWallet?.isWander) return "wander";
+  if ((window as any).wander) return "wander";
+  if ((window as any).arweaveWallet) return "arconnect";
 
-  return 'unknown';
+  return "unknown";
 };
 
 // Guide user to install appropriate wallet
@@ -264,7 +272,10 @@ After installing ArConnect and getting AR tokens, try publishing again!`,
 };
 
 // Connect to Arweave wallet
-export const connectArweaveWallet = async (): Promise<{address: string, publicKey: Uint8Array}> => {
+export const connectArweaveWallet = async (): Promise<{
+  address: string;
+  publicKey: Uint8Array;
+}> => {
   const isMobile = isMobileDevice();
   const walletType = getWalletType();
 
@@ -279,11 +290,18 @@ export const connectArweaveWallet = async (): Promise<{address: string, publicKe
     try {
       // Check if already connected
       try {
-        const existingAddress = await (window as any).wanderWallet.getActiveAddress();
+        const existingAddress = await (
+          window as any
+        ).wanderWallet.getActiveAddress();
         if (existingAddress) {
           console.log("Already connected to Wander wallet:", existingAddress);
-          const publicKey = await (window as any).wanderWallet.getActivePublicKey();
-          return { address: existingAddress, publicKey: new Uint8Array(publicKey) };
+          const publicKey = await (
+            window as any
+          ).wanderWallet.getActivePublicKey();
+          return {
+            address: existingAddress,
+            publicKey: new Uint8Array(publicKey),
+          };
         }
       } catch (error) {
         // Not connected yet, continue with connection
@@ -318,11 +336,18 @@ export const connectArweaveWallet = async (): Promise<{address: string, publicKe
     try {
       // Check if already connected
       try {
-        const existingAddress = await (window as any).arweaveWallet.getActiveAddress();
+        const existingAddress = await (
+          window as any
+        ).arweaveWallet.getActiveAddress();
         if (existingAddress) {
           console.log("Already connected to Arweave wallet:", existingAddress);
-          const publicKey = await (window as any).arweaveWallet.getActivePublicKey();
-          return { address: existingAddress, publicKey: new Uint8Array(publicKey) };
+          const publicKey = await (
+            window as any
+          ).arweaveWallet.getActivePublicKey();
+          return {
+            address: existingAddress,
+            publicKey: new Uint8Array(publicKey),
+          };
         }
       } catch (error) {
         // Not connected yet, continue with connection
@@ -336,7 +361,9 @@ export const connectArweaveWallet = async (): Promise<{address: string, publicKe
       ]);
 
       const address = await (window as any).arweaveWallet.getActiveAddress();
-      const publicKey = await (window as any).arweaveWallet.getActivePublicKey();
+      const publicKey = await (
+        window as any
+      ).arweaveWallet.getActivePublicKey();
       console.log("Connected to Arweave wallet:", address);
 
       return { address, publicKey: new Uint8Array(publicKey) };

@@ -9,28 +9,30 @@ import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "demo-api-key",
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "demo-project.firebaseapp.com",
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "demo-project",
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "demo-project.appspot.com",
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:123456789:web:abcdef123456",
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-ABCDEFGHIJ",
+  apiKey: "AIzaSyA_FZyRy_p1QNX0giy53UK3OzGKVXROEFE",
+  authDomain: "elysium-ef45c.firebaseapp.com",
+  projectId: "elysium-ef45c",
+  storageBucket: "elysium-ef45c.firebasestorage.app",
+  messagingSenderId: "438129451511",
+  appId: "1:438129451511:web:2207b9e739b961682b4ef2"
 };
 
 // Validate Firebase configuration
 const isFirebaseConfigured = () => {
   const hasValidApiKey = firebaseConfig.apiKey &&
     firebaseConfig.apiKey !== "demo-api-key" &&
-    firebaseConfig.apiKey !== "your_firebase_api_key_here";
+    firebaseConfig.apiKey !== "your_firebase_api_key_here" &&
+    firebaseConfig.apiKey.startsWith("AIzaSy");
 
   const hasValidDomain = firebaseConfig.authDomain &&
     firebaseConfig.authDomain !== "demo-project.firebaseapp.com" &&
-    firebaseConfig.authDomain !== "your-project.firebaseapp.com";
+    firebaseConfig.authDomain !== "your-project.firebaseapp.com" &&
+    firebaseConfig.authDomain.includes("firebaseapp.com");
 
   const hasValidProject = firebaseConfig.projectId &&
     firebaseConfig.projectId !== "demo-project" &&
-    firebaseConfig.projectId !== "your-project-id";
+    firebaseConfig.projectId !== "your-project-id" &&
+    firebaseConfig.projectId === "elysium-ef45c";
 
   return hasValidApiKey && hasValidDomain && hasValidProject;
 };

@@ -7,6 +7,7 @@ import Settings from "./components/Settings";
 import Logout from "./components/Logout";
 import CloudAuth from "./components/CloudAuth";
 import MobileWalletSetup from "./components/MobileWalletSetup";
+import WanderDownloadPopup from "./components/WanderDownloadPopup";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
 import nacl from "tweetnacl";
 import {
@@ -1779,6 +1780,7 @@ function WelcomePage({
   const [hasBeenConnected, setHasBeenConnected] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [showMobileWalletSetup, setShowMobileWalletSetup] = useState(false);
+  const [showWanderDownloadPopup, setShowWanderDownloadPopup] = useState(false);
   const [email, setEmail] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
@@ -1816,13 +1818,16 @@ function WelcomePage({
   // Close wallet dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showWalletDropdown && !(event.target as Element).closest('.wallet-dropdown')) {
+      if (
+        showWalletDropdown &&
+        !(event.target as Element).closest(".wallet-dropdown")
+      ) {
         setShowWalletDropdown(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showWalletDropdown]);
 
   // Note viewing/editing state
@@ -2029,6 +2034,43 @@ function WelcomePage({
       });
     }
   };
+
+  // Handle mobile wallet authentication return
+  useEffect(() => {
+    const handleMobileWalletReturn = async () => {
+      // Check for mobile wallet authentication parameters in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const walletAddress = urlParams.get("address");
+      const signature = urlParams.get("signature");
+      const publicKey = urlParams.get("publicKey");
+
+      if (walletAddress && signature && publicKey && mode === "web3") {
+        console.log("Mobile wallet authentication return detected:", {
+          walletAddress,
+          signature,
+          publicKey,
+        });
+
+        try {
+          // Set wallet connection state
+          setWalletAddress(walletAddress);
+          setWalletPublicKey(new Uint8Array(JSON.parse(publicKey)));
+
+          // Clean the URL
+          window.history.replaceState(null, "", window.location.pathname);
+
+          console.log("Mobile wallet authentication successful");
+        } catch (error) {
+          console.error(
+            "Failed to process mobile wallet authentication:",
+            error
+          );
+        }
+      }
+    };
+
+    handleMobileWalletReturn();
+  }, [mode]); // Depend on mode to ensure it's available
 
   // Draft management functions for blockchain mode
   const saveDraftLocally = async (note: Note) => {
@@ -2546,7 +2588,10 @@ function WelcomePage({
     return () => clearInterval(autoSaveInterval);
   }, [currentDraft, mode]);
 
-  const handleMobileWalletConnected = (address: string, publicKey: Uint8Array) => {
+  const handleMobileWalletConnected = (
+    address: string,
+    publicKey: Uint8Array
+  ) => {
     setWalletAddress(address);
     setWalletPublicKey(publicKey);
     setShowMobileWalletSetup(false);
@@ -2557,12 +2602,48 @@ function WelcomePage({
   };
 
   const handleSelectWallet = async () => {
-    console.log("handleSelectWallet called, mode:", mode, "isMobile:", isMobileDevice());
+    console.log(
+      "handleSelectWallet called, mode:",
+      mode,
+      "isMobile:",
+      isMobileDevice()
+    );
 
     if (isMobileDevice()) {
-      console.log("Showing mobile wallet setup popup");
-      // Show mobile wallet setup popup for mobile devices
-      setShowMobileWalletSetup(true);
+      console.log("Attempting to open Wander app for mobile user");
+
+      // Try to open Wander app directly first
+      const wanderAppUrl = "wander://auth"; // Custom URL scheme for Wander app with auth intent
+
+      // Create an iframe to try opening the app (more reliable than window.location)
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = wanderAppUrl;
+      document.body.appendChild(iframe);
+
+      // Set a timeout to show download popup if app doesn't open
+      const timeout = setTimeout(() => {
+        console.log("Wander app not detected, showing download popup");
+        document.body.removeChild(iframe);
+        setShowWanderDownloadPopup(true);
+      }, 3000); // 3 second timeout
+
+      // Listen for visibility change (app opened successfully)
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          console.log("App opened successfully");
+          clearTimeout(timeout);
+          document.body.removeChild(iframe);
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      // Clean up after timeout
+      setTimeout(() => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }, 3100);
     } else {
       console.log("Attempting direct wallet connection for desktop");
       // Direct connection for desktop
@@ -4077,11 +4158,13 @@ function WelcomePage({
 
           {/* Web3 logo button - centered */}
           {mode === "web3" && checkArweaveWallet() && walletAddress && (
-            <button onClick={handleLogoButton} className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40">
+            <button
+              onClick={handleLogoButton}
+              className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40"
+            >
               <ElysiumLogo className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12" />
             </button>
           )}
-
 
           {showPopup && mode === "web3" && (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -4153,6 +4236,14 @@ function WelcomePage({
               isOpen={showMobileWalletSetup}
               onClose={() => setShowMobileWalletSetup(false)}
               onWalletConnected={handleMobileWalletConnected}
+              theme={settings.theme}
+            />
+          )}
+
+          {mode === "web3" && (
+            <WanderDownloadPopup
+              isOpen={showWanderDownloadPopup}
+              onClose={() => setShowWanderDownloadPopup(false)}
               theme={settings.theme}
             />
           )}
