@@ -15,8 +15,8 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
 
   const handleDownload = () => {
     const currentUrl = window.location.origin + window.location.pathname;
-    const wanderUrl = `https://wander.app?redirect=${encodeURIComponent(currentUrl)}`;
-    window.open(wanderUrl, "_blank");
+    const wanderAppUrl = `wander://auth?redirect=${encodeURIComponent(currentUrl)}`;
+    window.open(wanderAppUrl, "_blank");
     onClose();
   };
 
@@ -59,14 +59,14 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
                 theme === "Light" ? "text-purple-900" : "text-gold-100"
               }`}
             >
-              Connect with Wander
+              Open Wander App
             </h2>
             <p
               className={`text-sm leading-relaxed ${
                 theme === "Light" ? "text-purple-600" : "text-gold-300"
               }`}
             >
-              Connect your Arweave wallet using the Wander app.
+              Open the Wander app to connect your Arweave wallet.
               Sign in and you'll be redirected back here automatically.
             </p>
           </div>

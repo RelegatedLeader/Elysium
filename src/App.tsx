@@ -2612,13 +2612,13 @@ function WelcomePage({
     if (isMobileDevice()) {
       console.log("Mobile device detected - opening Wander app for authentication");
 
-      // For mobile devices, redirect to Wander app with return URL
-      // This allows the user to authenticate and return with wallet info
+      // For mobile devices, use Wander app URL scheme to open the app directly
+      // This bypasses the website and goes straight to the app
       const currentUrl = window.location.origin + window.location.pathname;
-      const wanderUrl = `https://wander.app?redirect=${encodeURIComponent(currentUrl)}`;
+      const wanderAppUrl = `wander://auth?redirect=${encodeURIComponent(currentUrl)}`;
 
-      console.log("Redirecting to Wander app:", wanderUrl);
-      window.location.href = wanderUrl;
+      console.log("Opening Wander app:", wanderAppUrl);
+      window.location.href = wanderAppUrl;
     } else {
       console.log("Attempting direct wallet connection for desktop");
       // Direct connection for desktop
