@@ -2612,38 +2612,35 @@ function WelcomePage({
     if (isMobileDevice()) {
       console.log("Attempting to open Wander app for mobile user");
 
-      // Try to open Wander app directly first
-      const wanderAppUrl = "wander://auth"; // Custom URL scheme for Wander app with auth intent
+      // Try to open Wander app directly using custom URL scheme
+      const wanderAppUrl = "wander://"; // Custom URL scheme for Wander app
+      const wanderWebUrl = "https://wander.app";
 
-      // Create an iframe to try opening the app (more reliable than window.location)
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = wanderAppUrl;
-      document.body.appendChild(iframe);
+      // Track if app opened
+      let appOpened = false;
 
-      // Set a timeout to show download popup if app doesn't open
-      const timeout = setTimeout(() => {
-        console.log("Wander app not detected, showing download popup");
-        document.body.removeChild(iframe);
-        setShowWanderDownloadPopup(true);
-      }, 3000); // 3 second timeout
-
-      // Listen for visibility change (app opened successfully)
+      // Set up visibility change listener to detect if app opened
       const handleVisibilityChange = () => {
-        if (document.hidden) {
-          console.log("App opened successfully");
-          clearTimeout(timeout);
-          document.body.removeChild(iframe);
-          document.removeEventListener('visibilitychange', handleVisibilityChange);
-        }
+        appOpened = true;
+        console.log("Wander app opened successfully");
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
 
       document.addEventListener('visibilitychange', handleVisibilityChange);
 
-      // Clean up after timeout
+      // Try to open the app
+      window.location.href = wanderAppUrl;
+
+      // Check after a short delay if we're still on the page
       setTimeout(() => {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
-      }, 3100);
+
+        if (!appOpened && document.hasFocus()) {
+          // App didn't open, show download popup
+          console.log("Wander app not installed, showing download popup");
+          setShowWanderDownloadPopup(true);
+        }
+      }, 2000); // 2 second timeout
     } else {
       console.log("Attempting direct wallet connection for desktop");
       // Direct connection for desktop
