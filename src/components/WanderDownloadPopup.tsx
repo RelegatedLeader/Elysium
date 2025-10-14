@@ -14,7 +14,9 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
   if (!isOpen) return null;
 
   const handleDownload = () => {
-    window.open("https://arconnect.io", "_blank");
+    const currentUrl = window.location.origin + window.location.pathname;
+    const wanderUrl = `https://wander.app?redirect=${encodeURIComponent(currentUrl)}`;
+    window.open(wanderUrl, "_blank");
     onClose();
   };
 
@@ -57,15 +59,15 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
                 theme === "Light" ? "text-purple-900" : "text-gold-100"
               }`}
             >
-              Connect with ArConnect Web
+              Connect with Wander
             </h2>
             <p
               className={`text-sm leading-relaxed ${
                 theme === "Light" ? "text-purple-600" : "text-gold-300"
               }`}
             >
-              Use ArConnect's web interface to connect your Arweave wallet on mobile.
-              No app installation required - works directly in your browser.
+              Connect your Arweave wallet using the Wander app.
+              Sign in and you'll be redirected back here automatically.
             </p>
           </div>
 
@@ -78,7 +80,7 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
                   theme === "Light" ? "text-purple-700" : "text-gold-200"
                 }`}
               >
-                Browser-based wallet connection
+                Secure Arweave wallet connection
               </span>
             </div>
             <div className="flex items-center justify-center space-x-3">
@@ -88,7 +90,7 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
                   theme === "Light" ? "text-purple-700" : "text-gold-200"
                 }`}
               >
-                No app installation required
+                Automatic redirect back after signing
               </span>
             </div>
             <div className="flex items-center justify-center space-x-3">
@@ -98,7 +100,7 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
                   theme === "Light" ? "text-purple-700" : "text-gold-200"
                 }`}
               >
-                Secure Arweave transactions
+                Seamless authentication flow
               </span>
             </div>
           </div>
@@ -108,7 +110,7 @@ const WanderDownloadPopup: React.FC<WanderDownloadPopupProps> = ({
             onClick={handleDownload}
             className="w-full py-4 px-6 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-600 to-gold-600 hover:from-purple-700 hover:to-gold-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl mb-4"
           >
-            Open ArConnect Web Wallet
+            Open Wander App
           </button>
 
           {/* Alternative */}

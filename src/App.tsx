@@ -2610,14 +2610,15 @@ function WelcomePage({
     );
 
     if (isMobileDevice()) {
-      console.log("Mobile device detected - redirecting to ArConnect mobile web");
+      console.log("Mobile device detected - opening Wander app for authentication");
 
-      // For mobile devices, redirect to ArConnect mobile web
-      // This provides a web-based wallet connection without app installation
-      const arConnectMobileUrl = "https://arconnect.io";
+      // For mobile devices, redirect to Wander app with return URL
+      // This allows the user to authenticate and return with wallet info
+      const currentUrl = window.location.origin + window.location.pathname;
+      const wanderUrl = `https://wander.app?redirect=${encodeURIComponent(currentUrl)}`;
 
-      console.log("Redirecting to ArConnect mobile web:", arConnectMobileUrl);
-      window.location.href = arConnectMobileUrl;
+      console.log("Redirecting to Wander app:", wanderUrl);
+      window.location.href = wanderUrl;
     } else {
       console.log("Attempting direct wallet connection for desktop");
       // Direct connection for desktop
