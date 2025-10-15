@@ -1781,6 +1781,7 @@ function WelcomePage({
   const [showPopup, setShowPopup] = useState(false);
   const [showMobileWalletSetup, setShowMobileWalletSetup] = useState(false);
   const [showWanderDownloadPopup, setShowWanderDownloadPopup] = useState(false);
+  const [showMobileDesktopOnlyPopup, setShowMobileDesktopOnlyPopup] = useState(false);
   const [email, setEmail] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
@@ -2608,6 +2609,12 @@ function WelcomePage({
       "isMobile:",
       isMobileDevice()
     );
+
+    if (isMobileDevice() && mode === "web3") {
+      console.log("Mobile device in web3 mode - showing desktop only popup");
+      setShowMobileDesktopOnlyPopup(true);
+      return;
+    }
 
     if (isMobileDevice()) {
       console.log("Mobile device detected - opening Wander app for authentication");
@@ -6539,6 +6546,43 @@ function WelcomePage({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Mobile Desktop Only Popup */}
+      {showMobileDesktopOnlyPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-black p-6 sm:p-8 rounded-lg shadow-2xl text-white w-11/12 max-w-md sm:w-96 transform transition-all duration-300 ease-in-out border border-indigo-700/50">
+            <div className="text-center">
+              <div className="mb-4">
+                <div className="text-4xl">💻</div>
+              </div>
+              <h3
+                className={`text-xl sm:text-2xl font-semibold mb-4 font-serif ${
+                  settings.theme === "Light"
+                    ? "text-purple-900"
+                    : "text-gold-100"
+                }`}
+              >
+                Desktop Only Feature
+              </h3>
+              <p
+                className={`text-sm sm:text-base mb-6 ${
+                  settings.theme === "Light"
+                    ? "text-purple-700"
+                    : "text-gray-300"
+                }`}
+              >
+                Wallet connection in blockchain mode is currently only available on desktop devices. Please use a desktop computer to connect your wallet and access blockchain features.
+              </p>
+              <button
+                onClick={() => setShowMobileDesktopOnlyPopup(false)}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-700 text-white font-semibold py-3 px-6 rounded-full hover:from-indigo-700 hover:to-purple-800 transition-all duration-200 shadow-lg"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
