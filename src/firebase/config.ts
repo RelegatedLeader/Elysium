@@ -14,22 +14,25 @@ const firebaseConfig = {
   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
 };
 
 // Validate Firebase configuration
 const isFirebaseConfigured = () => {
-  const hasValidApiKey = firebaseConfig.apiKey &&
+  const hasValidApiKey =
+    firebaseConfig.apiKey &&
     firebaseConfig.apiKey !== "demo-api-key" &&
     firebaseConfig.apiKey !== "your_firebase_api_key_here" &&
     firebaseConfig.apiKey.startsWith("AIzaSy");
 
-  const hasValidDomain = firebaseConfig.authDomain &&
+  const hasValidDomain =
+    firebaseConfig.authDomain &&
     firebaseConfig.authDomain !== "demo-project.firebaseapp.com" &&
     firebaseConfig.authDomain !== "your-project.firebaseapp.com" &&
     firebaseConfig.authDomain.includes("firebaseapp.com");
 
-  const hasValidProject = firebaseConfig.projectId &&
+  const hasValidProject =
+    firebaseConfig.projectId &&
     firebaseConfig.projectId !== "demo-project" &&
     firebaseConfig.projectId !== "your-project-id";
 

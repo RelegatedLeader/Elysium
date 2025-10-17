@@ -6489,19 +6489,29 @@ function WelcomePage({
                               </button>
                             )}
                             <button
-                              onClick={() => {
-                                setViewingNote(null);
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(viewingNote.content);
+                                  alert("Note content copied to clipboard!");
+                                } catch (error) {
+                                  console.error("Failed to copy:", error);
+                                  alert("Failed to copy note content.");
+                                }
                               }}
-                              className="text-gray-400 hover:text-white transition-colors text-xl p-2"
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
                             >
-                              ×
+                              Copy
                             </button>
                           </div>
                         </div>
                       </div>
                       <div className="flex-1 overflow-y-auto p-6">
                         <div className="text-white text-base leading-relaxed">
-                          {viewingNote.template === "To-Do List" ||
+                          {mode === "web3" ? (
+                            <pre className="text-white text-base leading-relaxed whitespace-pre">
+                              {viewingNote.content}
+                            </pre>
+                          ) : viewingNote.template === "To-Do List" ||
                           viewingNote.template === "Checklist" ||
                           viewingNote.template === "List" ? (
                             <div className="space-y-1">
