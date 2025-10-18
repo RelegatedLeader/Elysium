@@ -1831,12 +1831,12 @@ function WelcomePage({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showWalletDropdown]);
 
-  // Note viewing/editing state
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editTemplate, setEditTemplate] = useState("Auto");
+  const [showDownloadOptions, setShowDownloadOptions] = useState(false);
 
   // Cloud storage hook
   const cloudStorage = useCloudStorage();
@@ -3931,6 +3931,133 @@ function WelcomePage({
       </div>
     );
   }
+
+  const downloadNote = (format: 'txt' | 'pdf' | 'docx' | 'ps') => {
+    if (!viewingNote) return;
+
+    const title = viewingNote.title;
+    const content = viewingNote.content;
+    let filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
+
+    if (format === 'txt') {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else if (format === 'pdf') {
+      // For PDF, we'll create a simple text-based PDF
+      const pdfContent = `%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+/Resources <<
+/Font <<
+/F1 5 0 R
+>>
+>>
+>>
+endobj
+4 0 obj
+<<
+/Length ${content.length + 50}
+>>
+stream
+BT
+/F1 12 Tf
+72 720 Td
+(${content.replace(/[()\\]/g, '\\$&')}) Tj
+ET
+endstream
+endobj
+5 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Times-Roman
+>>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000274 00000 n 
+0000000480 00000 n 
+trailer
+<<
+/Size 6
+/Root 1 0 R
+>>
+startxref
+${content.length + 600}
+%%EOF`;
+      const blob = new Blob([pdfContent], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else if (format === 'docx') {
+      // For DOCX, we'll create a simple XML-based DOCX
+      const docxContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:r>
+        <w:t>${content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</w:t>
+      </w:r>
+    </w:p>
+  </w:body>
+</w:document>`;
+      const blob = new Blob([docxContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else if (format === 'ps') {
+      // Simple PostScript
+      const psContent = `%!PS
+/Times-Roman findfont
+12 scalefont
+setfont
+72 720 moveto
+(${content.replace(/[()\\]/g, '\\$&')}) show
+showpage
+`;
+      const blob = new Blob([psContent], { type: 'application/postscript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.ps`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    setShowDownloadOptions(false);
+  };
 
   return (
     <>
@@ -6544,7 +6671,15 @@ function WelcomePage({
                         </div>
                       </div>
 
-                      <div className="flex justify-end">
+                      <div className="flex justify-end space-x-4">
+                        {mode === "web3" && viewingNote?.isPermanent && (
+                          <button
+                            onClick={() => setShowDownloadOptions(!showDownloadOptions)}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all"
+                          >
+                            Download
+                          </button>
+                        )}
                         <button
                           onClick={() => setViewingNote(null)}
                           className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-full hover:from-indigo-700 hover:to-purple-800 transition-all"
@@ -6552,6 +6687,37 @@ function WelcomePage({
                           Close
                         </button>
                       </div>
+                      {showDownloadOptions && mode === "web3" && viewingNote?.isPermanent && (
+                        <div className="mt-4 p-4 bg-indigo-900/50 rounded-lg border border-indigo-600/30">
+                          <div className="text-sm text-gray-300 mb-2">Download as:</div>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => downloadNote('txt')}
+                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                            >
+                              .txt
+                            </button>
+                            <button
+                              onClick={() => downloadNote('pdf')}
+                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                            >
+                              .pdf
+                            </button>
+                            <button
+                              onClick={() => downloadNote('docx')}
+                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                            >
+                              .docx
+                            </button>
+                            <button
+                              onClick={() => downloadNote('ps')}
+                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                            >
+                              .ps
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
