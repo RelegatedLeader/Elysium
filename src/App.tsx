@@ -1837,6 +1837,13 @@ function WelcomePage({
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editTemplate, setEditTemplate] = useState("Auto");
+  // Function to strip HTML tags and get plain text for previews
+  const stripHtmlTags = (html: string): string => {
+    const tmp = document.createElement("DIV");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+  };
+  const editTextareaRef = useRef<HTMLDivElement>(null);
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
 
   // Cloud storage hook
@@ -4754,10 +4761,10 @@ showpage
                                           : "text-gray-200"
                                       }`}
                                     >
-                                      {note.content
+                                      {stripHtmlTags(note.content)
                                         .split("\n")[0]
                                         .substring(0, 120)}
-                                      {note.content.length > 120 ? "..." : ""}
+                                      {stripHtmlTags(note.content).length > 120 ? "..." : ""}
                                     </div>
                                     <div
                                       className={`flex items-center justify-between text-xs ${
@@ -5180,10 +5187,10 @@ showpage
                                         : "text-gray-300"
                                     }`}
                                   >
-                                    {note.content
+                                    {stripHtmlTags(note.content)
                                       .split("\n")[0]
                                       .substring(0, 120)}
-                                    {note.content.length > 120 ? "..." : ""}
+                                    {stripHtmlTags(note.content).length > 120 ? "..." : ""}
                                   </div>
                                   <div
                                     className={`flex items-center justify-between text-xs ${
@@ -6310,9 +6317,6 @@ showpage
                           onClick={() => {
                             setEditingNote(null);
                             setViewingNote(null);
-                            setEditTitle("");
-                            setEditContent("");
-                            setEditTemplate("Auto");
                           }}
                           className="text-gray-400 hover:text-white transition-colors"
                         >
@@ -6337,10 +6341,70 @@ showpage
                           <label className="block text-sm font-medium text-gray-200 mb-2">
                             Note Content
                           </label>
-                          <textarea
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 h-64 resize-none"
+                          <div className="mb-2 flex flex-wrap gap-2">
+                            <button
+                              onClick={() => {
+                                const editor = editTextareaRef.current as HTMLElement;
+                                if (editor) {
+                                  document.execCommand('bold', false);
+                                  editor.focus();
+                                }
+                              }}
+                              className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
+                              title="Bold"
+                            >
+                              <strong>B</strong>
+                            </button>
+                            <button
+                              onClick={() => {
+                                const editor = editTextareaRef.current as HTMLElement;
+                                if (editor) {
+                                  document.execCommand('italic', false);
+                                  editor.focus();
+                                }
+                              }}
+                              className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
+                              title="Italic"
+                            >
+                              <em>I</em>
+                            </button>
+                            <button
+                              onClick={() => {
+                                const editor = editTextareaRef.current as HTMLElement;
+                                if (editor) {
+                                  document.execCommand('insertUnorderedList', false);
+                                  editor.focus();
+                                }
+                              }}
+                              className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
+                              title="Bullet List"
+                            >
+                              • List
+                            </button>
+                            <button
+                              onClick={() => {
+                                const editor = editTextareaRef.current as HTMLElement;
+                                if (editor) {
+                                  document.execCommand('insertOrderedList', false);
+                                  editor.focus();
+                                }
+                              }}
+                              className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
+                              title="Numbered List"
+                            >
+                              1. List
+                            </button>
+                          </div>
+                          <div
+                            contentEditable
+                            ref={editTextareaRef as any}
+                            className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 h-64 resize-none overflow-y-auto"
+                            onInput={(e) => setEditContent(e.currentTarget.innerHTML)}
+                            dangerouslySetInnerHTML={{ __html: editContent }}
+                            style={{
+                              minHeight: '256px',
+                              whiteSpace: 'pre-wrap',
+                            }}
                           />
                         </div>
 
@@ -6610,9 +6674,13 @@ showpage
                               )}
                             </div>
                           ) : (
-                            <div className="whitespace-pre-wrap">
-                              {viewingNote.content}
-                            </div>
+                            <div
+                              className="whitespace-pre-wrap note-content-display"
+                              dangerouslySetInnerHTML={{ __html: viewingNote.content }}
+                              style={{
+                                color: 'white',
+                              }}
+                            />
                           )}
                         </div>
                       </div>
