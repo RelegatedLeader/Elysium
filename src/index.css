@@ -197,3 +197,90 @@ code {
   -webkit-line-clamp: 3;
   line-clamp: 3;
 }
+
+/* Rich Text Editor Styles */
+.checklist-item {
+  display: flex;
+  align-items: center;
+  margin: 4px 0;
+}
+
+.checklist-checkbox {
+  margin-right: 8px;
+  accent-color: #6366f1;
+}
+
+.checklist-item input[type="checkbox"]:checked + span {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+/* Style bullet points to look like Google Docs */
+ul {
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+ul li {
+  margin: 4px 0;
+  position: relative;
+  color: white;
+}
+
+ul li::marker {
+  color: #6366f1;
+  font-size: 1.2em;
+}
+
+/* Ensure checklist items don't interfere with regular lists */
+.checklist-item {
+  display: flex;
+  align-items: center;
+  margin: 4px 0;
+  list-style-type: none;
+}
+
+.checklist-checkbox {
+  margin-right: 8px;
+  accent-color: #6366f1;
+}
+
+.checklist-item input[type="checkbox"]:checked + span {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+/* Style headings */
+h1 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 8px 0;
+  color: #ffffff;
+}
+
+/* Ensure text color in rich text editor */
+[contenteditable] {
+  color: white !important;
+}
+
+[contenteditable] * {
+  color: white !important;
+}
+
+/* Placeholder text styling */
+.placeholder-text {
+  color: #9CA3AF !important;
+  font-style: normal;
+}
+
+/* ContentEditable placeholder */
+[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: #9CA3AF;
+  font-style: normal;
+  pointer-events: none;
+}
+
+[contenteditable]:empty:focus:before {
+  content: "";
+}

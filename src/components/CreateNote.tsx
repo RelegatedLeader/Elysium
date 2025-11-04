@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import ContentEditable from "react-contenteditable";
 import elysiumLogo from "../img/elysium_logo_2.jpg";
 
 interface CreateNoteProps {
@@ -27,6 +28,7 @@ const CreateNote: React.FC<CreateNoteProps> = ({
 }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [htmlContent, setHtmlContent] = useState("");
   const [template, setTemplate] = useState(defaultTemplate);
   const [files, setFiles] = useState<File[]>([]);
   const [showAIPopup, setShowAIPopup] = useState(false);
@@ -36,10 +38,13 @@ const CreateNote: React.FC<CreateNoteProps> = ({
   const [messageHistory, setMessageHistory] = useState<
     Array<{ type: "user" | "ai"; content: string }>
   >([]);
-  const [completionTimestamps, setCompletionTimestamps] = useState<{
-    [key: number]: string;
-  }>({});
-
+  // Formatting state
+  const [isBoldActive, setIsBoldActive] = useState(false);
+  const [isItalicActive, setIsItalicActive] = useState(false);
+  const [isListActive, setIsListActive] = useState(false);
+  // Checklist state
+  const [lastEnterTime, setLastEnterTime] = useState(0);
+  const [lastEnterElement, setLastEnterElement] = useState<HTMLElement | null>(null);
   // Refs for auto-scrolling
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -53,15 +58,15 @@ const CreateNote: React.FC<CreateNoteProps> = ({
   const getPlaceholderText = () => {
     switch (template) {
       case "To-Do List":
-        return "Create your to-do list:\n* Task 1\n* Task 2\n* Task 3\n\nUse * to create checkbox items";
+        return "Create your to-do list:\n* Task 1\n* Task 2\n* Task 3\n\nUse the toolbar buttons to format your text";
       case "List":
-        return "Create your list:\n- Item 1\n- Item 2\n- Item 3\n\nUse - or . to create bullet points";
+        return "Create your list:\n- Item 1\n- Item 2\n- Item 3\n\nUse the toolbar buttons to format your text";
       case "Canvas":
-        return "Free-form canvas - write, draw ideas, brainstorm...\n\nIdeas:\nConnections:\nNotes:";
+        return "Free-form canvas - write, draw ideas, brainstorm...\n\nIdeas:\nConnections:\nNotes:\n\nUse the toolbar buttons to format your text";
       case "Auto":
-        return "Welcome to Elysium! Here's how to use templates:\n\n📝 List: Use - or . for bullet points\n✅ To-Do List: Use * for checkboxes\n🎨 Canvas: Free-form writing\n\nStart typing to automatically detect your template!";
+        return "Type your note here. Use the toolbar buttons above to format your text with lists, bold, italic, and more.";
       default:
-        return "Type your note here (e.g., * Task or - Item)...";
+        return "Type your note here. Use the toolbar buttons above to format your text.";
     }
   };
 
@@ -75,181 +80,208 @@ const CreateNote: React.FC<CreateNoteProps> = ({
     return baseClass;
   };
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
-    setContent(newContent);
+  const handleHtmlContentChange = (evt: any) => {
+    let newHtml = evt.target.value;
 
-    // Auto-template detection for "Auto" mode
-    if (template === "Auto") {
-      const firstLine = newContent.trim().split("\n")[0] || "";
-      if (firstLine.startsWith("* ")) {
-        setTemplate("To-Do List");
-      } else if (firstLine.startsWith("-") || firstLine.startsWith(".")) {
-        setTemplate("List");
+    // Remove placeholder when user starts typing
+    if (newHtml.includes('placeholder-text')) {
+      newHtml = newHtml.replace(/<div class="placeholder-text"[^>]*>.*?<\/div>/, '');
+    }
+
+    // If content is empty, show placeholder
+    if (!newHtml || newHtml.trim() === '' || newHtml === '<br>' || newHtml === '<div><br></div>') {
+      setHtmlContent('');
+    } else {
+      setHtmlContent(newHtml);
+    }
+
+    // Also update plain text content for saving
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = newHtml;
+    setContent(tempDiv.textContent || tempDiv.innerText || '');
+  };
+
+  // Handle key events for checklist functionality
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      // Check if we're currently in a checklist item
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        let element: Node | null = range.commonAncestorContainer;
+
+        // If it's a text node, get the parent element
+        if (element.nodeType === Node.TEXT_NODE) {
+          element = (element as Text).parentElement;
+        }
+
+        // Check if we're inside a checklist item
+        const checklistItem = (element as HTMLElement)?.closest?.('.checklist-item');
+
+        if (checklistItem) {
+          e.preventDefault();
+
+          const span = checklistItem.querySelector('span[contenteditable="true"]');
+          const currentText = span?.textContent?.trim() || '';
+
+          // Check if this is a double Enter on an empty checklist item (within 500ms)
+          if (currentText === '' && lastEnterElement === checklistItem && (Date.now() - lastEnterTime) < 500) {
+            // Double Enter on empty checklist item - exit checklist mode
+            const br = document.createElement('br');
+            checklistItem.parentNode?.insertBefore(br, checklistItem.nextSibling);
+
+            // Remove the empty checklist item
+            checklistItem.remove();
+
+            // Set cursor after the br
+            const newRange = document.createRange();
+            newRange.setStartAfter(br);
+            newRange.setEndAfter(br);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+
+            // Reset tracking
+            setLastEnterTime(0);
+            setLastEnterElement(null);
+          } else {
+            // Single Enter - create new checklist item
+            const newChecklistItem = document.createElement('div');
+            newChecklistItem.className = 'checklist-item';
+            newChecklistItem.innerHTML = '<input type="checkbox" class="checklist-checkbox"> <span contenteditable="true"></span>';
+
+            checklistItem.parentNode?.insertBefore(newChecklistItem, checklistItem.nextSibling);
+
+            // Focus on the new checklist item immediately
+            const newSpan = newChecklistItem.querySelector('span[contenteditable="true"]');
+            if (newSpan) {
+              const newRange = document.createRange();
+              newRange.setStart(newSpan, 0);
+              newRange.setEnd(newSpan, 0);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            }
+
+            // Track for double Enter detection
+            setLastEnterTime(Date.now());
+            setLastEnterElement(checklistItem as HTMLElement);
+          }
+        }
+      }
+    } else {
+      // Reset double Enter tracking on any other key
+      setLastEnterTime(0);
+      setLastEnterElement(null);
+    }
+  };
+
+  // Handle checklist checkbox changes
+  const handleChecklistChange = (checkbox: HTMLInputElement) => {
+    const span = checkbox.nextElementSibling as HTMLSpanElement;
+    if (span) {
+      const timestamp = new Date().toLocaleString();
+      if (checkbox.checked) {
+        span.setAttribute('data-completed', timestamp);
+        span.style.textDecoration = 'line-through';
+        span.style.color = '#9ca3af';
+      } else {
+        span.removeAttribute('data-completed');
+        span.style.textDecoration = 'none';
+        span.style.color = 'white';
       }
     }
   };
 
-  const renderLiveContent = () => {
-    const lines = content.split("\n");
-    const items = lines.map((line, index) => {
-      const trimmed = line.trim();
-      let itemText = trimmed;
-      let isChecked = false;
-      let timestamp = completionTimestamps[index] || "";
+  // Check current formatting state
+  const updateFormattingState = () => {
+    setIsBoldActive(document.queryCommandState('bold'));
+    setIsItalicActive(document.queryCommandState('italic'));
+    setIsListActive(document.queryCommandState('insertUnorderedList'));
+  };
 
-      // Handle different template types
-      if (template === "List") {
-        // For List template: just bullet points, no checkboxes
-        if (trimmed.startsWith("-") || trimmed.startsWith(".")) {
-          itemText = trimmed.slice(1).trim();
-        }
-      } else if (template === "To-Do List" || template === "Checklist") {
-        // For To-Do List/ Checklist: handle checkboxes
-        if (trimmed.startsWith("*")) {
-          itemText = trimmed.slice(1).trim();
-          if (itemText.startsWith("[x]") || itemText.startsWith("[X]")) {
-            isChecked = true;
-            itemText = itemText
-              .slice(3)
-              .trim()
-              .replace(/\(Done at .*\)/, "");
-          } else if (itemText.startsWith("[ ]")) {
-            itemText = itemText.slice(3).trim();
-          }
-        } else if (trimmed.startsWith("-") || trimmed.startsWith(".")) {
-          // Also handle - [ ] and . [ ] format for backward compatibility
-          itemText = trimmed.slice(1).trim();
-          if (itemText.startsWith("[x]") || itemText.startsWith("[X]")) {
-            isChecked = true;
-            itemText = itemText
-              .slice(3)
-              .trim()
-              .replace(/\(Done at .*\)/, "");
-          } else if (itemText.startsWith("[ ]")) {
-            itemText = itemText.slice(3).trim();
-          }
-        }
+  // Attach event listeners to checklist checkboxes and monitor formatting changes
+  useEffect(() => {
+    const contentEditable = document.querySelector('[contenteditable]');
+    if (contentEditable) {
+      const checkboxes = contentEditable.querySelectorAll('.checklist-checkbox');
+      checkboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', (e) => handleChecklistChange(e.target as HTMLInputElement));
+      });
+
+      // Monitor selection changes to update formatting state
+      const handleSelectionChange = () => {
+        updateFormattingState();
+      };
+
+      document.addEventListener('selectionchange', handleSelectionChange);
+      contentEditable.addEventListener('keyup', handleSelectionChange);
+      contentEditable.addEventListener('mouseup', handleSelectionChange);
+
+      return () => {
+        document.removeEventListener('selectionchange', handleSelectionChange);
+        contentEditable.removeEventListener('keyup', handleSelectionChange);
+        contentEditable.removeEventListener('mouseup', handleSelectionChange);
+      };
+    }
+  }, [htmlContent]);
+
+  // Formatting toolbar functions
+  const formatText = (command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    // Update formatting state after command execution
+    setTimeout(updateFormattingState, 10);
+    // Restore focus to the contenteditable area
+    setTimeout(() => {
+      const contentEditable = document.querySelector('[contenteditable]');
+      if (contentEditable) {
+        (contentEditable as HTMLElement).focus();
       }
+    }, 20);
+  };
 
-      const handleToggleCheck = () => {
-        if (!isChecked) {
-          const newTimestamp = new Date().toISOString();
-          setCompletionTimestamps((prev) => ({
-            ...prev,
-            [index]: newTimestamp,
-          }));
-          // Update content with checked state
-          const updatedContent = content
-            .split("\n")
-            .map((l, i) =>
-              i === index
-                ? `${
-                    trimmed.startsWith("*")
-                      ? "*"
-                      : trimmed.startsWith("-")
-                      ? "-"
-                      : trimmed.startsWith(".")
-                      ? "."
-                      : "*"
-                  } [x] ${itemText} (Done at ${newTimestamp})`
-                : l
-            )
-            .join("\n");
-          setContent(updatedContent);
-        }
-      };
+  const insertBulletList = () => {
+    // If we have a selection, convert it to a list
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const selectedText = range.toString();
 
-      const handleTimestampClick = () => {
-        if (isChecked) {
-          // Ask for confirmation since changing timestamp is irreversible
-          const confirmChange = window.confirm(
-            "Are you sure you want to change the completion timestamp? This action cannot be undone."
-          );
+      if (selectedText.trim()) {
+        // If text is selected, wrap it in list items
+        const listHtml = `<ul><li>${selectedText.replace(/\n/g, '</li><li>')}</li></ul>`;
+        formatText('insertHTML', listHtml);
+      } else {
+        // If no selection, just toggle list
+        formatText('insertUnorderedList');
+      }
+    } else {
+      formatText('insertUnorderedList');
+    }
+  };
 
-          if (!confirmChange) return;
+  const insertBold = () => {
+    if (isBoldActive) {
+      formatText('bold'); // This will remove bold if already active
+    } else {
+      formatText('bold');
+    }
+  };
 
-          const newTimestamp = new Date().toISOString();
-          setCompletionTimestamps((prev) => ({
-            ...prev,
-            [index]: newTimestamp,
-          }));
-          // Update content with new timestamp
-          const updatedContent = content
-            .split("\n")
-            .map((l, i) =>
-              i === index
-                ? `${
-                    trimmed.startsWith("*")
-                      ? "*"
-                      : trimmed.startsWith("-")
-                      ? "-"
-                      : trimmed.startsWith(".")
-                      ? "."
-                      : "*"
-                  } [x] ${itemText.replace(
-                    /\s*\(Done at .*\)/,
-                    ""
-                  )} (Done at ${newTimestamp})`
-                : l
-            )
-            .join("\n");
-          setContent(updatedContent);
-        }
-      };
+  const insertItalic = () => {
+    if (isItalicActive) {
+      formatText('italic'); // This will remove italic if already active
+    } else {
+      formatText('italic');
+    }
+  };
 
-      return (
-        <div key={index} className="flex items-center mb-2">
-          {template === "List" ? (
-            // List template: bullet points
-            <>
-              <span className="mr-2 text-indigo-400 text-lg">•</span>
-              <span className="text-silver-200 flex-1 text-base md:text-sm">
-                {itemText}
-              </span>
-            </>
-          ) : (template === "To-Do List" || template === "Checklist") &&
-            (itemText.trim() ||
-              template === "To-Do List" ||
-              template === "Checklist") ? (
-            // To-Do List/ Checklist template: checkboxes
-            <>
-              <input
-                type="checkbox"
-                checked={isChecked}
-                onChange={handleToggleCheck}
-                className="mr-2 h-6 w-6 md:h-5 md:w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors duration-200 pointer-events-auto"
-                disabled={isChecked}
-              />
-              <span
-                className={`text-silver-200 flex-1 text-base md:text-sm ${
-                  isChecked ? "line-through text-gray-500" : ""
-                }`}
-              >
-                {itemText}{" "}
-                {isChecked && (
-                  <span
-                    className="text-gray-500 text-xs md:text-sm ml-2 cursor-pointer hover:text-indigo-400 transition-colors bg-gray-800/50 px-2 py-1 rounded pointer-events-auto"
-                    onClick={handleTimestampClick}
-                    title="Click to update timestamp"
-                  >
-                    {timestamp
-                      ? new Date(timestamp).toLocaleString()
-                      : "Click to set timestamp"}
-                  </span>
-                )}
-              </span>
-            </>
-          ) : (
-            // Other templates or empty lines
-            <span className="text-silver-200 flex-1 text-base md:text-sm">
-              {itemText}
-            </span>
-          )}
-        </div>
-      );
-    });
-    return items;
+  const insertLargeText = () => {
+    formatText('formatBlock', 'h1');
+  };
+
+  const insertChecklist = () => {
+    // Insert a checklist item with checkbox (no placeholder text)
+    const checklistHtml = '<div class="checklist-item"><input type="checkbox" class="checklist-checkbox"> <span contenteditable="true"></span></div>';
+    formatText('insertHTML', checklistHtml);
   };
 
   // AI Assistant Functions
@@ -695,33 +727,79 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   />
                 </label>
               </div>
+              {/* Formatting Toolbar - only for cloud and database modes */}
+              {(mode === "cloud" || mode === "db") && (
+                <div className="flex flex-wrap gap-2 mb-2 p-2 bg-indigo-900/30 rounded-lg border border-indigo-700/30">
+                  <button
+                    onClick={insertBulletList}
+                    className={`px-3 py-1 text-white text-sm rounded transition-colors ${
+                      isListActive
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-700 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                        : 'bg-indigo-700/50 hover:bg-indigo-600/50'
+                    }`}
+                    title="Insert bullet list"
+                  >
+                    • List
+                  </button>
+                  <button
+                    onClick={insertChecklist}
+                    className="px-3 py-1 bg-indigo-700/50 hover:bg-indigo-600/50 text-white text-sm rounded transition-colors"
+                    title="Insert checklist"
+                  >
+                    ☑ Checklist
+                  </button>
+                  <button
+                    onClick={insertBold}
+                    className={`px-3 py-1 text-white text-sm rounded font-bold transition-colors ${
+                      isBoldActive
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-700 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                        : 'bg-indigo-700/50 hover:bg-indigo-600/50'
+                    }`}
+                    title="Bold text"
+                  >
+                    B
+                  </button>
+                  <button
+                    onClick={insertItalic}
+                    className={`px-3 py-1 text-white text-sm rounded italic transition-colors ${
+                      isItalicActive
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-700 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
+                        : 'bg-indigo-700/50 hover:bg-indigo-600/50'
+                    }`}
+                    title="Italic text"
+                  >
+                    I
+                  </button>
+                  <button
+                    onClick={insertLargeText}
+                    className="px-3 py-1 bg-indigo-700/50 hover:bg-indigo-600/50 text-white text-sm rounded transition-colors"
+                    title="Large heading"
+                  >
+                    H1
+                  </button>
+                </div>
+              )}
               <div
-                className="relative"
-                style={{ height: template === "Canvas" ? "320px" : "256px" }}
+                className="relative overflow-y-auto"
+                style={{ maxHeight: template === "Canvas" ? "320px" : "256px", minHeight: template === "Canvas" ? "320px" : "256px" }}
               >
-                <textarea
-                  id="content"
-                  placeholder={getPlaceholderText()}
-                  value={content}
-                  onChange={handleContentChange}
-                  className={`${getTextareaClass()} absolute inset-0 z-10 bg-transparent text-transparent caret-white resize-none`}
+                <ContentEditable
+                  html={htmlContent}
+                  onChange={handleHtmlContentChange}
+                  onKeyDown={handleKeyDown}
+                  className={`${getTextareaClass()} w-full z-10 resize-none ${!htmlContent ? 'empty' : ''}`}
                   style={{
-                    color: "transparent",
-                    backgroundColor: "transparent",
-                    WebkitTextFillColor: "transparent",
+                    color: "white",
+                    backgroundColor: "rgba(79, 70, 229, 0.1)",
+                    WebkitTextFillColor: "white",
+                    minHeight: template === "Canvas" ? "320px" : "256px",
+                    outline: "none",
+                    padding: "1rem",
+                    overflowY: "visible",
                   }}
+                  data-placeholder={getPlaceholderText()}
                   aria-required="true"
                 />
-                {/* Live inline preview overlay */}
-                <div className="absolute inset-0 z-20 pointer-events-none p-4 text-white whitespace-pre-wrap leading-relaxed overflow-hidden">
-                  {content ? (
-                    <div className="space-y-1">{renderLiveContent()}</div>
-                  ) : (
-                    <span className="text-gray-400">
-                      {getPlaceholderText()}
-                    </span>
-                  )}
-                </div>
               </div>
               {files.length > 0 && (
                 <p className="text-xs text-gray-400 mt-2">
