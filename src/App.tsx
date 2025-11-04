@@ -8,6 +8,7 @@ import Logout from "./components/Logout";
 import CloudAuth from "./components/CloudAuth";
 import MobileWalletSetup from "./components/MobileWalletSetup";
 import WanderDownloadPopup from "./components/WanderDownloadPopup";
+import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
 import nacl from "tweetnacl";
 import {
@@ -1874,6 +1875,8 @@ function WelcomePage({
   const [viewingFolder, setViewingFolder] = useState<any>(null);
   const [folderToDelete, setFolderToDelete] = useState<any>(null);
   const [showDeleteFolderModal, setShowDeleteFolderModal] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<any>(null);
+  const [showDeleteNoteModal, setShowDeleteNoteModal] = useState(false);
   const [selectedDrafts, setSelectedDrafts] = useState<Set<string>>(new Set());
   const [publishingDrafts, setPublishingDrafts] = useState<Set<string>>(
     new Set()
@@ -2282,6 +2285,45 @@ function WelcomePage({
     } catch (error) {
       console.error("Error loading folders:", error);
       setFolders([]);
+    }
+  };
+
+  const handleDeleteNote = async () => {
+    if (!noteToDelete) return;
+
+    const note = noteToDelete;
+    setShowDeleteNoteModal(false);
+    setNoteToDelete(null);
+
+    try {
+      const updatedNotes = notes.filter((n) => n.id !== note.id);
+      setNotes(updatedNotes);
+
+      if (mode === "db" && user) {
+        console.log("Deleting note from Supabase:", note.id);
+        const { error } = await supabase
+          .from("notes")
+          .delete()
+          .eq("id", note.id);
+        if (error) {
+          console.error("Supabase delete error:", error);
+          alert("Failed to delete note from database. Please try again.");
+        } else {
+          console.log("Note deleted from database successfully", {
+            noteId: note.id,
+            userId: user.id,
+            noteTitle: note.title,
+          });
+        }
+      } else if (mode === "cloud") {
+        localStorage.setItem(
+          `elysium_notes_${mode}`,
+          JSON.stringify(updatedNotes)
+        );
+      }
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      alert("An error occurred while deleting the note. Please try again.");
     }
   };
 
@@ -5327,109 +5369,13 @@ showpage
                                     )}
                                   </div>
                                   <button
-                                    onClick={async (e) => {
+                                    onClick={(e) => {
                                       e.stopPropagation(); // Prevent triggering the view
+                                      setNoteToDelete(note);
                                       if (note.isPermanent) {
-                                        if (
-                                          window.confirm(
-                                            "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
-                                          )
-                                        ) {
-                                          const updatedNotes = notes.filter(
-                                            (n) => n.id !== note.id
-                                          );
-                                          setNotes(updatedNotes);
-                                          if (mode === "db" && user) {
-                                            // Security: Confirm permanent deletion from database
-                                            const confirmDelete =
-                                              window.confirm(
-                                                `Are you sure you want to permanently delete "${note.title}" from the database? This action cannot be undone.`
-                                              );
-
-                                            if (!confirmDelete) {
-                                              return; // Cancel deletion
-                                            }
-
-                                            console.log(
-                                              "Deleting note from Supabase:",
-                                              note.id
-                                            );
-                                            const { error } = await supabase
-                                              .from("notes")
-                                              .delete()
-                                              .eq("id", note.id);
-                                            if (error) {
-                                              console.error(
-                                                "Supabase delete error:",
-                                                error
-                                              );
-                                              alert(
-                                                "Failed to delete note from database. Please try again."
-                                              );
-                                            } else {
-                                              console.log(
-                                                "Note deleted from database successfully",
-                                                {
-                                                  noteId: note.id,
-                                                  userId: user.id,
-                                                  noteTitle: note.title,
-                                                }
-                                              );
-                                            }
-                                          } else if (mode === "cloud") {
-                                            localStorage.setItem(
-                                              `elysium_notes_${mode}`,
-                                              JSON.stringify(updatedNotes)
-                                            );
-                                          }
-                                        }
+                                        setShowDeleteNoteModal(true);
                                       } else {
-                                        const updatedNotes = notes.filter(
-                                          (n) => n.id !== note.id
-                                        );
-                                        setNotes(updatedNotes);
-                                        if (mode === "db" && user) {
-                                          // Security: Confirm permanent deletion from database
-                                          const confirmDelete = window.confirm(
-                                            `Are you sure you want to permanently delete "${note.title}" from the database? This action cannot be undone.`
-                                          );
-
-                                          if (!confirmDelete) {
-                                            return; // Cancel deletion
-                                          }
-
-                                          console.log(
-                                            "Deleting note from Supabase:",
-                                            note.id
-                                          );
-                                          const { error } = await supabase
-                                            .from("notes")
-                                            .delete()
-                                            .eq("id", note.id);
-                                          if (error) {
-                                            console.error(
-                                              "Supabase delete error:",
-                                              error
-                                            );
-                                            alert(
-                                              "Failed to delete note from database. Please try again."
-                                            );
-                                          } else {
-                                            console.log(
-                                              "Note deleted from database successfully",
-                                              {
-                                                noteId: note.id,
-                                                userId: user.id,
-                                                noteTitle: note.title,
-                                              }
-                                            );
-                                          }
-                                        } else if (mode === "cloud") {
-                                          localStorage.setItem(
-                                            `elysium_notes_${mode}`,
-                                            JSON.stringify(updatedNotes)
-                                          );
-                                        }
+                                        setShowDeleteNoteModal(true);
                                       }
                                     }}
                                     className="text-red-400 hover:text-red-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
@@ -6773,6 +6719,25 @@ showpage
         title={arConnectModal.title}
         message={arConnectModal.message}
         actionButton={arConnectModal.actionButton}
+      />
+
+      {/* Delete Note Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteNoteModal}
+        onClose={() => {
+          setShowDeleteNoteModal(false);
+          setNoteToDelete(null);
+        }}
+        onConfirm={handleDeleteNote}
+        title="Delete Note"
+        message={
+          noteToDelete?.isPermanent
+            ? "This item will be deleted from the GUI only. It cannot be deleted from the blockchain as it is permanently stored."
+            : `Are you sure you want to permanently delete "${noteToDelete?.title}"? This action cannot be undone.`
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        theme={settings.theme}
       />
     </>
   );

@@ -126,17 +126,19 @@ const CreateNote: React.FC<CreateNoteProps> = ({
 
           // Check if this is a double Enter on an empty checklist item (within 500ms)
           if (currentText === '' && lastEnterElement === checklistItem && (Date.now() - lastEnterTime) < 500) {
-            // Double Enter on empty checklist item - exit checklist mode
-            const br = document.createElement('br');
-            checklistItem.parentNode?.insertBefore(br, checklistItem.nextSibling);
+            // Double Enter on empty checklist item - exit checklist mode by adding two line breaks
+            const br1 = document.createElement('br');
+            const br2 = document.createElement('br');
+            checklistItem.parentNode?.insertBefore(br1, checklistItem.nextSibling);
+            checklistItem.parentNode?.insertBefore(br2, br1.nextSibling);
 
             // Remove the empty checklist item
             checklistItem.remove();
 
-            // Set cursor after the br
+            // Set cursor after the second br
             const newRange = document.createRange();
-            newRange.setStartAfter(br);
-            newRange.setEndAfter(br);
+            newRange.setStartAfter(br2);
+            newRange.setEndAfter(br2);
             selection.removeAllRanges();
             selection.addRange(newRange);
 
