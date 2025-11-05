@@ -326,13 +326,3 @@ h1 {
   margin: 0.5rem 0;
   content: "";
 }
-
-/* ContentEditable editor styles */
-.content-editable-editor input[type="checkbox"] {
-  margin-right: 0.5rem;
-  accent-color: rgb(6, 182, 212);
-}
-
-.content-editable-editor div {
-  margin: 0.25rem 0;
-}
