@@ -1837,13 +1837,30 @@ function WelcomePage({
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editTemplate, setEditTemplate] = useState("Auto");
+  const [isBoldActive, setIsBoldActive] = useState(false);
+  const [isItalicActive, setIsItalicActive] = useState(false);
   // Function to strip HTML tags and get plain text for previews
   const stripHtmlTags = (html: string): string => {
     const tmp = document.createElement("DIV");
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || "";
   };
+
+  // Function to check current formatting state
+  const updateFormattingState = () => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      setIsBoldActive(document.queryCommandState('bold'));
+      setIsItalicActive(document.queryCommandState('italic'));
+    }
+  };
   const editTextareaRef = useRef<HTMLDivElement>(null);
+  // Effect to set initial content in the editor
+  useEffect(() => {
+    if (editTextareaRef.current && editContent) {
+      editTextareaRef.current.innerHTML = editContent;
+    }
+  }, [editContent]);
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
 
   // Cloud storage hook
@@ -6346,11 +6363,28 @@ showpage
                               onClick={() => {
                                 const editor = editTextareaRef.current as HTMLElement;
                                 if (editor) {
+                                  // Save current selection
+                                  const selection = window.getSelection();
+                                  const range = selection?.getRangeAt(0);
+                                  
                                   document.execCommand('bold', false);
-                                  editor.focus();
+                                  
+                                  // Update formatting state after command
+                                  setTimeout(() => {
+                                    updateFormattingState();
+                                    editor.focus();
+                                    if (selection && range) {
+                                      selection.removeAllRanges();
+                                      selection.addRange(range);
+                                    }
+                                  }, 10);
                                 }
                               }}
-                              className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
+                              className={`px-3 py-1 text-white rounded transition-colors text-sm ${
+                                isBoldActive 
+                                  ? 'bg-gradient-to-r from-blue-600 to-purple-700' 
+                                  : 'bg-indigo-700/50 hover:bg-indigo-600/50'
+                              }`}
                               title="Bold"
                             >
                               <strong>B</strong>
@@ -6359,11 +6393,28 @@ showpage
                               onClick={() => {
                                 const editor = editTextareaRef.current as HTMLElement;
                                 if (editor) {
+                                  // Save current selection
+                                  const selection = window.getSelection();
+                                  const range = selection?.getRangeAt(0);
+                                  
                                   document.execCommand('italic', false);
-                                  editor.focus();
+                                  
+                                  // Update formatting state after command
+                                  setTimeout(() => {
+                                    updateFormattingState();
+                                    editor.focus();
+                                    if (selection && range) {
+                                      selection.removeAllRanges();
+                                      selection.addRange(range);
+                                    }
+                                  }, 10);
                                 }
                               }}
-                              className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
+                              className={`px-3 py-1 text-white rounded transition-colors text-sm ${
+                                isItalicActive 
+                                  ? 'bg-gradient-to-r from-blue-600 to-purple-700' 
+                                  : 'bg-indigo-700/50 hover:bg-indigo-600/50'
+                              }`}
                               title="Italic"
                             >
                               <em>I</em>
@@ -6372,8 +6423,27 @@ showpage
                               onClick={() => {
                                 const editor = editTextareaRef.current as HTMLElement;
                                 if (editor) {
-                                  document.execCommand('insertUnorderedList', false);
-                                  editor.focus();
+                                  // Insert bullet list HTML and position cursor inside
+                                  const listHTML = '<ul><li></li></ul>';
+                                  document.execCommand('insertHTML', false, listHTML);
+                                  
+                                  // Position cursor inside the new list item
+                                  setTimeout(() => {
+                                    const selection = window.getSelection();
+                                    const range = document.createRange();
+                                    
+                                    // Find the newly inserted list item
+                                    const listItems = editor.querySelectorAll('li');
+                                    const lastListItem = listItems[listItems.length - 1];
+                                    
+                                    if (lastListItem) {
+                                      range.setStart(lastListItem, 0);
+                                      range.setEnd(lastListItem, 0);
+                                      selection?.removeAllRanges();
+                                      selection?.addRange(range);
+                                      editor.focus();
+                                    }
+                                  }, 10);
                                 }
                               }}
                               className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
@@ -6385,22 +6455,48 @@ showpage
                               onClick={() => {
                                 const editor = editTextareaRef.current as HTMLElement;
                                 if (editor) {
-                                  document.execCommand('insertOrderedList', false);
-                                  editor.focus();
+                                  // Insert checklist HTML and position cursor after checkbox
+                                  const checklistHTML = '<input type="checkbox"> ';
+                                  document.execCommand('insertHTML', false, checklistHTML);
+                                  
+                                  // Position cursor after the newly inserted checkbox
+                                  setTimeout(() => {
+                                    const selection = window.getSelection();
+                                    const range = document.createRange();
+                                    
+                                    // Find the last checkbox in the editor
+                                    const checkboxes = editor.querySelectorAll('input[type="checkbox"]');
+                                    const lastCheckbox = checkboxes[checkboxes.length - 1];
+                                    
+                                    if (lastCheckbox && lastCheckbox.nextSibling) {
+                                      // Position cursor after the space following the checkbox
+                                      range.setStart(lastCheckbox.nextSibling, 1);
+                                      range.setEnd(lastCheckbox.nextSibling, 1);
+                                    } else if (lastCheckbox) {
+                                      // Fallback: position at the end of the editor
+                                      range.selectNodeContents(editor);
+                                      range.collapse(false);
+                                    }
+                                    
+                                    selection?.removeAllRanges();
+                                    selection?.addRange(range);
+                                    editor.focus();
+                                  }, 10);
                                 }
                               }}
                               className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
-                              title="Numbered List"
+                              title="Checklist"
                             >
-                              1. List
+                              ☑ Checklist
                             </button>
                           </div>
                           <div
                             contentEditable
                             ref={editTextareaRef as any}
-                            className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 h-64 resize-none overflow-y-auto"
-                            onInput={(e) => setEditContent(e.currentTarget.innerHTML)}
-                            dangerouslySetInnerHTML={{ __html: editContent }}
+                            className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 h-64 resize-none overflow-y-auto content-editable-editor"
+                            onBlur={(e) => setEditContent(e.currentTarget.innerHTML)}
+                            onMouseUp={updateFormattingState}
+                            onKeyUp={updateFormattingState}
                             style={{
                               minHeight: '256px',
                               whiteSpace: 'pre-wrap',
