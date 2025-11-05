@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ContentEditable from "react-contenteditable";
 import elysiumLogo from "../img/elysium_logo_2.jpg";
+import SaveConfirmationPopup from "./SaveConfirmationPopup";
 
 interface CreateNoteProps {
   onSave: (note: {
@@ -48,6 +49,8 @@ const CreateNote: React.FC<CreateNoteProps> = ({
   const [template, setTemplate] = useState(isEditing ? initialTemplate : defaultTemplate);
   const [files, setFiles] = useState<File[]>([]);
   const [showAIPopup, setShowAIPopup] = useState(false);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+  const [saveConfirmationMessage, setSaveConfirmationMessage] = useState("");
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatInput, setChatInput] = useState("");
@@ -685,30 +688,43 @@ Please provide a helpful response. Be conversational and focus on helping with t
   const handleSave = () => {
     if (title && content) {
       // Skip confirmation for web3 drafts since they don't cost gas
-      if (
-        mode === "web3" ||
-        window.confirm(
-          isEditing
-            ? "Save changes to this note?"
-            : mode === "db"
-            ? "Save this note to the database?"
-            : mode === "cloud"
-            ? "Save this note to cloud storage?"
-            : "Save this note?"
-        )
-      ) {
-        if (isEditing && onEdit) {
-          onEdit({ title, content, template, files });
-        } else {
-          onSave({ title, content, template, files });
-          setTitle("");
-          setContent("");
-          setHtmlContent("");
-          setTemplate("Auto");
-          setFiles([]);
-        }
+      if (mode === "web3") {
+        performSave();
+      } else {
+        // Show custom confirmation popup
+        const message = isEditing
+          ? "Save changes to this note?"
+          : mode === "db"
+          ? "Save this note to the database?"
+          : mode === "cloud"
+          ? "Save this note to cloud storage?"
+          : "Save this note?";
+        setSaveConfirmationMessage(message);
+        setShowSaveConfirmation(true);
       }
     }
+  };
+
+  const performSave = () => {
+    if (isEditing && onEdit) {
+      onEdit({ title, content, template, files });
+    } else {
+      onSave({ title, content, template, files });
+      setTitle("");
+      setContent("");
+      setHtmlContent("");
+      setTemplate("Auto");
+      setFiles([]);
+    }
+  };
+
+  const handleSaveConfirm = () => {
+    setShowSaveConfirmation(false);
+    performSave();
+  };
+
+  const handleSaveCancel = () => {
+    setShowSaveConfirmation(false);
   };
 
   return (
@@ -1075,6 +1091,14 @@ Please provide a helpful response. Be conversational and focus on helping with t
           </div>
         </div>
       )}
+
+      <SaveConfirmationPopup
+        isOpen={showSaveConfirmation}
+        onConfirm={handleSaveConfirm}
+        onCancel={handleSaveCancel}
+        theme={theme}
+        message={saveConfirmationMessage}
+      />
     </div>
   );
 };
