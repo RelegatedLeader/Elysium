@@ -293,7 +293,7 @@ export const useDynamicTranslation = () => {
   const originalPlaceholderMap = useRef(new WeakMap<Element, string>());
 
   // Batch translation function using LibreTranslate API (completely free)
-  const translateBatch = async (
+  const translateBatch = useCallback(async (
     texts: string[],
     targetLang: string,
     retryCount = 0
@@ -432,7 +432,7 @@ export const useDynamicTranslation = () => {
       );
       throw error;
     }
-  };
+  }, []);
 
   // Language names mapping - Lingva Translate supported languages (free, no API key)
   const languageNames: { [key: string]: string } = {
@@ -753,6 +753,59 @@ export const useDynamicTranslation = () => {
     });
   }, []);
 
+  // Ensure cached translations are applied to the current DOM without making network calls
+  const ensureLanguageApplied = useCallback((languageCode?: string) => {
+    const lang = languageCode || currentLanguage;
+    if (!lang || lang === "en") return 0;
+
+    const cachedTranslations = translationCache.current;
+    if (!cachedTranslations || Object.keys(cachedTranslations).length === 0) return 0;
+
+    const textNodes = getAllTextNodes(document.body);
+    let applied = 0;
+
+    textNodes.forEach((node) => {
+      const element = node.parentElement;
+      if (!element) return;
+
+      // Skip protected elements
+      if (element.closest("[data-no-translate]")) return;
+      if (element.closest("script, style, code, pre")) return;
+      if (element.closest('[contenteditable="true"]')) return;
+      if (element.closest("input, textarea, select")) return;
+
+      const originalText = node.textContent?.trim();
+      if (originalText && cachedTranslations[originalText]?.[lang]) {
+        if (!originalTextMap.current.has(node)) {
+          originalTextMap.current.set(node, node.textContent || "");
+        }
+        node.textContent = cachedTranslations[originalText][lang];
+        applied++;
+      }
+    });
+
+    // Placeholders
+    const placeholderElements = document.querySelectorAll('input[placeholder], textarea[placeholder]');
+    placeholderElements.forEach((element) => {
+      const input = element as HTMLInputElement;
+      const originalPlaceholder = input.placeholder?.trim();
+      if (originalPlaceholder && cachedTranslations[originalPlaceholder]?.[lang]) {
+        if (!originalPlaceholderMap.current.has(input)) {
+          originalPlaceholderMap.current.set(input, input.placeholder || "");
+        }
+        input.placeholder = cachedTranslations[originalPlaceholder][lang];
+        applied++;
+      }
+    });
+
+    if (applied > 0) {
+      setHasTranslatedCurrentLanguage(true);
+      console.log(`ensureLanguageApplied: applied ${applied} cached translations for ${lang}`);
+    }
+
+    return applied;
+  }, [currentLanguage]);
+
   // Helper function to get all text nodes
   const getAllTextNodes = (element: Element): Text[] => {
     const textNodes: Text[] = [];
@@ -786,12 +839,78 @@ export const useDynamicTranslation = () => {
       // Reset translation flag for new language
       setHasTranslatedCurrentLanguage(false);
 
-      // Translate the page
+      // First, try to apply cached translations immediately for instant feedback
+      const cachedTranslations = translationCache.current;
+      let hasAppliedCached = false;
+
+      if (Object.keys(cachedTranslations).length > 0) {
+        console.log("Applying cached translations first for instant feedback");
+        const textNodes = getAllTextNodes(document.body);
+        let appliedCount = 0;
+
+        textNodes.forEach((node) => {
+          const element = node.parentElement;
+          if (!element) return;
+
+          // Skip elements with these classes/attributes
+          if (element.closest("[data-no-translate]")) return;
+          if (element.closest("script, style, code, pre")) return;
+          if (element.closest('[contenteditable="true"]')) return;
+          if (element.closest("input, textarea, select")) return;
+
+          const originalText = node.textContent?.trim();
+          if (
+            originalText &&
+            cachedTranslations[originalText]?.[languageCode]
+          ) {
+            // Store original text for restoration
+            if (!originalTextMap.current.has(node)) {
+              originalTextMap.current.set(node, node.textContent || "");
+            }
+            node.textContent = cachedTranslations[originalText][languageCode];
+            appliedCount++;
+          }
+        });
+
+        // Apply cached translations to placeholders
+        const placeholderElements = document.querySelectorAll(
+          "input[placeholder], textarea[placeholder]"
+        );
+        placeholderElements.forEach((element) => {
+          const input = element as HTMLInputElement;
+          const originalPlaceholder = input.placeholder?.trim();
+          if (
+            originalPlaceholder &&
+            cachedTranslations[originalPlaceholder]?.[languageCode]
+          ) {
+            // Store original placeholder for restoration
+            if (!originalPlaceholderMap.current.has(input)) {
+              originalPlaceholderMap.current.set(
+                input,
+                input.placeholder || ""
+              );
+            }
+            input.placeholder =
+              cachedTranslations[originalPlaceholder][languageCode];
+          }
+        });
+
+        if (appliedCount > 0) {
+          hasAppliedCached = true;
+          console.log(`Applied ${appliedCount} cached translations instantly`);
+        }
+      }
+
+      // Then fetch any missing translations in the background
       try {
         await translatePage(languageCode);
         setHasTranslatedCurrentLanguage(true);
       } catch (error) {
         console.error("Failed to translate page:", error);
+        // If we applied cached translations, that's still better than nothing
+        if (hasAppliedCached) {
+          setHasTranslatedCurrentLanguage(true);
+        }
       } finally {
         setIsTranslating(false);
       }
@@ -804,8 +923,61 @@ export const useDynamicTranslation = () => {
     const savedLanguage = localStorage.getItem("app-language");
     if (savedLanguage) {
       setCurrentLanguage(savedLanguage);
-      // Note: We don't auto-translate on load anymore.
-      // Translation will only happen when changeLanguage is explicitly called.
+      // Apply cached translations immediately if they exist
+      const cachedTranslations = translationCache.current;
+      if (Object.keys(cachedTranslations).length > 0) {
+        console.log(
+          "Applying cached translations for saved language:",
+          savedLanguage
+        );
+        // Apply cached translations to DOM
+        const textNodes = getAllTextNodes(document.body);
+        textNodes.forEach((node) => {
+          const element = node.parentElement;
+          if (!element) return;
+
+          // Skip elements with these classes/attributes
+          if (element.closest("[data-no-translate]")) return;
+          if (element.closest("script, style, code, pre")) return;
+          if (element.closest('[contenteditable="true"]')) return;
+          if (element.closest("input, textarea, select")) return;
+
+          const originalText = node.textContent?.trim();
+          if (
+            originalText &&
+            cachedTranslations[originalText]?.[savedLanguage]
+          ) {
+            // Store original text for restoration
+            if (!originalTextMap.current.has(node)) {
+              originalTextMap.current.set(node, node.textContent || "");
+            }
+            node.textContent = cachedTranslations[originalText][savedLanguage];
+          }
+        });
+
+        // Apply cached translations to placeholders
+        const placeholderElements = document.querySelectorAll(
+          "input[placeholder], textarea[placeholder]"
+        );
+        placeholderElements.forEach((element) => {
+          const input = element as HTMLInputElement;
+          const originalPlaceholder = input.placeholder?.trim();
+          if (
+            originalPlaceholder &&
+            cachedTranslations[originalPlaceholder]?.[savedLanguage]
+          ) {
+            // Store original placeholder for restoration
+            if (!originalPlaceholderMap.current.has(input)) {
+              originalPlaceholderMap.current.set(
+                input,
+                input.placeholder || ""
+              );
+            }
+            input.placeholder =
+              cachedTranslations[originalPlaceholder][savedLanguage];
+          }
+        });
+      }
     }
   }, []);
 
@@ -858,11 +1030,43 @@ export const useDynamicTranslation = () => {
   //   return () => observer.disconnect();
   // }, [currentLanguage, translatePage, isTranslating]);
 
+  // Single text translation function
+  const translate = useCallback(
+    async (text: string, targetLang?: string): Promise<string> => {
+      const lang = targetLang || currentLanguage;
+      if (lang === "en") return text;
+
+      // Check cache first
+      if (translationCache.current[text]?.[lang]) {
+        return translationCache.current[text][lang];
+      }
+
+      // Check basic translations
+      if (basicTranslations[text]?.[lang]) {
+        const translated = basicTranslations[text][lang];
+        // Cache it
+        if (!translationCache.current[text]) {
+          translationCache.current[text] = {};
+        }
+        translationCache.current[text][lang] = translated;
+        saveCacheToStorage();
+        return translated;
+      }
+
+      // For component strings, don't make API calls to avoid hanging
+      // Only return original text - API translation will happen via translatePage
+      return text;
+    },
+    [currentLanguage, saveCacheToStorage]
+  );
+
   return {
     translatePage,
     currentLanguage,
     isTranslating,
     changeLanguage,
     languageNames,
+    ensureLanguageApplied,
+    translate,
   };
 };

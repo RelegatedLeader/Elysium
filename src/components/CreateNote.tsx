@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import ContentEditable from "react-contenteditable";
 import elysiumLogo from "../img/elysium_logo_2.jpg";
 import SaveConfirmationPopup from "./SaveConfirmationPopup";
+import { useDynamicTranslation } from "../hooks/useDynamicTranslation";
 
 interface CreateNoteProps {
   onSave: (note: {
@@ -68,6 +69,104 @@ const CreateNote: React.FC<CreateNoteProps> = ({
   );
   // Refs for auto-scrolling
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Translation hook
+  const { translate, currentLanguage, ensureLanguageApplied } = useDynamicTranslation();
+
+  // Translated strings state
+  const [translatedStrings, setTranslatedStrings] = useState({
+    createNewNote: "Create New Note",
+    noteTitle: "Note Title",
+    enterNoteTitle: "Enter Note Title",
+    noteContent: "Note Content",
+    auto: "Auto",
+    toDoList: "To-Do List",
+    list: "List",
+    canvas: "Canvas",
+    attachFiles: "Attach Files",
+    listButton: "• List",
+    checklistButton: "☑ Checklist",
+    boldButton: "B",
+    italicButton: "I",
+    largeHeading: "Large Heading",
+    save: "Save",
+    cancel: "Cancel",
+    editNote: "Edit Note",
+    insertBulletList: "Insert bullet list",
+    insertChecklist: "Insert checklist",
+    boldText: "Bold text",
+    italicText: "Italic text",
+    largeHeadingTitle: "Large heading",
+  });
+
+  // Translate strings when language changes
+  useEffect(() => {
+    const translateStrings = async () => {
+      try {
+        const newStrings = {
+          createNewNote: await translate("Create New Note"),
+          noteTitle: await translate("Note Title"),
+          enterNoteTitle: await translate("Enter Note Title"),
+          noteContent: await translate("Note Content"),
+          auto: await translate("Auto"),
+          toDoList: await translate("To-Do List"),
+          list: await translate("List"),
+          canvas: await translate("Canvas"),
+          attachFiles: await translate("Attach Files"),
+          listButton: await translate("• List"),
+          checklistButton: await translate("☑ Checklist"),
+          boldButton: await translate("B"),
+          italicButton: await translate("I"),
+          largeHeading: await translate("Large Heading"),
+          save: await translate("Save"),
+          cancel: await translate("Cancel"),
+          editNote: await translate("Edit Note"),
+          insertBulletList: await translate("Insert bullet list"),
+          insertChecklist: await translate("Insert checklist"),
+          boldText: await translate("Bold text"),
+          italicText: await translate("Italic text"),
+          largeHeadingTitle: await translate("Large heading"),
+        };
+        setTranslatedStrings(newStrings);
+      } catch (error) {
+        console.error("Translation error:", error);
+        // Fallback to original strings
+        setTranslatedStrings({
+          createNewNote: "Create New Note",
+          noteTitle: "Note Title",
+          enterNoteTitle: "Enter Note Title",
+          noteContent: "Note Content",
+          auto: "Auto",
+          toDoList: "To-Do List",
+          list: "List",
+          canvas: "Canvas",
+          attachFiles: "Attach Files",
+          listButton: "• List",
+          checklistButton: "☑ Checklist",
+          boldButton: "B",
+          italicButton: "I",
+          largeHeading: "Large Heading",
+          save: "Save",
+          cancel: "Cancel",
+          editNote: "Edit Note",
+          insertBulletList: "Insert bullet list",
+          insertChecklist: "Insert checklist",
+          boldText: "Bold text",
+          italicText: "Italic text",
+          largeHeadingTitle: "Large heading",
+        });
+      }
+    };
+    translateStrings();
+  }, [currentLanguage, translate]);
+
+  // Apply cached translations after component mounts and translations load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      ensureLanguageApplied();
+    }, 100); // Small delay to ensure DOM is ready
+    return () => clearTimeout(timer);
+  }, [translatedStrings, ensureLanguageApplied]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -729,7 +828,21 @@ Please provide a helpful response. Be conversational and focus on helping with t
 
   return (
     <div className="flex items-center justify-center">
-      <div className="relative w-[32rem] max-w-full mx-4">
+      <style>
+        {`
+          /* Prevent zoom on input focus for mobile */
+          input, textarea, [contenteditable] {
+            font-size: 16px !important;
+          }
+          /* Ensure content is visible while typing */
+          [contenteditable] {
+            min-height: 200px;
+            max-height: 60vh;
+            overflow-y: auto;
+          }
+        `}
+      </style>
+      <div className="relative w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl mx-4">
         <div
           className={`rounded-xl p-8 backdrop-blur-lg border shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all duration-300 ease-in-out transform hover:scale-105 ${
             theme === "Light"
@@ -738,7 +851,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
           }`}
         >
           <h2 className="text-2xl font-semibold text-gold-100 mb-6 text-center tracking-tight text-shadow-md">
-            Create New Note
+            {translatedStrings.createNewNote}
           </h2>
           <div className="space-y-6">
             <div>
@@ -746,12 +859,12 @@ Please provide a helpful response. Be conversational and focus on helping with t
                 htmlFor="title"
                 className="block text-sm font-medium text-gray-200 mb-1"
               >
-                Note Title
+                {translatedStrings.noteTitle}
               </label>
               <input
                 id="title"
                 type="text"
-                placeholder="Enter Note Title"
+                placeholder={translatedStrings.enterNoteTitle}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full p-3 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 hover:shadow-[inset_0_0_10px_rgba(79,70,229,0.2)]"
@@ -763,7 +876,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
                 htmlFor="content"
                 className="block text-sm font-medium text-gray-200 mb-1"
               >
-                Note Content
+                {translatedStrings.noteContent}
               </label>
               <div className="flex items-center justify-between mb-2">
                 <select
@@ -772,10 +885,10 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   className="p-2 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 hover:shadow-[0_0_5px_rgba(79,70,229,0.3)]"
                   aria-label="Select note template"
                 >
-                  <option value="Auto">Auto</option>
-                  <option value="To-Do List">To-Do List</option>
-                  <option value="List">List</option>
-                  <option value="Canvas">Canvas</option>
+                  <option value="Auto">{translatedStrings.auto}</option>
+                  <option value="To-Do List">{translatedStrings.toDoList}</option>
+                  <option value="List">{translatedStrings.list}</option>
+                  <option value="Canvas">{translatedStrings.canvas}</option>
                 </select>
                 <label className="flex items-center cursor-pointer text-gray-200 hover:text-indigo-300 transition-colors duration-200 hover:shadow-[0_0_5px_rgba(79,70,229,0.3)]">
                   <svg
@@ -797,7 +910,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
                     multiple
                     onChange={handleFileChange}
                     className="hidden"
-                    aria-label="Attach files"
+                    aria-label={translatedStrings.attachFiles}
                   />
                 </label>
               </div>
@@ -811,16 +924,16 @@ Please provide a helpful response. Be conversational and focus on helping with t
                         ? "bg-gradient-to-r from-cyan-500 to-blue-700 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
                         : "bg-indigo-700/50 hover:bg-indigo-600/50"
                     }`}
-                    title="Insert bullet list"
+                    title={translatedStrings.insertBulletList}
                   >
-                    • List
+                    {translatedStrings.listButton}
                   </button>
                   <button
                     onClick={insertChecklist}
                     className="px-3 py-1 bg-indigo-700/50 hover:bg-indigo-600/50 text-white text-sm rounded transition-colors"
-                    title="Insert checklist"
+                    title={translatedStrings.insertChecklist}
                   >
-                    ☑ Checklist
+                    {translatedStrings.checklistButton}
                   </button>
                   <button
                     onClick={insertBold}
@@ -829,9 +942,9 @@ Please provide a helpful response. Be conversational and focus on helping with t
                         ? "bg-gradient-to-r from-cyan-500 to-blue-700 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
                         : "bg-indigo-700/50 hover:bg-indigo-600/50"
                     }`}
-                    title="Bold text"
+                    title={translatedStrings.boldText}
                   >
-                    B
+                    {translatedStrings.boldButton}
                   </button>
                   <button
                     onClick={insertItalic}
@@ -840,14 +953,14 @@ Please provide a helpful response. Be conversational and focus on helping with t
                         ? "bg-gradient-to-r from-cyan-500 to-blue-700 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
                         : "bg-indigo-700/50 hover:bg-indigo-600/50"
                     }`}
-                    title="Italic text"
+                    title={translatedStrings.italicText}
                   >
-                    I
+                    {translatedStrings.italicButton}
                   </button>
                   <button
                     onClick={insertLargeText}
                     className="px-3 py-1 bg-indigo-700/50 hover:bg-indigo-600/50 text-white text-sm rounded transition-colors"
-                    title="Large heading"
+                    title={translatedStrings.largeHeadingTitle}
                   >
                     H1
                   </button>

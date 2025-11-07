@@ -25,6 +25,7 @@ import ArConnectModal from "./components/ArConnectModal";
 import { supabase } from "./SUPABASE/supabaseClient";
 import { Session } from "@supabase/supabase-js";
 import { useCloudStorage } from "./hooks/useCloudStorage";
+import { useDynamicTranslation } from "./hooks/useDynamicTranslation";
 import { initializeApp } from "firebase/app";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 
@@ -1798,6 +1799,14 @@ function WelcomePage({
     return savedMode ? (savedMode as "web3" | "db" | "cloud") : null;
   });
 
+  // Global translation hook - applies to entire app
+  const {
+    currentLanguage,
+    changeLanguage,
+    isTranslating,
+    ensureLanguageApplied,
+  } = useDynamicTranslation();
+
   const [mode, setMode] = useState<"web3" | "db" | "cloud">(() => {
     const savedMode = localStorage.getItem("elysium_selected_mode");
     return savedMode ? (savedMode as "web3" | "db" | "cloud") : "web3";
@@ -3099,6 +3108,18 @@ function WelcomePage({
   ) => {
     setActivePage(page);
   };
+
+  // Re-apply cached translations when navigating between pages so newly mounted components
+  // display in the current language immediately.
+  React.useEffect(() => {
+    if (currentLanguage && currentLanguage !== "en") {
+      try {
+        ensureLanguageApplied(currentLanguage);
+      } catch (err) {
+        console.warn("Failed to ensure cached translations on page change:", err);
+      }
+    }
+  }, [activePage, currentLanguage, ensureLanguageApplied]);
 
   const saveToBlockchain = async (
     note: Note

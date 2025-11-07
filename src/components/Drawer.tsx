@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../SUPABASE/supabaseClient";
+import { useDynamicTranslation } from "../hooks/useDynamicTranslation";
 
 interface DrawerProps {
   onNavigate: (
@@ -24,6 +25,53 @@ const Drawer: React.FC<DrawerProps> = ({
   const [connectionQuality, setConnectionQuality] = useState<
     "good" | "slow" | "poor"
   >("good");
+
+  // Translation hook
+  const { translate, currentLanguage, ensureLanguageApplied } = useDynamicTranslation();
+
+  // Translated strings state
+  const [translatedStrings, setTranslatedStrings] = useState({
+    searchNotes: "Search Notes",
+    recentNotes: "Recent Notes",
+    createNote: "Create Note",
+    settings: "Settings",
+    logout: "Logout",
+    offlineMode: "Offline Mode",
+    usingCachedData: "Using cached data - changes will sync when online",
+    syncStatus: "Sync Status:",
+    online: "Online",
+    databaseSync: "Database Sync",
+    manualSync: "Manual sync",
+  });
+
+  // Translate strings when language changes
+  useEffect(() => {
+    const translateStrings = async () => {
+      const newStrings = {
+        searchNotes: await translate("Search Notes"),
+        recentNotes: await translate("Recent Notes"),
+        createNote: await translate("Create Note"),
+        settings: await translate("Settings"),
+        logout: await translate("Logout"),
+        offlineMode: await translate("Offline Mode"),
+        usingCachedData: await translate("Using cached data - changes will sync when online"),
+        syncStatus: await translate("Sync Status:"),
+        online: await translate("Online"),
+        databaseSync: await translate("Database Sync"),
+        manualSync: await translate("Manual sync"),
+      };
+      setTranslatedStrings(newStrings);
+    };
+    translateStrings();
+  }, [currentLanguage, translate]);
+
+  // Apply cached translations after component mounts and translations load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      ensureLanguageApplied();
+    }, 100); // Small delay to ensure DOM is ready
+    return () => clearTimeout(timer);
+  }, [translatedStrings, ensureLanguageApplied]);
 
   // Check connectivity and sync status
   useEffect(() => {
@@ -152,13 +200,13 @@ const Drawer: React.FC<DrawerProps> = ({
                 <span className="text-sm font-semibold">Offline Mode</span>
               </div>
               <p className="text-xs mt-1 opacity-90">
-                Using cached data - changes will sync when online
+                {translatedStrings.usingCachedData}
               </p>
             </div>
           </div>
         )}
 
-        <nav className="mt-20 px-6 space-y-4">
+        <nav className="mt-20 px-6 space-y-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
           <button
             onClick={() => handleNavigate("search")}
             className={`w-full py-3 px-4 rounded-lg transition-all duration-300 ease-in-out text-left flex items-center space-x-2 ${
@@ -180,7 +228,7 @@ const Drawer: React.FC<DrawerProps> = ({
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            <span>Search Notes</span>
+            <span>{translatedStrings.searchNotes}</span>
           </button>
           <button
             onClick={() => handleNavigate("recent")}
@@ -190,7 +238,7 @@ const Drawer: React.FC<DrawerProps> = ({
                 : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
             }`}
           >
-            Recent Notes
+            {translatedStrings.recentNotes}
           </button>
           <button
             onClick={() => handleNavigate("create")}
@@ -200,7 +248,7 @@ const Drawer: React.FC<DrawerProps> = ({
                 : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
             }`}
           >
-            Create Note
+            {translatedStrings.createNote}
           </button>
           <div
             className={`w-full py-3 px-4 rounded-lg flex items-center space-x-2 ${
@@ -209,7 +257,7 @@ const Drawer: React.FC<DrawerProps> = ({
                 : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 text-white"
             }`}
           >
-            Sync Status: <span className="text-green-400">Online</span>
+            {translatedStrings.syncStatus} <span className="text-green-400">{translatedStrings.online}</span>
             <span className="w-2 h-2 rounded-full bg-green-400"></span>
           </div>
           <div
@@ -220,12 +268,12 @@ const Drawer: React.FC<DrawerProps> = ({
             }`}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm">Database Sync</span>
+              <span className="text-sm">{translatedStrings.databaseSync}</span>
               <button
                 onClick={handleManualSync}
                 disabled={syncStatus === "syncing"}
                 className="text-xs text-indigo-300 hover:text-indigo-200 disabled:text-gray-500 disabled:cursor-not-allowed"
-                title="Manual sync"
+                title={translatedStrings.manualSync}
               >
                 {syncStatus === "syncing" ? "⏳" : "🔄"}
               </button>
@@ -273,7 +321,7 @@ const Drawer: React.FC<DrawerProps> = ({
                 : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 hover:bg-opacity-90 text-white"
             }`}
           >
-            Settings
+            {translatedStrings.settings}
           </button>
           <button
             onClick={() => handleNavigate("logout")}
@@ -283,7 +331,7 @@ const Drawer: React.FC<DrawerProps> = ({
                 : "bg-gradient-to-br from-red-800 to-red-900 bg-opacity-70 hover:bg-opacity-90 text-white"
             }`}
           >
-            Logout
+            {translatedStrings.logout}
           </button>
         </nav>
       </div>
