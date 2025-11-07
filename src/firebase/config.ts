@@ -9,17 +9,34 @@ import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA_FZyRy_p1QNX0giy53UK3OzGKVXROEFE",
-  authDomain: "elysium-ef45c.firebaseapp.com",
-  projectId: "elysium-ef45c",
-  storageBucket: "elysium-ef45c.firebasestorage.app",
-  messagingSenderId: "438129451511",
-  appId: "1:438129451511:web:2207b9e739b961682b4ef2"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
 };
 
 // Validate Firebase configuration
 const isFirebaseConfigured = () => {
-  return true; // Always return true since we're using hardcoded config
+  const hasValidApiKey =
+    firebaseConfig.apiKey &&
+    firebaseConfig.apiKey !== "demo-api-key" &&
+    firebaseConfig.apiKey !== "your_firebase_api_key_here" &&
+    firebaseConfig.apiKey.startsWith("AIzaSy");
+
+  const hasValidDomain =
+    firebaseConfig.authDomain &&
+    firebaseConfig.authDomain !== "demo-project.firebaseapp.com" &&
+    firebaseConfig.authDomain !== "your-project.firebaseapp.com" &&
+    firebaseConfig.authDomain.includes("firebaseapp.com");
+
+  const hasValidProject =
+    firebaseConfig.projectId &&
+    firebaseConfig.projectId !== "demo-project" &&
+    firebaseConfig.projectId !== "your-project-id";
+
+  return hasValidApiKey && hasValidDomain && hasValidProject;
 };
 
 // Initialize Firebase only if properly configured
