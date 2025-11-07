@@ -9,9 +9,7 @@ import CloudAuth from "./components/CloudAuth";
 import MobileWalletSetup from "./components/MobileWalletSetup";
 import WanderDownloadPopup from "./components/WanderDownloadPopup";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
-import LanguageConfirmationPopup from "./components/LanguageConfirmationPopup";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
-import { useDynamicTranslation } from "./hooks/useDynamicTranslation";
 import nacl from "tweetnacl";
 import {
   uploadToArweave,
@@ -27,6 +25,7 @@ import ArConnectModal from "./components/ArConnectModal";
 import { supabase } from "./SUPABASE/supabaseClient";
 import { Session } from "@supabase/supabase-js";
 import { useCloudStorage } from "./hooks/useCloudStorage";
+import { useDynamicTranslation } from "./hooks/useDynamicTranslation";
 import { initializeApp } from "firebase/app";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 
@@ -1800,6 +1799,14 @@ function WelcomePage({
     return savedMode ? (savedMode as "web3" | "db" | "cloud") : null;
   });
 
+  // Global translation hook - applies to entire app
+  const {
+    currentLanguage,
+    changeLanguage,
+    isTranslating,
+    ensureLanguageApplied,
+  } = useDynamicTranslation();
+
   const [mode, setMode] = useState<"web3" | "db" | "cloud">(() => {
     const savedMode = localStorage.getItem("elysium_selected_mode");
     return savedMode ? (savedMode as "web3" | "db" | "cloud") : "web3";
@@ -1851,19 +1858,6 @@ function WelcomePage({
 
   // Cloud storage hook
   const cloudStorage = useCloudStorage();
-
-  // Translation hook
-  const {
-    currentLanguage,
-    isTranslating,
-    changeLanguage,
-    showLanguagePopup,
-    pendingLanguage,
-    pendingLanguageName,
-    confirmLanguageChange,
-    cancelLanguageChange,
-    languageNames,
-  } = useDynamicTranslation();
 
   const [cloudNotes, setCloudNotes] = useState<Note[]>([]);
 
@@ -1993,7 +1987,6 @@ function WelcomePage({
       defaultTemplate: "Blank",
       noteSorting: "Date Created",
       dataRetention: 365,
-      language: "en",
     };
     return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
   });
@@ -2035,15 +2028,9 @@ function WelcomePage({
     defaultTemplate: string;
     noteSorting: string;
     dataRetention: number;
-    language: string;
   }) => {
     setSettings(newSettings);
     localStorage.setItem("elysium_settings", JSON.stringify(newSettings));
-
-    // Handle language change
-    if (newSettings.language !== settings.language) {
-      // Language change is now handled by useDynamicTranslation hook
-    }
 
     // Show notification if enabled
     if (newSettings.notifications && !settings.notifications) {
@@ -3121,6 +3108,18 @@ function WelcomePage({
   ) => {
     setActivePage(page);
   };
+
+  // Re-apply cached translations when navigating between pages so newly mounted components
+  // display in the current language immediately.
+  React.useEffect(() => {
+    if (currentLanguage && currentLanguage !== "en") {
+      try {
+        ensureLanguageApplied(currentLanguage);
+      } catch (err) {
+        console.warn("Failed to ensure cached translations on page change:", err);
+      }
+    }
+  }, [activePage, currentLanguage, ensureLanguageApplied]);
 
   const saveToBlockchain = async (
     note: Note
@@ -4780,6 +4779,7 @@ showpage
                                           ? "text-gray-800"
                                           : "text-gray-100"
                                       }`}
+                                      data-no-translate
                                     >
                                       {note.title}
                                       <span className="text-xs text-gray-400 ml-1">
@@ -4792,6 +4792,7 @@ showpage
                                           ? "text-gray-700"
                                           : "text-gray-200"
                                       }`}
+                                      data-no-translate
                                     >
                                       {stripHtmlTags(note.content)
                                         .split("\n")[0]
@@ -5201,6 +5202,7 @@ showpage
                                         ? "text-purple-800"
                                         : "text-gold-100"
                                     }`}
+                                    data-no-translate
                                   >
                                     {note.title}
                                     {note.isPermanent && (
@@ -5220,6 +5222,7 @@ showpage
                                         ? "text-purple-700"
                                         : "text-gray-300"
                                     }`}
+                                    data-no-translate
                                   >
                                     {stripHtmlTags(note.content)
                                       .split("\n")[0]
@@ -5501,7 +5504,6 @@ showpage
                   initialDefaultTemplate={settings.defaultTemplate}
                   initialNoteSorting={settings.noteSorting}
                   initialDataRetention={settings.dataRetention}
-                  initialLanguage={settings.language}
                   userEmail={
                     mode === "cloud" ? cloudStorage.user?.email : user?.email
                   }
@@ -6634,6 +6636,7 @@ showpage
                                   ? "text-purple-900"
                                   : "text-gold-100"
                               }`}
+                              data-no-translate
                             >
                               {viewingNote.title}
                             </h2>
@@ -6696,13 +6699,16 @@ showpage
                       <div className="flex-1 overflow-y-auto p-6">
                         <div className="text-white text-base leading-relaxed">
                           {mode === "web3" ? (
-                            <pre className="text-white text-base leading-relaxed whitespace-pre">
+                            <pre
+                              className="text-white text-base leading-relaxed whitespace-pre"
+                              data-no-translate
+                            >
                               {viewingNote.content}
                             </pre>
                           ) : viewingNote.template === "To-Do List" ||
                             viewingNote.template === "Checklist" ||
                             viewingNote.template === "List" ? (
-                            <div className="space-y-1">
+                            <div className="space-y-1" data-no-translate>
                               {renderList(
                                 viewingNote.id,
                                 viewingNote.content,
@@ -6733,6 +6739,7 @@ showpage
                               style={{
                                 color: "white",
                               }}
+                              data-no-translate
                             />
                           )}
                         </div>
@@ -6868,18 +6875,6 @@ showpage
         cancelText="Cancel"
         theme={settings.theme}
       />
-
-      {/* Language Confirmation Popup */}
-      {showLanguagePopup && (
-        <LanguageConfirmationPopup
-          selectedLanguage={pendingLanguage || ""}
-          languageName={pendingLanguageName}
-          onConfirm={confirmLanguageChange}
-          onCancel={cancelLanguageChange}
-          theme={settings.theme}
-          isTranslating={isTranslating}
-        />
-      )}
     </>
   );
 }

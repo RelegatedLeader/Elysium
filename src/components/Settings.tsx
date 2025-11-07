@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import LanguageConfirmationPopup from "./LanguageConfirmationPopup";
 import { useDynamicTranslation } from "../hooks/useDynamicTranslation";
+import LanguageSelector from "./LanguageSelector";
 
 interface SettingsProps {
   onSave?: (settings: {
@@ -13,7 +13,6 @@ interface SettingsProps {
     defaultTemplate: string;
     noteSorting: string;
     dataRetention: number;
-    language: string;
   }) => void;
   onCancel?: () => void;
   onCleanupOrphanedNotes?: () => void;
@@ -27,7 +26,6 @@ interface SettingsProps {
   initialDefaultTemplate?: string;
   initialNoteSorting?: string;
   initialDataRetention?: number;
-  initialLanguage?: string;
   userEmail?: string;
 }
 
@@ -45,19 +43,11 @@ const Settings: React.FC<SettingsProps> = ({
   initialDefaultTemplate = "Blank",
   initialNoteSorting = "Date Created",
   initialDataRetention = 365,
-  initialLanguage = "en",
   userEmail,
 }) => {
-  const {
-    changeLanguage,
-    showLanguagePopup,
-    pendingLanguage,
-    pendingLanguageName,
-    confirmLanguageChange,
-    cancelLanguageChange,
-    currentLanguage,
-    isTranslating,
-  } = useDynamicTranslation();
+  // Translation hook
+  const { currentLanguage, changeLanguage, isTranslating, languageNames } =
+    useDynamicTranslation();
   const [theme, setTheme] = useState(initialTheme);
   const [notifications, setNotifications] = useState(initialNotifications);
   const [syncInterval, setSyncInterval] = useState(initialSyncInterval);
@@ -71,7 +61,7 @@ const Settings: React.FC<SettingsProps> = ({
   );
   const [noteSorting, setNoteSorting] = useState(initialNoteSorting);
   const [dataRetention, setDataRetention] = useState(initialDataRetention);
-  const [language, setLanguage] = useState(initialLanguage);
+  const [showApiTest, setShowApiTest] = useState(false);
   const [apiTestResult, setApiTestResult] = useState<string>("");
   const [isTestingApi, setIsTestingApi] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -111,7 +101,6 @@ const Settings: React.FC<SettingsProps> = ({
         defaultTemplate,
         noteSorting,
         dataRetention,
-        language,
       });
       setHasChanges(false); // Reset after saving
     }
@@ -277,6 +266,30 @@ const Settings: React.FC<SettingsProps> = ({
               </div>
             </div>
 
+            {/* Language Settings */}
+            <div
+              className={`border-b pb-6 ${
+                theme === "Light" ? "border-purple-200" : "border-indigo-600"
+              }`}
+            >
+              <div className="flex items-center mb-4">
+                <span className="text-2xl mr-3">🌍</span>
+                <h3
+                  className={`text-xl font-bold ${
+                    theme === "Light" ? "text-purple-800" : "text-gold-100"
+                  }`}
+                >
+                  Language
+                </h3>
+              </div>
+              <LanguageSelector
+                currentLanguage={currentLanguage}
+                onLanguageChange={changeLanguage}
+                languageNames={languageNames}
+                isTranslating={isTranslating}
+              />
+            </div>
+
             {/* Appearance Settings */}
             <div
               className={`border-b pb-6 ${
@@ -318,62 +331,6 @@ const Settings: React.FC<SettingsProps> = ({
                 </select>
               </div>
             </div>
-
-            {/* Language Selection */}
-            <div>
-              <label
-                htmlFor="language"
-                className={`block text-sm font-medium mb-1 ${
-                  theme === "Light" ? "text-purple-700" : "text-gray-200"
-                }`}
-              >
-                Language
-              </label>
-              <select
-                id="language"
-                value={language}
-                onChange={async (e) => {
-                  const newLanguage = e.target.value;
-                  setLanguage(newLanguage);
-                  changeLanguage(newLanguage);
-                  // Auto-save immediately when changed
-                  if (onSave) {
-                    onSave({
-                      theme,
-                      notifications,
-                      syncInterval,
-                      aiResponseStyle,
-                      aiPersonality,
-                      autoSave,
-                      defaultTemplate,
-                      noteSorting,
-                      dataRetention,
-                      language: newLanguage,
-                    });
-                  }
-                }}
-                className={`w-full p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-all duration-300 ${
-                  theme === "Light"
-                    ? "bg-white/90 border-purple-300 text-purple-800 hover:bg-purple-50/90"
-                    : "bg-indigo-950/90 border-indigo-600 text-white hover:bg-indigo-900/90"
-                }`}
-                aria-label="Select language"
-              >
-                <option value="en">English</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-                <option value="de">Deutsch</option>
-                <option value="it">Italiano</option>
-                <option value="pt">Português</option>
-                <option value="ru">Русский</option>
-                <option value="ja">日本語</option>
-                <option value="ko">한국어</option>
-                <option value="zh">中文</option>
-                <option value="ar">العربية</option>
-                <option value="hi">हिन्दी</option>
-              </select>
-            </div>
-
             <div>
               <label
                 htmlFor="notifications"
@@ -503,7 +460,6 @@ const Settings: React.FC<SettingsProps> = ({
                           defaultTemplate,
                           noteSorting,
                           dataRetention,
-                          language,
                         });
                       }
                     }}
@@ -565,7 +521,6 @@ const Settings: React.FC<SettingsProps> = ({
                           defaultTemplate,
                           noteSorting,
                           dataRetention,
-                          language,
                         });
                       }
                     }}
@@ -1079,18 +1034,6 @@ const Settings: React.FC<SettingsProps> = ({
           )}
         </div>
       </div>
-
-      {/* Language Confirmation Popup */}
-      {showLanguagePopup && pendingLanguage && (
-        <LanguageConfirmationPopup
-          selectedLanguage={pendingLanguage}
-          languageName={pendingLanguageName}
-          onConfirm={confirmLanguageChange}
-          onCancel={cancelLanguageChange}
-          theme={theme}
-          isTranslating={isTranslating}
-        />
-      )}
     </div>
   );
 };
