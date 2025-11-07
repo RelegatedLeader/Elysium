@@ -76,7 +76,8 @@ const CreateNote: React.FC<CreateNoteProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Translation hook
-  const { translate, currentLanguage, ensureLanguageApplied } = useDynamicTranslation();
+  const { translate, currentLanguage, ensureLanguageApplied } =
+    useDynamicTranslation();
 
   // Translated strings state
   const [translatedStrings, setTranslatedStrings] = useState({
@@ -891,7 +892,9 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   aria-label="Select note template"
                 >
                   <option value="Auto">{translatedStrings.auto}</option>
-                  <option value="To-Do List">{translatedStrings.toDoList}</option>
+                  <option value="To-Do List">
+                    {translatedStrings.toDoList}
+                  </option>
                   <option value="List">{translatedStrings.list}</option>
                   <option value="Canvas">{translatedStrings.canvas}</option>
                 </select>

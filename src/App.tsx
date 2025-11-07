@@ -3116,7 +3116,10 @@ function WelcomePage({
       try {
         ensureLanguageApplied(currentLanguage);
       } catch (err) {
-        console.warn("Failed to ensure cached translations on page change:", err);
+        console.warn(
+          "Failed to ensure cached translations on page change:",
+          err
+        );
       }
     }
   }, [activePage, currentLanguage, ensureLanguageApplied]);

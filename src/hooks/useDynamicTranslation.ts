@@ -293,146 +293,149 @@ export const useDynamicTranslation = () => {
   const originalPlaceholderMap = useRef(new WeakMap<Element, string>());
 
   // Batch translation function using LibreTranslate API (completely free)
-  const translateBatch = useCallback(async (
-    texts: string[],
-    targetLang: string,
-    retryCount = 0
-  ): Promise<string[]> => {
-    const maxRetries = 3;
-    const baseDelay = 1000; // Reduced delay for Lingva Translate
+  const translateBatch = useCallback(
+    async (
+      texts: string[],
+      targetLang: string,
+      retryCount = 0
+    ): Promise<string[]> => {
+      const maxRetries = 3;
+      const baseDelay = 1000; // Reduced delay for Lingva Translate
 
-    try {
-      // Add delay between requests to respect rate limits
-      if (retryCount === 0) {
-        await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5 second initial delay
-      }
+      try {
+        // Add delay between requests to respect rate limits
+        if (retryCount === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5 second initial delay
+        }
 
-      // Process texts in smaller batches to avoid rate limits
-      const batchSize = 5; // Increased to 5 since Lingva is simpler
-      const results: string[] = [];
+        // Process texts in smaller batches to avoid rate limits
+        const batchSize = 5; // Increased to 5 since Lingva is simpler
+        const results: string[] = [];
 
-      for (let i = 0; i < texts.length; i += batchSize) {
-        const batch = texts.slice(i, i + batchSize);
+        for (let i = 0; i < texts.length; i += batchSize) {
+          const batch = texts.slice(i, i + batchSize);
 
-        // Translate this small batch with dual API fallback
-        const batchPromises = batch.map(async (text, batchIndex) => {
-          try {
-            // Stagger requests within the batch
-            await new Promise((resolve) =>
-              setTimeout(resolve, batchIndex * 200)
-            );
-
-            // Try Simply Translate first (completely free, no API key required)
+          // Translate this small batch with dual API fallback
+          const batchPromises = batch.map(async (text, batchIndex) => {
             try {
-              const response = await fetch(
-                `${SIMPLY_TRANSLATE_BASE}/translate?engine=google&from=en&to=${targetLang}&text=${encodeURIComponent(
+              // Stagger requests within the batch
+              await new Promise((resolve) =>
+                setTimeout(resolve, batchIndex * 200)
+              );
+
+              // Try Simply Translate first (completely free, no API key required)
+              try {
+                const response = await fetch(
+                  `${SIMPLY_TRANSLATE_BASE}/translate?engine=google&from=en&to=${targetLang}&text=${encodeURIComponent(
+                    text
+                  )}`,
+                  {
+                    method: "GET",
+                    headers: {
+                      Accept: "application/json",
+                    },
+                  }
+                );
+
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data && data.translated_text) {
+                    return data.translated_text;
+                  }
+                }
+              } catch (simplyError) {
+                console.warn(
+                  `Simply Translate failed for "${text}", trying Lingva:`,
+                  simplyError
+                );
+              }
+
+              // Try Lingva Translate second
+              try {
+                const encodedText = encodeURIComponent(text);
+                const response = await fetch(
+                  `${LINGVA_TRANSLATE_BASE}/en/${targetLang}/${encodedText}`,
+                  {
+                    method: "GET",
+                  }
+                );
+
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data && data.translation) {
+                    return data.translation;
+                  }
+                }
+              } catch (lingvaError) {
+                console.warn(
+                  `Lingva Translate failed for "${text}", trying Google Translate:`,
+                  lingvaError
+                );
+              }
+
+              // Fallback to Google Translate (unofficial API)
+              const googleResponse = await fetch(
+                `${GOOGLE_TRANSLATE_API}?client=gtx&sl=en&tl=${targetLang}&dt=t&q=${encodeURIComponent(
                   text
                 )}`,
-                {
-                  method: "GET",
-                  headers: {
-                    Accept: "application/json",
-                  },
-                }
+                { method: "GET" }
               );
 
-              if (response.ok) {
-                const data = await response.json();
-                if (data && data.translated_text) {
-                  return data.translated_text;
+              if (googleResponse.status === 429) {
+                await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 second wait
+                throw new Error("Rate limited");
+              }
+
+              if (googleResponse.ok) {
+                const googleData = await googleResponse.json();
+                if (
+                  googleData &&
+                  googleData[0] &&
+                  googleData[0][0] &&
+                  googleData[0][0][0]
+                ) {
+                  return googleData[0][0][0];
                 }
               }
-            } catch (simplyError) {
-              console.warn(
-                `Simply Translate failed for "${text}", trying Lingva:`,
-                simplyError
-              );
-            }
 
-            // Try Lingva Translate second
-            try {
-              const encodedText = encodeURIComponent(text);
-              const response = await fetch(
-                `${LINGVA_TRANSLATE_BASE}/en/${targetLang}/${encodedText}`,
-                {
-                  method: "GET",
-                }
-              );
-
-              if (response.ok) {
-                const data = await response.json();
-                if (data && data.translation) {
-                  return data.translation;
-                }
-              }
-            } catch (lingvaError) {
-              console.warn(
-                `Lingva Translate failed for "${text}", trying Google Translate:`,
-                lingvaError
-              );
-            }
-
-            // Fallback to Google Translate (unofficial API)
-            const googleResponse = await fetch(
-              `${GOOGLE_TRANSLATE_API}?client=gtx&sl=en&tl=${targetLang}&dt=t&q=${encodeURIComponent(
-                text
-              )}`,
-              { method: "GET" }
-            );
-
-            if (googleResponse.status === 429) {
-              await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 second wait
-              throw new Error("Rate limited");
-            }
-
-            if (googleResponse.ok) {
-              const googleData = await googleResponse.json();
+              // Final fallback: Use basic dictionary for common terms
               if (
-                googleData &&
-                googleData[0] &&
-                googleData[0][0] &&
-                googleData[0][0][0]
+                basicTranslations[text] &&
+                basicTranslations[text][targetLang]
               ) {
-                return googleData[0][0][0];
+                console.log(
+                  `Using basic translation for "${text}": ${basicTranslations[text][targetLang]}`
+                );
+                return basicTranslations[text][targetLang];
               }
-            }
 
-            // Final fallback: Use basic dictionary for common terms
-            if (
-              basicTranslations[text] &&
-              basicTranslations[text][targetLang]
-            ) {
-              console.log(
-                `Using basic translation for "${text}": ${basicTranslations[text][targetLang]}`
-              );
-              return basicTranslations[text][targetLang];
+              return text; // Return original text if all methods fail
+            } catch (error) {
+              console.warn(`Translation failed for text in batch:`, error);
+              return text; // Return original text on error
             }
+          });
 
-            return text; // Return original text if all methods fail
-          } catch (error) {
-            console.warn(`Translation failed for text in batch:`, error);
-            return text; // Return original text on error
+          const batchResults = await Promise.all(batchPromises);
+          results.push(...batchResults);
+
+          // Wait between batches
+          if (i + batchSize < texts.length) {
+            await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay between batches
           }
-        });
-
-        const batchResults = await Promise.all(batchPromises);
-        results.push(...batchResults);
-
-        // Wait between batches
-        if (i + batchSize < texts.length) {
-          await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay between batches
         }
-      }
 
-      return results;
-    } catch (error) {
-      console.warn(
-        `Batch translation failed for ${texts.length} texts:`,
-        error
-      );
-      throw error;
-    }
-  }, []);
+        return results;
+      } catch (error) {
+        console.warn(
+          `Batch translation failed for ${texts.length} texts:`,
+          error
+        );
+        throw error;
+      }
+    },
+    []
+  );
 
   // Language names mapping - Lingva Translate supported languages (free, no API key)
   const languageNames: { [key: string]: string } = {
@@ -754,57 +757,68 @@ export const useDynamicTranslation = () => {
   }, []);
 
   // Ensure cached translations are applied to the current DOM without making network calls
-  const ensureLanguageApplied = useCallback((languageCode?: string) => {
-    const lang = languageCode || currentLanguage;
-    if (!lang || lang === "en") return 0;
+  const ensureLanguageApplied = useCallback(
+    (languageCode?: string) => {
+      const lang = languageCode || currentLanguage;
+      if (!lang || lang === "en") return 0;
 
-    const cachedTranslations = translationCache.current;
-    if (!cachedTranslations || Object.keys(cachedTranslations).length === 0) return 0;
+      const cachedTranslations = translationCache.current;
+      if (!cachedTranslations || Object.keys(cachedTranslations).length === 0)
+        return 0;
 
-    const textNodes = getAllTextNodes(document.body);
-    let applied = 0;
+      const textNodes = getAllTextNodes(document.body);
+      let applied = 0;
 
-    textNodes.forEach((node) => {
-      const element = node.parentElement;
-      if (!element) return;
+      textNodes.forEach((node) => {
+        const element = node.parentElement;
+        if (!element) return;
 
-      // Skip protected elements
-      if (element.closest("[data-no-translate]")) return;
-      if (element.closest("script, style, code, pre")) return;
-      if (element.closest('[contenteditable="true"]')) return;
-      if (element.closest("input, textarea, select")) return;
+        // Skip protected elements
+        if (element.closest("[data-no-translate]")) return;
+        if (element.closest("script, style, code, pre")) return;
+        if (element.closest('[contenteditable="true"]')) return;
+        if (element.closest("input, textarea, select")) return;
 
-      const originalText = node.textContent?.trim();
-      if (originalText && cachedTranslations[originalText]?.[lang]) {
-        if (!originalTextMap.current.has(node)) {
-          originalTextMap.current.set(node, node.textContent || "");
+        const originalText = node.textContent?.trim();
+        if (originalText && cachedTranslations[originalText]?.[lang]) {
+          if (!originalTextMap.current.has(node)) {
+            originalTextMap.current.set(node, node.textContent || "");
+          }
+          node.textContent = cachedTranslations[originalText][lang];
+          applied++;
         }
-        node.textContent = cachedTranslations[originalText][lang];
-        applied++;
-      }
-    });
+      });
 
-    // Placeholders
-    const placeholderElements = document.querySelectorAll('input[placeholder], textarea[placeholder]');
-    placeholderElements.forEach((element) => {
-      const input = element as HTMLInputElement;
-      const originalPlaceholder = input.placeholder?.trim();
-      if (originalPlaceholder && cachedTranslations[originalPlaceholder]?.[lang]) {
-        if (!originalPlaceholderMap.current.has(input)) {
-          originalPlaceholderMap.current.set(input, input.placeholder || "");
+      // Placeholders
+      const placeholderElements = document.querySelectorAll(
+        "input[placeholder], textarea[placeholder]"
+      );
+      placeholderElements.forEach((element) => {
+        const input = element as HTMLInputElement;
+        const originalPlaceholder = input.placeholder?.trim();
+        if (
+          originalPlaceholder &&
+          cachedTranslations[originalPlaceholder]?.[lang]
+        ) {
+          if (!originalPlaceholderMap.current.has(input)) {
+            originalPlaceholderMap.current.set(input, input.placeholder || "");
+          }
+          input.placeholder = cachedTranslations[originalPlaceholder][lang];
+          applied++;
         }
-        input.placeholder = cachedTranslations[originalPlaceholder][lang];
-        applied++;
+      });
+
+      if (applied > 0) {
+        setHasTranslatedCurrentLanguage(true);
+        console.log(
+          `ensureLanguageApplied: applied ${applied} cached translations for ${lang}`
+        );
       }
-    });
 
-    if (applied > 0) {
-      setHasTranslatedCurrentLanguage(true);
-      console.log(`ensureLanguageApplied: applied ${applied} cached translations for ${lang}`);
-    }
-
-    return applied;
-  }, [currentLanguage]);
+      return applied;
+    },
+    [currentLanguage]
+  );
 
   // Helper function to get all text nodes
   const getAllTextNodes = (element: Element): Text[] => {

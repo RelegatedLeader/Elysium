@@ -27,7 +27,8 @@ const Drawer: React.FC<DrawerProps> = ({
   >("good");
 
   // Translation hook
-  const { translate, currentLanguage, ensureLanguageApplied } = useDynamicTranslation();
+  const { translate, currentLanguage, ensureLanguageApplied } =
+    useDynamicTranslation();
 
   // Translated strings state
   const [translatedStrings, setTranslatedStrings] = useState({
@@ -54,7 +55,9 @@ const Drawer: React.FC<DrawerProps> = ({
         settings: await translate("Settings"),
         logout: await translate("Logout"),
         offlineMode: await translate("Offline Mode"),
-        usingCachedData: await translate("Using cached data - changes will sync when online"),
+        usingCachedData: await translate(
+          "Using cached data - changes will sync when online"
+        ),
         syncStatus: await translate("Sync Status:"),
         online: await translate("Online"),
         databaseSync: await translate("Database Sync"),
@@ -257,7 +260,8 @@ const Drawer: React.FC<DrawerProps> = ({
                 : "bg-gradient-to-br from-indigo-800 to-indigo-900 bg-opacity-70 text-white"
             }`}
           >
-            {translatedStrings.syncStatus} <span className="text-green-400">{translatedStrings.online}</span>
+            {translatedStrings.syncStatus}{" "}
+            <span className="text-green-400">{translatedStrings.online}</span>
             <span className="w-2 h-2 rounded-full bg-green-400"></span>
           </div>
           <div
