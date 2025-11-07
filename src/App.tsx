@@ -1782,7 +1782,8 @@ function WelcomePage({
   const [showPopup, setShowPopup] = useState(false);
   const [showMobileWalletSetup, setShowMobileWalletSetup] = useState(false);
   const [showWanderDownloadPopup, setShowWanderDownloadPopup] = useState(false);
-  const [showMobileDesktopOnlyPopup, setShowMobileDesktopOnlyPopup] = useState(false);
+  const [showMobileDesktopOnlyPopup, setShowMobileDesktopOnlyPopup] =
+    useState(false);
   const [email, setEmail] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
@@ -2666,12 +2667,16 @@ function WelcomePage({
     }
 
     if (isMobileDevice()) {
-      console.log("Mobile device detected - opening Wander app for authentication");
+      console.log(
+        "Mobile device detected - opening Wander app for authentication"
+      );
 
       // For mobile devices, use Wander app URL scheme to open the app directly
       // This bypasses the website and goes straight to the app
       const currentUrl = window.location.origin + window.location.pathname;
-      const wanderAppUrl = `wander://auth?redirect=${encodeURIComponent(currentUrl)}`;
+      const wanderAppUrl = `wander://auth?redirect=${encodeURIComponent(
+        currentUrl
+      )}`;
 
       console.log("Opening Wander app:", wanderAppUrl);
       window.location.href = wanderAppUrl;
@@ -3981,22 +3986,22 @@ function WelcomePage({
     );
   }
 
-  const downloadNote = (format: 'txt' | 'pdf' | 'docx' | 'ps') => {
+  const downloadNote = (format: "txt" | "pdf" | "docx" | "ps") => {
     if (!viewingNote) return;
 
     const title = viewingNote.title;
     const content = viewingNote.content;
-    let filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
+    let filename = `${title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}`;
 
-    if (format === 'txt') {
-      const blob = new Blob([content], { type: 'text/plain' });
+    if (format === "txt") {
+      const blob = new Blob([content], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `${filename}.txt`;
       a.click();
       URL.revokeObjectURL(url);
-    } else if (format === 'pdf') {
+    } else if (format === "pdf") {
       // For PDF, we'll create a simple text-based PDF
       const pdfContent = `%PDF-1.4
 1 0 obj
@@ -4033,7 +4038,7 @@ stream
 BT
 /F1 12 Tf
 72 720 Td
-(${content.replace(/[()\\]/g, '\\$&')}) Tj
+(${content.replace(/[()\\]/g, "\\$&")}) Tj
 ET
 endstream
 endobj
@@ -4060,45 +4065,50 @@ trailer
 startxref
 ${content.length + 600}
 %%EOF`;
-      const blob = new Blob([pdfContent], { type: 'application/pdf' });
+      const blob = new Blob([pdfContent], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `${filename}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-    } else if (format === 'docx') {
+    } else if (format === "docx") {
       // For DOCX, we'll create a simple XML-based DOCX
       const docxContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
     <w:p>
       <w:r>
-        <w:t>${content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</w:t>
+        <w:t>${content
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")}</w:t>
       </w:r>
     </w:p>
   </w:body>
 </w:document>`;
-      const blob = new Blob([docxContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const blob = new Blob([docxContent], {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `${filename}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } else if (format === 'ps') {
+    } else if (format === "ps") {
       // Simple PostScript
       const psContent = `%!PS
 /Times-Roman findfont
 12 scalefont
 setfont
 72 720 moveto
-(${content.replace(/[()\\]/g, '\\$&')}) show
+(${content.replace(/[()\\]/g, "\\$&")}) show
 showpage
 `;
-      const blob = new Blob([psContent], { type: 'application/postscript' });
+      const blob = new Blob([psContent], { type: "application/postscript" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `${filename}.ps`;
       a.click();
@@ -4748,6 +4758,7 @@ showpage
                                           ? "text-gray-800"
                                           : "text-gray-100"
                                       }`}
+                                      data-no-translate
                                     >
                                       {note.title}
                                       <span className="text-xs text-gray-400 ml-1">
@@ -4760,11 +4771,14 @@ showpage
                                           ? "text-gray-700"
                                           : "text-gray-200"
                                       }`}
+                                      data-no-translate
                                     >
                                       {stripHtmlTags(note.content)
                                         .split("\n")[0]
                                         .substring(0, 120)}
-                                      {stripHtmlTags(note.content).length > 120 ? "..." : ""}
+                                      {stripHtmlTags(note.content).length > 120
+                                        ? "..."
+                                        : ""}
                                     </div>
                                     <div
                                       className={`flex items-center justify-between text-xs ${
@@ -5167,6 +5181,7 @@ showpage
                                         ? "text-purple-800"
                                         : "text-gold-100"
                                     }`}
+                                    data-no-translate
                                   >
                                     {note.title}
                                     {note.isPermanent && (
@@ -5186,11 +5201,14 @@ showpage
                                         ? "text-purple-700"
                                         : "text-gray-300"
                                     }`}
+                                    data-no-translate
                                   >
                                     {stripHtmlTags(note.content)
                                       .split("\n")[0]
                                       .substring(0, 120)}
-                                    {stripHtmlTags(note.content).length > 120 ? "..." : ""}
+                                    {stripHtmlTags(note.content).length > 120
+                                      ? "..."
+                                      : ""}
                                   </div>
                                   <div
                                     className={`flex items-center justify-between text-xs ${
@@ -6344,9 +6362,10 @@ showpage
                           <div className="mb-2 flex flex-wrap gap-2">
                             <button
                               onClick={() => {
-                                const editor = editTextareaRef.current as HTMLElement;
+                                const editor =
+                                  editTextareaRef.current as HTMLElement;
                                 if (editor) {
-                                  document.execCommand('bold', false);
+                                  document.execCommand("bold", false);
                                   editor.focus();
                                 }
                               }}
@@ -6357,9 +6376,10 @@ showpage
                             </button>
                             <button
                               onClick={() => {
-                                const editor = editTextareaRef.current as HTMLElement;
+                                const editor =
+                                  editTextareaRef.current as HTMLElement;
                                 if (editor) {
-                                  document.execCommand('italic', false);
+                                  document.execCommand("italic", false);
                                   editor.focus();
                                 }
                               }}
@@ -6370,9 +6390,13 @@ showpage
                             </button>
                             <button
                               onClick={() => {
-                                const editor = editTextareaRef.current as HTMLElement;
+                                const editor =
+                                  editTextareaRef.current as HTMLElement;
                                 if (editor) {
-                                  document.execCommand('insertUnorderedList', false);
+                                  document.execCommand(
+                                    "insertUnorderedList",
+                                    false
+                                  );
                                   editor.focus();
                                 }
                               }}
@@ -6383,9 +6407,13 @@ showpage
                             </button>
                             <button
                               onClick={() => {
-                                const editor = editTextareaRef.current as HTMLElement;
+                                const editor =
+                                  editTextareaRef.current as HTMLElement;
                                 if (editor) {
-                                  document.execCommand('insertOrderedList', false);
+                                  document.execCommand(
+                                    "insertOrderedList",
+                                    false
+                                  );
                                   editor.focus();
                                 }
                               }}
@@ -6399,11 +6427,13 @@ showpage
                             contentEditable
                             ref={editTextareaRef as any}
                             className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 h-64 resize-none overflow-y-auto"
-                            onInput={(e) => setEditContent(e.currentTarget.innerHTML)}
+                            onInput={(e) =>
+                              setEditContent(e.currentTarget.innerHTML)
+                            }
                             dangerouslySetInnerHTML={{ __html: editContent }}
                             style={{
-                              minHeight: '256px',
-                              whiteSpace: 'pre-wrap',
+                              minHeight: "256px",
+                              whiteSpace: "pre-wrap",
                             }}
                           />
                         </div>
@@ -6585,6 +6615,7 @@ showpage
                                   ? "text-purple-900"
                                   : "text-gold-100"
                               }`}
+                              data-no-translate
                             >
                               {viewingNote.title}
                             </h2>
@@ -6628,7 +6659,9 @@ showpage
                             <button
                               onClick={async () => {
                                 try {
-                                  await navigator.clipboard.writeText(viewingNote.content);
+                                  await navigator.clipboard.writeText(
+                                    viewingNote.content
+                                  );
                                   alert("Note content copied to clipboard!");
                                 } catch (error) {
                                   console.error("Failed to copy:", error);
@@ -6645,13 +6678,16 @@ showpage
                       <div className="flex-1 overflow-y-auto p-6">
                         <div className="text-white text-base leading-relaxed">
                           {mode === "web3" ? (
-                            <pre className="text-white text-base leading-relaxed whitespace-pre">
+                            <pre
+                              className="text-white text-base leading-relaxed whitespace-pre"
+                              data-no-translate
+                            >
                               {viewingNote.content}
                             </pre>
                           ) : viewingNote.template === "To-Do List" ||
-                          viewingNote.template === "Checklist" ||
-                          viewingNote.template === "List" ? (
-                            <div className="space-y-1">
+                            viewingNote.template === "Checklist" ||
+                            viewingNote.template === "List" ? (
+                            <div className="space-y-1" data-no-translate>
                               {renderList(
                                 viewingNote.id,
                                 viewingNote.content,
@@ -6676,10 +6712,13 @@ showpage
                           ) : (
                             <div
                               className="whitespace-pre-wrap note-content-display"
-                              dangerouslySetInnerHTML={{ __html: viewingNote.content }}
-                              style={{
-                                color: 'white',
+                              dangerouslySetInnerHTML={{
+                                __html: viewingNote.content,
                               }}
+                              style={{
+                                color: "white",
+                              }}
+                              data-no-translate
                             />
                           )}
                         </div>
@@ -6688,7 +6727,9 @@ showpage
                       <div className="flex justify-end space-x-4">
                         {mode === "web3" && viewingNote?.isPermanent && (
                           <button
-                            onClick={() => setShowDownloadOptions(!showDownloadOptions)}
+                            onClick={() =>
+                              setShowDownloadOptions(!showDownloadOptions)
+                            }
                             className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all"
                           >
                             Download
@@ -6701,37 +6742,41 @@ showpage
                           Close
                         </button>
                       </div>
-                      {showDownloadOptions && mode === "web3" && viewingNote?.isPermanent && (
-                        <div className="mt-4 p-4 bg-indigo-900/50 rounded-lg border border-indigo-600/30">
-                          <div className="text-sm text-gray-300 mb-2">Download as:</div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => downloadNote('txt')}
-                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
-                            >
-                              .txt
-                            </button>
-                            <button
-                              onClick={() => downloadNote('pdf')}
-                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
-                            >
-                              .pdf
-                            </button>
-                            <button
-                              onClick={() => downloadNote('docx')}
-                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
-                            >
-                              .docx
-                            </button>
-                            <button
-                              onClick={() => downloadNote('ps')}
-                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
-                            >
-                              .ps
-                            </button>
+                      {showDownloadOptions &&
+                        mode === "web3" &&
+                        viewingNote?.isPermanent && (
+                          <div className="mt-4 p-4 bg-indigo-900/50 rounded-lg border border-indigo-600/30">
+                            <div className="text-sm text-gray-300 mb-2">
+                              Download as:
+                            </div>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => downloadNote("txt")}
+                                className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                              >
+                                .txt
+                              </button>
+                              <button
+                                onClick={() => downloadNote("pdf")}
+                                className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                              >
+                                .pdf
+                              </button>
+                              <button
+                                onClick={() => downloadNote("docx")}
+                                className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                              >
+                                .docx
+                              </button>
+                              <button
+                                onClick={() => downloadNote("ps")}
+                                className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                              >
+                                .ps
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
                   )}
                 </div>
@@ -6765,7 +6810,9 @@ showpage
                     : "text-gray-300"
                 }`}
               >
-                Wallet connection in blockchain mode is currently only available on desktop devices. Please use a desktop computer to connect your wallet and access blockchain features.
+                Wallet connection in blockchain mode is currently only available
+                on desktop devices. Please use a desktop computer to connect
+                your wallet and access blockchain features.
               </p>
               <button
                 onClick={() => setShowMobileDesktopOnlyPopup(false)}

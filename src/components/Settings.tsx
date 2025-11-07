@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useDynamicTranslation } from "../hooks/useDynamicTranslation";
+import LanguageSelector from "./LanguageSelector";
 
 interface SettingsProps {
   onSave?: (settings: {
@@ -43,6 +45,9 @@ const Settings: React.FC<SettingsProps> = ({
   initialDataRetention = 365,
   userEmail,
 }) => {
+  // Translation hook
+  const { currentLanguage, changeLanguage, isTranslating, languageNames } =
+    useDynamicTranslation();
   const [theme, setTheme] = useState(initialTheme);
   const [notifications, setNotifications] = useState(initialNotifications);
   const [syncInterval, setSyncInterval] = useState(initialSyncInterval);
@@ -259,6 +264,30 @@ const Settings: React.FC<SettingsProps> = ({
                   Your account email address
                 </p>
               </div>
+            </div>
+
+            {/* Language Settings */}
+            <div
+              className={`border-b pb-6 ${
+                theme === "Light" ? "border-purple-200" : "border-indigo-600"
+              }`}
+            >
+              <div className="flex items-center mb-4">
+                <span className="text-2xl mr-3">🌍</span>
+                <h3
+                  className={`text-xl font-bold ${
+                    theme === "Light" ? "text-purple-800" : "text-gold-100"
+                  }`}
+                >
+                  Language
+                </h3>
+              </div>
+              <LanguageSelector
+                currentLanguage={currentLanguage}
+                onLanguageChange={changeLanguage}
+                languageNames={languageNames}
+                isTranslating={isTranslating}
+              />
             </div>
 
             {/* Appearance Settings */}
