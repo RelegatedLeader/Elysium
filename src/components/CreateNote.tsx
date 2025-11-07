@@ -43,10 +43,15 @@ const CreateNote: React.FC<CreateNoteProps> = ({
   initialTemplate = "Auto",
   onEdit,
 }) => {
+  // State management
   const [title, setTitle] = useState(isEditing ? initialTitle : "");
   const [content, setContent] = useState(isEditing ? initialContent : "");
-  const [htmlContent, setHtmlContent] = useState(isEditing ? initialContent : "");
-  const [template, setTemplate] = useState(isEditing ? initialTemplate : defaultTemplate);
+  const [htmlContent, setHtmlContent] = useState(
+    isEditing ? initialContent : ""
+  );
+  const [template, setTemplate] = useState(
+    isEditing ? initialTemplate : defaultTemplate
+  );
   const [files, setFiles] = useState<File[]>([]);
   const [showAIPopup, setShowAIPopup] = useState(false);
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
@@ -1023,7 +1028,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
               {messageHistory.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="text-gold-100 font-medium text-sm">
-                    � Conversation:
+                    💬 Conversation:
                   </h4>
                   <div className="max-h-48 overflow-y-auto space-y-2">
                     {messageHistory.map((message, index) => (

@@ -1,0 +1,794 @@
+[33mcommit 1334e5ff3d524504d5e6d218b843ef8918afb246[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Nov 4 22:47:03 2025 -0600
+
+    latest build - save to cloud alert is now a popup
+
+[33mcommit a080a3a8c6915afd2c09781b1247056106495510[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Nov 4 22:08:34 2025 -0600
+
+    Revert "latest stable version - > changed some things to the edit version of the note modification"
+    
+    This reverts commit e7359556d4264ae9b781a89e1d47c8e4fc1b597f.
+
+[33mcommit e7359556d4264ae9b781a89e1d47c8e4fc1b597f[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Nov 4 19:09:18 2025 -0600
+
+    latest stable version - > changed some things to the edit version of the note modification
+
+[33mcommit d21f149a6cc833cea6c32b493a18eac5325cbc81[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Nov 4 17:58:57 2025 -0600
+
+    getting closer to a good working condition regarding editing with new features added that allows user to bold letters and add lists to the actual editing zone
+
+[33mcommit deda775e4eb0e67c22e36a73f0b3b40c02ca8b48[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Nov 4 17:03:30 2025 -0600
+
+    latest build with working delete warning popup, working on making checklist work with the enter button
+
+[33mcommit 63c495e64f969f609e75b82518d8142a30c43cb2[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Nov 4 16:28:56 2025 -0600
+
+    attempting to fix note creation such as the formatting, the way it is edited and adding a confirmation popup in regards of the user wanting to delete it
+
+[33mcommit 1da70326794366e568cb330662278f91913e71b9[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 17 19:49:30 2025 -0700
+
+    Add download functionality for published eternal notes in blockchain version
+
+[33mcommit 5c0cef6f4cd0ad4164876f221c2d01ab7c67a885[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 17 12:00:18 2025 -0700
+
+    Update note display and copy functionality for blockchain version
+
+[33mcommit 24dbcc08335ae2e185da25dbe0ec02b7c1171db7[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 15 12:34:33 2025 -0700
+
+    Keep Main Menu button always visible in cloud mode
+
+[33mcommit cf433070a6ab2bbb707b9e8577b78a3d18db5eb2[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 15 12:27:24 2025 -0700
+
+    Fix cloud mode buttons: show email when logged in, Main Menu when logged off
+
+[33mcommit b34ca833c8f1fe98866703dabd77de5612cabc31[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 15 12:18:01 2025 -0700
+
+    Add mobile desktop-only popup for blockchain wallet connection
+
+[33mcommit c7e9a5ba9cf2584c094254910c8bdf2826e2850e[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Oct 14 11:55:06 2025 -0700
+
+    Use Wander app URL scheme instead of website
+    
+    - Changed mobile wallet connection to use wander://auth URL scheme
+    - This opens the Wander APP directly instead of the website
+    - Website is only for new users, app URL scheme opens the installed app
+    - Added redirect parameter for proper return flow after authentication
+
+[33mcommit 3015aa873ca07297071e02cab211b788bb130d6e[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Oct 14 11:45:11 2025 -0700
+
+    Revert to Wander app for mobile wallet connection
+    
+    - Switched back to Wander app instead of ArConnect web
+    - Added redirect URL parameter to Wander for proper return flow
+    - Updated WanderDownloadPopup to reflect app-based connection
+    - Mobile users will be redirected to Wander app, sign in, and return with auth data
+
+[33mcommit 52f2aadb6d9f20feb1e5ac446f32c80d7d792bdd[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Oct 14 11:36:56 2025 -0700
+
+    Switch mobile wallet to ArConnect web interface to avoid app switch prompts
+    
+    - Changed mobile wallet connection from Wander to ArConnect mobile web (arconnect.io)
+    - Updated handleSelectWallet to redirect mobile users to ArConnect web instead of Wander
+    - Modified WanderDownloadPopup to promote ArConnect web wallet for mobile
+    - This should avoid iOS app switch prompts since ArConnect web does not trigger native app detection
+
+[33mcommit 0943300d755609b427fd56f89cd067d527729e56[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Oct 14 11:21:49 2025 -0700
+
+    Improve mobile wallet redirection - try multiple URL schemes and use location.replace for better app opening
+
+[33mcommit 4d52bdf6e26c6880c6ead9fbf96fe0e2061087f4[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Oct 14 11:13:07 2025 -0700
+
+    Fix mobile wallet redirection - use direct window.location.href instead of iframe for better app switching
+
+[33mcommit fe692a4a24089ff51c1f060da315beb4c4ba392c[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Oct 14 11:08:53 2025 -0700
+
+    SECURITY: Remove exposed Firebase API key from codebase - use environment variables instead
+
+[33mcommit e86fef0703e1686c1133119c7e67f7d651400dc7[m
+Merge: fdf9665 02d85d4
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Oct 14 11:05:15 2025 -0700
+
+    Merge remote changes and resolve conflicts - keep improved mobile wallet flow
+
+[33mcommit fdf9665fd98f6c8874afa098046d746f436868ef[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Oct 14 11:04:10 2025 -0700
+
+    attempt to make the blockchain version for mobile work - further testing needeed
+
+[33mcommit 02d85d44ed2a8784e55499b4136407a41e378e3e[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Oct 14 09:55:26 2025 -0700
+
+    potential blockchain fix
+
+[33mcommit b6cc311abbdff4cd0a192878bcbc5d6413ba0897[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 13:56:08 2025 -0700
+
+    Fix mobile wallet setup popup isolation and center Welcome titles
+
+[33mcommit 01ccd84d639c3b49827bb3d8df76e0010c1f3c04[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 13:47:05 2025 -0700
+
+    working on the mobile version for blockchain version
+
+[33mcommit 55775fd22715ef694eb45900de4c507900779a84[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 13:33:32 2025 -0700
+
+    potential working version with blockchain version changes
+
+[33mcommit 642c2e8829b7b899c2a110857b5ce82d5b7eef87[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 13:21:16 2025 -0700
+
+    Add web3 wallet button with toggle dropdown: shows wallet address, settings, and logout options
+
+[33mcommit 08174215d2660e379a5e7ed689fa8138ea7716e3[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 13:14:01 2025 -0700
+
+    Adjust email button position: move from 22% to 28% to prevent drawer collision while maintaining proper spacing from logo
+
+[33mcommit 66adde4aa77de082c89b13c51d10ed13f77595dd[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 12:47:15 2025 -0700
+
+    Scale logo size to match button progression: w-8 h-8 (mobile)  w-10 h-10 (sm)  w-12 h-12 (md) for sharp, consistent visual hierarchy
+
+[33mcommit aad65b36d7026da685e7e8d634db33c74f12211b[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 12:41:53 2025 -0700
+
+    Remove duplicate email display in Settings and enhance navigation buttons: bigger, more adaptive sizing with better email visibility on larger screens
+
+[33mcommit 5eb4eea0c6f6861135ccfbb95b5963bf91e8fc99[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 12:29:23 2025 -0700
+
+    Unified button layout for all devices: consistent email-logo-main menu across mobile, tablet, and desktop with improved spacing
+
+[33mcommit 43365415131fe84852a5dcc27f84a477f7566d96[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 12:25:20 2025 -0700
+
+    Extend mobile button layout to tablets: email-logo-main menu layout now works on tablets and mobile
+
+[33mcommit 491d91269cceb3161c91a2a7e31fe5b6808dfbbc[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 12:19:07 2025 -0700
+
+    Adjust mobile buttons spacing and add user email display in Settings
+
+[33mcommit 84f66177b9abe9db81f94c13a64c1bcde44e45db[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 12:14:13 2025 -0700
+
+    Adjust mobile button layout: closer spacing to logo, smaller buttons for better mobile UX
+
+[33mcommit 90e55bb9d8ce7f283472ba697701c896adec04d7[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 10:57:37 2025 -0700
+
+    Fix mobile layout - 3 buttons only, better spacing, email first in settings
+
+[33mcommit a8fc54eab88428fb4d9ebaeab0ca0ccf942f5870[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 10:50:03 2025 -0700
+
+    Fix mobile layout - buttons closer to logo, mobile-only changes, remove desktop duplicates
+
+[33mcommit bc48b1efb7ab828f17d6e3c6a3297b98f0ce5edc[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 10:43:38 2025 -0700
+
+    Change mobile layout to horizontal - email left of logo, main menu right of logo
+
+[33mcommit 4c1ca9ba599c1d4d43a36dd443a79071ddfedf5d[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 10:39:14 2025 -0700
+
+    Fix mobile layout for cloud/database mode - reorganize header buttons for better mobile UX
+
+[33mcommit 9f9e6fadafca1e1dd02b1f624a7c642952235d5f[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 09:48:21 2025 -0700
+
+    Fix corrupted comment in index.tsx
+
+[33mcommit aee8cd0a947582f6283cada1c0928138fbc376c2[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 09:45:53 2025 -0700
+
+    Trigger rebuild with correct Firebase API key
+
+[33mcommit 96aa01f12ef9cece351da4e118afa95b2938aed8[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 09:41:50 2025 -0700
+
+    Fix Firebase authentication with updated environment variables
+
+[33mcommit 523525919bb9ca5051e9c6e1b577ffd5fd663018[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Oct 13 08:30:05 2025 -0700
+
+    fixed elysium link tie with supabase, database version is now functional
+
+[33mcommit 292c98c5f0b37ced76fd691a9b2cdf990b1d3092[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 19:01:48 2025 -0700
+
+    Add netlify.toml configuration for CLI deployment
+
+[33mcommit 41b3c69756736c7c0cc8ec01b68b29fe9a08b157[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 18:27:56 2025 -0700
+
+    added arweave link to the settings for potential support
+
+[33mcommit b8722f97269e94f936be5d793b4113bbb0cdab2e[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 18:02:12 2025 -0700
+
+    new potential slogan at front, add previous slogan to blockchain version, removed accidental blockchain functionalities in the database version
+
+[33mcommit c39f3c7207e379c43578b16d1408002eb57616be[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 17:53:11 2025 -0700
+
+    removed accidental blockchain functionality on cloud version
+
+[33mcommit 7fcb897b6f5d01f97ca474fe34e53c580668f288[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 17:47:27 2025 -0700
+
+    fixed layout issues with the delete folder button, the publish folder pop up and the actual delete button on each folder
+
+[33mcommit 0d4ef59146821a433a56193d79fed8f43c96f356[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 17:20:30 2025 -0700
+
+    folder design changed
+
+[33mcommit 4ff0b3ae3d61a166403e6e9f82139d050e1f750e[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 17:07:40 2025 -0700
+
+     latest stable build --> notes within a folder are now clickable
+
+[33mcommit 1b59d1d5a8db43a6251fddd19aebb7989281f3c3[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 16:54:39 2025 -0700
+
+    latest stable version - messing with the folder looks and fixing bugs
+
+[33mcommit 854d7ad9b172c1f1e225a0b01c80ecd91fe265fd[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 16:43:08 2025 -0700
+
+    latest stable working version - ADDED FOLDERS
+
+[33mcommit d059647fd48581785e9a40ad6564e59f4a17f5f1[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 16:20:43 2025 -0700
+
+    fixed hide button on the eternal notes and draft issue where drafts still appear after being pushed as eternal notes
+
+[33mcommit 2862a404a83c77020e31a32bb7a8f28532e1a7c7[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 16:13:23 2025 -0700
+
+     latest stable build -> delete button bug fixed, aesthetic fixes for the eternal notes, and drafts now show as eternal notes
+
+[33mcommit 06863bf5a796e84a3e51894da6aaa412e23d6f2d[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 16:02:24 2025 -0700
+
+    latest stable build
+
+[33mcommit 490fc1de2bbedb5868d785d0043808f5be26d05a[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 10 15:43:04 2025 -0700
+
+    added a hide notes button to hide the notes from being seen for a cleaner look
+
+[33mcommit b79af48cbecb454fbe2a28de3f5860b84764cc44[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Thu Oct 9 21:19:11 2025 -0700
+
+    fixed draft issues where they wouldnt appear and the issue when creating a new draft note where it woudlnt pop up
+
+[33mcommit cd0f5141c08b9d1c35b652e807fa902a756aaeeb[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Thu Oct 9 20:52:05 2025 -0700
+
+    latest stable arweave capable build
+
+[33mcommit 7180972c9d73882cf2d0846aae4ae1cee7a57542[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Thu Oct 9 20:44:42 2025 -0700
+
+    great close build to the basic functions
+
+[33mcommit 3ef73920bbf3bf6b73b4791785e1d8437ae46b66[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Thu Oct 9 20:16:22 2025 -0700
+
+    latest stable build with blockchain version drafts issues partially solved
+
+[33mcommit a0a6ba60c410d538d4ab9a2f1dca7368685449bd[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Thu Oct 9 19:32:09 2025 -0700
+
+    fixed login,logout issues where the wallet wouldnt sign out
+
+[33mcommit 461bfa083ad981f871222acc82c113059ad336f1[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Thu Oct 9 19:26:20 2025 -0700
+
+    latest stable build
+
+[33mcommit 1ccb96273fec4e9a003f6af09379b64aa128f101[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Thu Oct 9 19:15:06 2025 -0700
+
+    fixed blockchain version not appearing
+
+[33mcommit 104f3a7412f21925b9b50636be819e10869b3daf[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Thu Oct 9 19:09:23 2025 -0700
+
+    fixed logout button
+
+[33mcommit 1f5bd873a6ab399a063334e1542ec2de8bbe876a[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Thu Oct 9 16:59:08 2025 -0700
+
+     removed SOL functionalities - stable build
+
+[33mcommit 16dbff69164d787884ef997cf9abceb53b389af7[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 8 12:40:52 2025 -0700
+
+    wander opens, user confirms, sol opens, user confirms- errors here
+
+[33mcommit 21ab03824bf2c1f6a1ba07486905b28c2ddcf0ec[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 8 12:21:15 2025 -0700
+
+    latest build with workable pop up
+
+[33mcommit 6a80fe7d94dab1e1411f407583e1246db4514d4b[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 8 12:14:12 2025 -0700
+
+    pop up of wander works now
+
+[33mcommit bbddb4baba670607ba050c03d4706d16cda36d82[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 8 12:04:21 2025 -0700
+
+    latest working build but still configuring arweave and the functionality as a whole
+
+[33mcommit c60503c98c8f0fb9b87b1043b7a87fed09d168da[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 8 11:49:31 2025 -0700
+
+    latest build,still integrating arweave
+
+[33mcommit 8073cef9aed36502606a88014f500ab7598888c2[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 8 11:22:30 2025 -0700
+
+    latest working build... using Wander for arweave storage
+
+[33mcommit 51d80241c57a71420337a224a73b68c1921ab07b[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 8 10:21:20 2025 -0700
+
+    started working on the blockchain version
+
+[33mcommit 138014575101f6567a3218b6993ea1c6369477ea[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 13:55:50 2025 -0700
+
+    offline access is working, latest build
+
+[33mcommit 320b33ae1d50373f8d629e84fc5e494c6644b389[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 13:53:01 2025 -0700
+
+    offline access is working better
+
+[33mcommit c2d0886a46d36789ae6980cb815254649e3b659a[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 12:23:42 2025 -0700
+
+    downloading button fixed with quick confirmation
+
+[33mcommit 895b215a8a85914174791bc5b9f6516dad4b6b2c[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 12:18:58 2025 -0700
+
+    latest working release
+
+[33mcommit fb6449152edfde27aa8b0e214a5abff1622b054d[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 12:07:42 2025 -0700
+
+    latest working version
+
+[33mcommit 7aee482925221f238844bee6963cf3775b766409[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 11:54:19 2025 -0700
+
+    added offline access beta
+
+[33mcommit 4285eb60fbfb1fbf1c4c7ed2e2a271079e965b04[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 11:28:58 2025 -0700
+
+    fixed cloud version sign up box height
+
+[33mcommit b96c0ad29d4272ca10321103e87e32b5045c61ad[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 11:24:16 2025 -0700
+
+    light mode enhancements
+
+[33mcommit af105c7fc0608b7b6efe086577b08352e6843655[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 11:09:38 2025 -0700
+
+    isolated logout for database and cloud versions
+
+[33mcommit a7f6defe7fbf123a4441197969d88ab550b55329[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 11:01:23 2025 -0700
+
+    fixed the notifications error - removed notifs for now
+
+[33mcommit 8e425f07ccf15941ac362a2baea33c74a48e69ac[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 09:58:38 2025 -0700
+
+    cloud version is now quite stable and can save and get notes
+
+[33mcommit aa713d6493ef2db685ecaca43e2378a17268b912[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Fri Oct 3 09:33:36 2025 -0700
+
+    fixed logout button of the cloud version, addedd a way to let the user know the account they are signed into
+
+[33mcommit b0d4c6d293694f656a9720e7b69cbd5fb80b1642[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 22:36:12 2025 -0700
+
+     Firestore Security Rules Deployed
+
+[33mcommit 29198da845fad0818e3e0af8b24341c8d23d89f3[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 22:06:10 2025 -0700
+
+    *fixed note creation encryption error
+
+[33mcommit 9aa9d60bb949e5f0d906e311367a8d00a1596733[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 21:51:28 2025 -0700
+
+    fixed sign up issues with cloud version
+
+[33mcommit a0ba31e9cb36bbbda10a9600d2b2a1c28efe0e5c[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 21:10:57 2025 -0700
+
+    *started cloud version and laid the foundations
+
+[33mcommit 77536fc95c3d23387bf7401428f98f85c32e8d51[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 20:43:54 2025 -0700
+
+    fixed settings aesthetics
+
+[33mcommit 099926cffa372fcd23d8d619291cac0d6c4988ab[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 20:30:32 2025 -0700
+
+    fixed the checkboxes and lists appearance on chats
+
+[33mcommit 7b3ad162f0ec2a08fc7dba383c793944d038aa7c[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 19:57:15 2025 -0700
+
+    enhanced the ai and the settings surrounding it, latest stable release
+
+[33mcommit 67a7601bef8e21a98d40318f70b3a965ae3dee78[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 19:45:22 2025 -0700
+
+    currently  ai enhanced
+
+[33mcommit 0deb1f2aabc2aa24bf110bbd29deb4e5641108a3[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 19:31:36 2025 -0700
+
+    switched ai models - mistal.ai
+
+[33mcommit 6d6a637ac3bf5775f8bbc029c5df6e8f7ced92d4[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 16:10:46 2025 -0700
+
+    added some settings
+
+[33mcommit b2b14bb394e7ae25b4d425d27395e39954844ed4[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 15:33:00 2025 -0700
+
+    worked on the light mode a little bit to make it more viewable
+
+[33mcommit 2b809820a8cb4a1944f7c8be2876e15b7f943c51[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 14:26:10 2025 -0700
+
+    added funcitionality that allows user to confirm if they truly want to delete a message from the database
+
+[33mcommit 8383ed295d2e0ae8a86b8ec75ef1b719aa0f3e0d[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 14:14:29 2025 -0700
+
+    more security enhancements
+
+[33mcommit bb85612b298a9464db591cca1d71d81b3faa1478[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 12:42:19 2025 -0700
+
+    enhanced security
+
+[33mcommit d61f11d6a9bffc324cf069f7361c1adc576f322f[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 10:59:03 2025 -0700
+
+    enhanced security
+
+[33mcommit b9fea64cc3c04759e682ed5bfda01b8a469bf92d[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 00:22:05 2025 -0700
+
+    latest database version push
+
+[33mcommit 8b6be9e79cc3f7fbc307dfbe4366b2d358263be9[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 00:12:50 2025 -0700
+
+    removed orphan notes error - potentially
+
+[33mcommit 7d3b2ab305f4c14ea50bbf9238cc148b4278c0d0[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Wed Oct 1 00:05:20 2025 -0700
+
+    latest stable cleaner enhancements to the website
+
+[33mcommit 6e87c2fdfd9432949985d89f545f3cadfb6c181f[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 23:28:18 2025 -0700
+
+    latest stable ai features
+
+[33mcommit ad83d6dbc7b8597cd8d4f396137e9574634e7d2d[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 23:15:10 2025 -0700
+
+    switched to openRouter api
+
+[33mcommit 3fa295ccb1035a34ea6a2efbf460de15bc90ca9f[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 22:49:17 2025 -0700
+
+    added AI FEATURE
+
+[33mcommit a549e611907ab903b5c0b645552d361cb537c8e6[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 22:21:31 2025 -0700
+
+    added the shell of a small ai assistant
+
+[33mcommit 3da10a3c3c62005214b345ea406b9c8e591454ab[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 21:38:00 2025 -0700
+
+    small cosmetic descriptions of each version updates, latest working version
+
+[33mcommit cd57c0f3c24414949ef59ff4ccf7b3a7b1b8205e[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 21:22:03 2025 -0700
+
+    modified the broken timestamp issues with both the sorting of notes based on the most recent and the ones affecting the checklists
+
+[33mcommit 215bd198513ccd5e74375ba0540c7fbe1a569ba5[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 21:14:22 2025 -0700
+
+    sorted notes to showcase most recent notes v1
+
+[33mcommit e7a8da12cfbd3873412f4f6b13ffbb34ade76148[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 20:59:26 2025 -0700
+
+    fixed checklist timestamp issue
+
+[33mcommit f157f7971d50afb64bb66e16c753e6a2bf6b1e05[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 20:37:31 2025 -0700
+
+    fixed template for checklists and lists, fixed search bar and made it more mainstream
+
+[33mcommit fdd0a4f64713fed643feb0ebccf7cde606030d82[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 17:51:08 2025 -0700
+
+    Improve note viewing modal and filter blockchain notes
+    
+    - Redesigned viewing modal with clean header/content layout
+    - Added proper scrolling for long notes (header fixed, content scrollable)
+    - Improved typography and spacing for better readability
+    - Added template and blockchain status badges in header
+    - Conditional rendering: checkboxes only for todo/checklist templates
+    - Plain text display for regular notes (no duplicate rendering)
+    - Filter out blockchain notes from database version Recent Notes page
+    - Better responsive design for mobile/tablet viewing
+    - Enhanced visual hierarchy with proper borders and sections
+
+[33mcommit 36991e08f5df8cf609b0ae2bd31c2d3a4d824596[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 17:43:13 2025 -0700
+
+    Improve notes display layout for better space utilization
+    
+    - Change from single column to responsive grid: 1 col mobile, 2 tablet, 3-4 desktop
+    - Make note cards more compact with fixed height (192px mobile, 208px desktop)
+    - Add line-clamp utilities for text truncation (1-3 lines)
+    - Improve visual hierarchy with better spacing and typography
+    - Keep delete buttons hidden until hover for cleaner look
+    - Add blockchain indicator icon for permanent notes
+    - Maintain clickability and hover effects
+    - Better responsive design for all screen sizes
+
+[33mcommit f1618b94dd8141b916c89eb24d2e0252c5340ce9[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 17:30:19 2025 -0700
+
+    Fix eternal database persistence and add settings features
+    
+    - Fix encryption key derivation to use persistent user ID instead of session tokens
+    - Add auto-sync functionality with configurable intervals
+    - Add browser notifications for note creation and sync events
+    - Add light/dark theme switching with purple color scheme
+    - Add orphaned notes cleanup functionality in settings
+    - Improve error handling for decryption failures
+    - Add database maintenance tools in settings panel
+
+[33mcommit ec9ad4e69aee26cc1cf94e7cdb9aa6ac63fc0160[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 16:36:24 2025 -0700
+
+    Enhance database version with user-friendly features
+
+[33mcommit f1f70f9af27179acf23afec6ff486c73b79e669d[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Sep 30 16:23:44 2025 -0700
+
+    Fix magic link authentication and update CreateNote for database mode
+
+[33mcommit 88d35d1093c37f9773d92adf9917151958f5abce[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Aug 25 23:54:46 2025 -0500
+
+    Added the magic link functionality from Supabase, but a probable CORS issue persist
+
+[33mcommit 6b6b4d5cc5dbe716e54307049474b23f6115a410[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Aug 25 22:34:40 2025 -0500
+
+    Latest working version with small updates to the design and first iteration of the Supabase DB
+
+[33mcommit e162ab80d1a67ec27deb199d045cbbd21b0ea8f4[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Aug 25 15:34:34 2025 -0500
+
+    Fixed structure of app and isolated notes from versions
+
+[33mcommit beb518232851e361039ae3d29a03637a54ca6ffe[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Aug 25 12:38:37 2025 -0500
+
+    fixed the logout button and added a new mainpage
+
+[33mcommit 6d5f93e32a3ef938395c0e3dbd3dad2c77933eca[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Aug 25 11:55:27 2025 -0500
+
+    Fixed the dependency issues and created 3 different versions of the website
+
+[33mcommit 45449ec7beafbec2b814da9abfa75b65b7dbd841[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Aug 12 13:55:54 2025 -0500
+
+    Deploy Solana program to devnet
+
+[33mcommit 076dcb314b6b6ab3b61608783157d34f3b5a7a17[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Aug 12 10:43:20 2025 -0500
+
+    Integrate Arweave and Solana save logic in App.tsx
+
+[33mcommit abb2a5274d3c5db8a9f859af04105f44383932ab[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Tue Aug 12 10:34:17 2025 -0500
+
+    Add arweave-utils.ts for blockchain storage
+
+[33mcommit a514273293f90f467592636b0f959a491bae2cf5[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Aug 11 17:59:49 2025 -0500
+
+    Update CreateNote.tsx with Save to Blockchain button and pop-up
+
+[33mcommit 195de58cd7f3b45a2e684d948b1cfe3104d4ddde[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Aug 11 17:56:28 2025 -0500
+
+    Update App.tsx for blockchain save logic and UI changes
+
+[33mcommit 50682a481879090e306ac3aa1e1a19b84e370ef7[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Aug 11 16:56:51 2025 -0500
+
+    Initial commit with frontend and crypto utils
+
+[33mcommit abf917d90ef5cf4bbdda93b936e42b53bcdff586[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Aug 11 16:46:49 2025 -0500
+
+    initial frontend
+
+[33mcommit a864916781de7868c3c35797e4acbc89971abd46[m
+Author: Francisco Alfaro <Francisco Alfaro>
+Date:   Mon Aug 4 15:40:16 2025 -0500
+
+    Initialize project using Create React App

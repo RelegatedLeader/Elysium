@@ -9,7 +9,9 @@ import CloudAuth from "./components/CloudAuth";
 import MobileWalletSetup from "./components/MobileWalletSetup";
 import WanderDownloadPopup from "./components/WanderDownloadPopup";
 import DeleteConfirmationModal from "./components/DeleteConfirmationModal";
+import LanguageConfirmationPopup from "./components/LanguageConfirmationPopup";
 import { encryptAndCompress, decryptNote } from "./utils/crypto";
+import { useDynamicTranslation } from "./hooks/useDynamicTranslation";
 import nacl from "tweetnacl";
 import {
   uploadToArweave,
@@ -1782,7 +1784,8 @@ function WelcomePage({
   const [showPopup, setShowPopup] = useState(false);
   const [showMobileWalletSetup, setShowMobileWalletSetup] = useState(false);
   const [showWanderDownloadPopup, setShowWanderDownloadPopup] = useState(false);
-  const [showMobileDesktopOnlyPopup, setShowMobileDesktopOnlyPopup] = useState(false);
+  const [showMobileDesktopOnlyPopup, setShowMobileDesktopOnlyPopup] =
+    useState(false);
   const [email, setEmail] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
@@ -1848,6 +1851,19 @@ function WelcomePage({
 
   // Cloud storage hook
   const cloudStorage = useCloudStorage();
+
+  // Translation hook
+  const {
+    currentLanguage,
+    isTranslating,
+    changeLanguage,
+    showLanguagePopup,
+    pendingLanguage,
+    pendingLanguageName,
+    confirmLanguageChange,
+    cancelLanguageChange,
+    languageNames,
+  } = useDynamicTranslation();
 
   const [cloudNotes, setCloudNotes] = useState<Note[]>([]);
 
@@ -1977,6 +1993,7 @@ function WelcomePage({
       defaultTemplate: "Blank",
       noteSorting: "Date Created",
       dataRetention: 365,
+      language: "en",
     };
     return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
   });
@@ -2018,9 +2035,15 @@ function WelcomePage({
     defaultTemplate: string;
     noteSorting: string;
     dataRetention: number;
+    language: string;
   }) => {
     setSettings(newSettings);
     localStorage.setItem("elysium_settings", JSON.stringify(newSettings));
+
+    // Handle language change
+    if (newSettings.language !== settings.language) {
+      // Language change is now handled by useDynamicTranslation hook
+    }
 
     // Show notification if enabled
     if (newSettings.notifications && !settings.notifications) {
@@ -2666,12 +2689,16 @@ function WelcomePage({
     }
 
     if (isMobileDevice()) {
-      console.log("Mobile device detected - opening Wander app for authentication");
+      console.log(
+        "Mobile device detected - opening Wander app for authentication"
+      );
 
       // For mobile devices, use Wander app URL scheme to open the app directly
       // This bypasses the website and goes straight to the app
       const currentUrl = window.location.origin + window.location.pathname;
-      const wanderAppUrl = `wander://auth?redirect=${encodeURIComponent(currentUrl)}`;
+      const wanderAppUrl = `wander://auth?redirect=${encodeURIComponent(
+        currentUrl
+      )}`;
 
       console.log("Opening Wander app:", wanderAppUrl);
       window.location.href = wanderAppUrl;
@@ -3981,22 +4008,22 @@ function WelcomePage({
     );
   }
 
-  const downloadNote = (format: 'txt' | 'pdf' | 'docx' | 'ps') => {
+  const downloadNote = (format: "txt" | "pdf" | "docx" | "ps") => {
     if (!viewingNote) return;
 
     const title = viewingNote.title;
     const content = viewingNote.content;
-    let filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`;
+    let filename = `${title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}`;
 
-    if (format === 'txt') {
-      const blob = new Blob([content], { type: 'text/plain' });
+    if (format === "txt") {
+      const blob = new Blob([content], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `${filename}.txt`;
       a.click();
       URL.revokeObjectURL(url);
-    } else if (format === 'pdf') {
+    } else if (format === "pdf") {
       // For PDF, we'll create a simple text-based PDF
       const pdfContent = `%PDF-1.4
 1 0 obj
@@ -4033,7 +4060,7 @@ stream
 BT
 /F1 12 Tf
 72 720 Td
-(${content.replace(/[()\\]/g, '\\$&')}) Tj
+(${content.replace(/[()\\]/g, "\\$&")}) Tj
 ET
 endstream
 endobj
@@ -4060,45 +4087,50 @@ trailer
 startxref
 ${content.length + 600}
 %%EOF`;
-      const blob = new Blob([pdfContent], { type: 'application/pdf' });
+      const blob = new Blob([pdfContent], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `${filename}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-    } else if (format === 'docx') {
+    } else if (format === "docx") {
       // For DOCX, we'll create a simple XML-based DOCX
       const docxContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
     <w:p>
       <w:r>
-        <w:t>${content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</w:t>
+        <w:t>${content
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")}</w:t>
       </w:r>
     </w:p>
   </w:body>
 </w:document>`;
-      const blob = new Blob([docxContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const blob = new Blob([docxContent], {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `${filename}.docx`;
       a.click();
       URL.revokeObjectURL(url);
-    } else if (format === 'ps') {
+    } else if (format === "ps") {
       // Simple PostScript
       const psContent = `%!PS
 /Times-Roman findfont
 12 scalefont
 setfont
 72 720 moveto
-(${content.replace(/[()\\]/g, '\\$&')}) show
+(${content.replace(/[()\\]/g, "\\$&")}) show
 showpage
 `;
-      const blob = new Blob([psContent], { type: 'application/postscript' });
+      const blob = new Blob([psContent], { type: "application/postscript" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `${filename}.ps`;
       a.click();
@@ -4764,7 +4796,9 @@ showpage
                                       {stripHtmlTags(note.content)
                                         .split("\n")[0]
                                         .substring(0, 120)}
-                                      {stripHtmlTags(note.content).length > 120 ? "..." : ""}
+                                      {stripHtmlTags(note.content).length > 120
+                                        ? "..."
+                                        : ""}
                                     </div>
                                     <div
                                       className={`flex items-center justify-between text-xs ${
@@ -5190,7 +5224,9 @@ showpage
                                     {stripHtmlTags(note.content)
                                       .split("\n")[0]
                                       .substring(0, 120)}
-                                    {stripHtmlTags(note.content).length > 120 ? "..." : ""}
+                                    {stripHtmlTags(note.content).length > 120
+                                      ? "..."
+                                      : ""}
                                   </div>
                                   <div
                                     className={`flex items-center justify-between text-xs ${
@@ -5465,6 +5501,7 @@ showpage
                   initialDefaultTemplate={settings.defaultTemplate}
                   initialNoteSorting={settings.noteSorting}
                   initialDataRetention={settings.dataRetention}
+                  initialLanguage={settings.language}
                   userEmail={
                     mode === "cloud" ? cloudStorage.user?.email : user?.email
                   }
@@ -6344,9 +6381,10 @@ showpage
                           <div className="mb-2 flex flex-wrap gap-2">
                             <button
                               onClick={() => {
-                                const editor = editTextareaRef.current as HTMLElement;
+                                const editor =
+                                  editTextareaRef.current as HTMLElement;
                                 if (editor) {
-                                  document.execCommand('bold', false);
+                                  document.execCommand("bold", false);
                                   editor.focus();
                                 }
                               }}
@@ -6357,9 +6395,10 @@ showpage
                             </button>
                             <button
                               onClick={() => {
-                                const editor = editTextareaRef.current as HTMLElement;
+                                const editor =
+                                  editTextareaRef.current as HTMLElement;
                                 if (editor) {
-                                  document.execCommand('italic', false);
+                                  document.execCommand("italic", false);
                                   editor.focus();
                                 }
                               }}
@@ -6370,9 +6409,13 @@ showpage
                             </button>
                             <button
                               onClick={() => {
-                                const editor = editTextareaRef.current as HTMLElement;
+                                const editor =
+                                  editTextareaRef.current as HTMLElement;
                                 if (editor) {
-                                  document.execCommand('insertUnorderedList', false);
+                                  document.execCommand(
+                                    "insertUnorderedList",
+                                    false
+                                  );
                                   editor.focus();
                                 }
                               }}
@@ -6383,9 +6426,13 @@ showpage
                             </button>
                             <button
                               onClick={() => {
-                                const editor = editTextareaRef.current as HTMLElement;
+                                const editor =
+                                  editTextareaRef.current as HTMLElement;
                                 if (editor) {
-                                  document.execCommand('insertOrderedList', false);
+                                  document.execCommand(
+                                    "insertOrderedList",
+                                    false
+                                  );
                                   editor.focus();
                                 }
                               }}
@@ -6399,11 +6446,13 @@ showpage
                             contentEditable
                             ref={editTextareaRef as any}
                             className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 h-64 resize-none overflow-y-auto"
-                            onInput={(e) => setEditContent(e.currentTarget.innerHTML)}
+                            onInput={(e) =>
+                              setEditContent(e.currentTarget.innerHTML)
+                            }
                             dangerouslySetInnerHTML={{ __html: editContent }}
                             style={{
-                              minHeight: '256px',
-                              whiteSpace: 'pre-wrap',
+                              minHeight: "256px",
+                              whiteSpace: "pre-wrap",
                             }}
                           />
                         </div>
@@ -6628,7 +6677,9 @@ showpage
                             <button
                               onClick={async () => {
                                 try {
-                                  await navigator.clipboard.writeText(viewingNote.content);
+                                  await navigator.clipboard.writeText(
+                                    viewingNote.content
+                                  );
                                   alert("Note content copied to clipboard!");
                                 } catch (error) {
                                   console.error("Failed to copy:", error);
@@ -6649,8 +6700,8 @@ showpage
                               {viewingNote.content}
                             </pre>
                           ) : viewingNote.template === "To-Do List" ||
-                          viewingNote.template === "Checklist" ||
-                          viewingNote.template === "List" ? (
+                            viewingNote.template === "Checklist" ||
+                            viewingNote.template === "List" ? (
                             <div className="space-y-1">
                               {renderList(
                                 viewingNote.id,
@@ -6676,9 +6727,11 @@ showpage
                           ) : (
                             <div
                               className="whitespace-pre-wrap note-content-display"
-                              dangerouslySetInnerHTML={{ __html: viewingNote.content }}
+                              dangerouslySetInnerHTML={{
+                                __html: viewingNote.content,
+                              }}
                               style={{
-                                color: 'white',
+                                color: "white",
                               }}
                             />
                           )}
@@ -6688,7 +6741,9 @@ showpage
                       <div className="flex justify-end space-x-4">
                         {mode === "web3" && viewingNote?.isPermanent && (
                           <button
-                            onClick={() => setShowDownloadOptions(!showDownloadOptions)}
+                            onClick={() =>
+                              setShowDownloadOptions(!showDownloadOptions)
+                            }
                             className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all"
                           >
                             Download
@@ -6701,37 +6756,41 @@ showpage
                           Close
                         </button>
                       </div>
-                      {showDownloadOptions && mode === "web3" && viewingNote?.isPermanent && (
-                        <div className="mt-4 p-4 bg-indigo-900/50 rounded-lg border border-indigo-600/30">
-                          <div className="text-sm text-gray-300 mb-2">Download as:</div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => downloadNote('txt')}
-                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
-                            >
-                              .txt
-                            </button>
-                            <button
-                              onClick={() => downloadNote('pdf')}
-                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
-                            >
-                              .pdf
-                            </button>
-                            <button
-                              onClick={() => downloadNote('docx')}
-                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
-                            >
-                              .docx
-                            </button>
-                            <button
-                              onClick={() => downloadNote('ps')}
-                              className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
-                            >
-                              .ps
-                            </button>
+                      {showDownloadOptions &&
+                        mode === "web3" &&
+                        viewingNote?.isPermanent && (
+                          <div className="mt-4 p-4 bg-indigo-900/50 rounded-lg border border-indigo-600/30">
+                            <div className="text-sm text-gray-300 mb-2">
+                              Download as:
+                            </div>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => downloadNote("txt")}
+                                className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                              >
+                                .txt
+                              </button>
+                              <button
+                                onClick={() => downloadNote("pdf")}
+                                className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                              >
+                                .pdf
+                              </button>
+                              <button
+                                onClick={() => downloadNote("docx")}
+                                className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                              >
+                                .docx
+                              </button>
+                              <button
+                                onClick={() => downloadNote("ps")}
+                                className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                              >
+                                .ps
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
                   )}
                 </div>
@@ -6765,7 +6824,9 @@ showpage
                     : "text-gray-300"
                 }`}
               >
-                Wallet connection in blockchain mode is currently only available on desktop devices. Please use a desktop computer to connect your wallet and access blockchain features.
+                Wallet connection in blockchain mode is currently only available
+                on desktop devices. Please use a desktop computer to connect
+                your wallet and access blockchain features.
               </p>
               <button
                 onClick={() => setShowMobileDesktopOnlyPopup(false)}
@@ -6807,6 +6868,18 @@ showpage
         cancelText="Cancel"
         theme={settings.theme}
       />
+
+      {/* Language Confirmation Popup */}
+      {showLanguagePopup && (
+        <LanguageConfirmationPopup
+          selectedLanguage={pendingLanguage || ""}
+          languageName={pendingLanguageName}
+          onConfirm={confirmLanguageChange}
+          onCancel={cancelLanguageChange}
+          theme={settings.theme}
+          isTranslating={isTranslating}
+        />
+      )}
     </>
   );
 }

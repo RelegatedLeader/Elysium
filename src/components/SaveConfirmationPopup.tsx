@@ -34,7 +34,11 @@ const SaveConfirmationPopup: React.FC<SaveConfirmationPopupProps> = ({
           <h2 className="text-3xl font-extrabold mb-6 text-gold-100">
             Confirm Save
           </h2>
-          <p className={`mb-8 ${theme === "Light" ? "text-gray-700" : "text-silver-200"}`}>
+          <p
+            className={`mb-8 ${
+              theme === "Light" ? "text-gray-700" : "text-silver-200"
+            }`}
+          >
             {message}
           </p>
           <div className="flex justify-center space-x-4">

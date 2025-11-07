@@ -261,7 +261,7 @@ const Drawer: React.FC<DrawerProps> = ({
             </div>
             {lastSyncTime && (
               <div className="text-xs text-gray-400 mt-1">
-                Last sync: {lastSyncTime.toLocaleTimeString()}
+                Last Sync: {lastSyncTime.toLocaleTimeString()}
               </div>
             )}
           </div>
