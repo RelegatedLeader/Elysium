@@ -1844,16 +1844,12 @@ function WelcomePage({
 
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editContent, setEditContent] = useState("");
-  const [editTemplate, setEditTemplate] = useState("Auto");
   // Function to strip HTML tags and get plain text for previews
   const stripHtmlTags = (html: string): string => {
     const tmp = document.createElement("DIV");
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || "";
   };
-  const editTextareaRef = useRef<HTMLDivElement>(null);
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
 
   // Cloud storage hook
@@ -3103,6 +3099,114 @@ function WelcomePage({
     }
   };
 
+  const handleEditNote = async (note: {
+    title: string;
+    content: string;
+    template: string;
+    files: File[];
+  }) => {
+    if (!editingNote) return;
+
+    const updatedNote: Note = {
+      ...editingNote,
+      title: note.title,
+      content: note.content,
+      template: note.template,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updatedNotes = notes.map((n) =>
+      n.id === editingNote.id ? updatedNote : n
+    );
+    setNotes(updatedNotes);
+
+    // Update in database if db mode
+    if (mode === "db" && user) {
+      const session = (await supabase.auth.getSession()).data.session;
+      if (session) {
+        const key = await deriveKey(session.user.id);
+        const encTitle = await encryptData(note.title, key);
+        const encContent = await encryptData(note.content, key);
+
+        const { error } = await supabase
+          .from("notes")
+          .update({
+            title: JSON.stringify(encTitle),
+            content: JSON.stringify(encContent),
+            template: note.template,
+          })
+          .eq("id", editingNote.id);
+
+        if (error) {
+          console.error("Supabase update error:", error);
+          alert("Failed to update note in database.");
+        }
+      }
+    } else if (mode === "cloud") {
+      // Save to localStorage
+      localStorage.setItem(
+        `elysium_notes_${mode}`,
+        JSON.stringify(updatedNotes)
+      );
+
+      // For downloaded notes, try to sync to cloud immediately
+      if (editingNote.isDownloaded && cloudStorage.user) {
+        try {
+          await cloudStorage.updateNote(editingNote.id, {
+            title: note.title,
+            content: note.content,
+            template: note.template,
+          });
+          showNotification(
+            "Success",
+            "Downloaded note updated and synced to cloud!"
+          );
+        } catch (error) {
+          // If cloud update fails, add to offline queue
+          console.log("Cloud update failed, adding to offline queue:", error);
+          addToOfflineQueue(updatedNote);
+          showNotification(
+            "Offline",
+            "Note saved locally. Will sync to cloud when online."
+          );
+        }
+      } else if (cloudStorage.user) {
+        try {
+          await cloudStorage.updateNote(editingNote.id, {
+            title: note.title,
+            content: note.content,
+            template: note.template,
+          });
+          showNotification("Success", "Note updated in cloud!");
+        } catch (error) {
+          // If cloud update fails, add to offline queue
+          console.log("Cloud update failed, adding to offline queue:", error);
+          addToOfflineQueue(updatedNote);
+          showNotification(
+            "Offline",
+            "Note saved locally. Will sync to cloud when online."
+          );
+        }
+      } else {
+        // Not authenticated, add to queue for when they sign in
+        addToOfflineQueue(updatedNote);
+        showNotification(
+          "Offline",
+          "Note saved locally. Will sync to cloud when you sign in."
+        );
+      }
+    }
+
+    setEditingNote(null);
+    setViewingNote(null);
+
+    // Show notification for successful note update
+    showNotification(
+      "Note Updated",
+      `"${note.title}" has been updated successfully`
+    );
+  };
+
   const handlePageChange = (
     page: "recent" | "create" | "settings" | "logout" | "search"
   ) => {
@@ -4234,7 +4338,7 @@ showpage
             >
               <div className="flex items-center space-x-3">
                 <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm">🔗</span>
+                  <span className="text-white text-sm">??</span>
                 </div>
                 <span>Connect Wallet</span>
               </div>
@@ -4334,7 +4438,7 @@ showpage
                     }}
                     className="w-full text-left px-3 py-2 text-sm text-white hover:bg-indigo-800/50 rounded transition-colors"
                   >
-                    ⚙️ Settings
+                    ?? Settings
                   </button>
                   <button
                     onClick={() => {
@@ -4343,7 +4447,7 @@ showpage
                     }}
                     className="w-full text-left px-3 py-2 text-sm text-red-300 hover:bg-red-800/50 rounded transition-colors"
                   >
-                    🚪 Logout
+                    ?? Logout
                   </button>
                 </div>
               )}
@@ -4474,7 +4578,7 @@ showpage
               <div className="mb-6 bg-gradient-to-r from-orange-900/80 to-red-900/80 border border-orange-500/50 rounded-lg p-4 shadow-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="text-orange-400 text-2xl">⚠️</div>
+                    <div className="text-orange-400 text-2xl">??</div>
                     <div>
                       <h3 className="text-orange-200 font-semibold text-sm">
                         ArConnect Wallet Required
@@ -4536,10 +4640,10 @@ showpage
                     }`}
                   >
                     {mode === "db"
-                      ? "🗄️Classic encrypted database: Simple, secure, and fully tied to your account with enterprise-grade protection."
+                      ? "???Classic encrypted database: Simple, secure, and fully tied to your account with enterprise-grade protection."
                       : mode === "cloud"
-                      ? "⚡Lightning-fast cloud storage: Encrypted, downloadable data access with advanced cloud security and offline access."
-                      : "⛓️ Eternal blockchain vault: Edit freely in drafts, then publish permanently to immutable blockchain storage. True ownership forever."}
+                      ? "?Lightning-fast cloud storage: Encrypted, downloadable data access with advanced cloud security and offline access."
+                      : "?? Eternal blockchain vault: Edit freely in drafts, then publish permanently to immutable blockchain storage. True ownership forever."}
                   </p>
                   <div className="flex space-x-4 mb-6 sm:mb-8">
                     <button
@@ -4576,7 +4680,7 @@ showpage
                         onClick={() => setShowCreateFolderModal(true)}
                         className="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold py-3 px-6 sm:px-8 rounded-full shadow-xl transition-all duration-300 text-base sm:text-lg"
                       >
-                        📁 Create Folder
+                        ?? Create Folder
                       </button>
                     )}
                   </div>
@@ -4591,7 +4695,7 @@ showpage
                               : "text-gold-100"
                           }`}
                         >
-                          📁 Your Folders ({folders.length})
+                          ?? Your Folders ({folders.length})
                         </h2>
                         <button
                           onClick={() => setShowFolders(!showFolders)}
@@ -4641,7 +4745,7 @@ showpage
                                         }}
                                       >
                                         <span className="text-white font-bold text-sm sm:text-lg">
-                                          📁
+                                          ??
                                         </span>
                                       </div>
 
@@ -4748,7 +4852,7 @@ showpage
                             : "text-gray-300"
                         }`}
                       >
-                        ⚠️ Note may take up to 35 minutes to appear trackable on
+                        ?? Note may take up to 35 minutes to appear trackable on
                         the blockchain
                       </p>
                       {showPublishedNotes && (
@@ -4786,7 +4890,7 @@ showpage
                                     >
                                       {note.title}
                                       <span className="text-xs text-gray-400 ml-1">
-                                        ⛓️
+                                        ??
                                       </span>
                                     </h3>
                                     <div
@@ -5046,7 +5150,7 @@ showpage
                                   <span>Est. cost: ~$0.001</span>
                                   {!checkArweaveWallet() && (
                                     <span className="text-orange-400 flex items-center space-x-1">
-                                      <span>⚠️</span>
+                                      <span>??</span>
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -5210,12 +5314,12 @@ showpage
                                     {note.title}
                                     {note.isPermanent && (
                                       <span className="text-xs text-amber-400 ml-1">
-                                        ⛓️
+                                        ??
                                       </span>
                                     )}
                                     {note.isCloudOnly && (
                                       <span className="text-xs text-cyan-400 ml-1">
-                                        ☁️
+                                        ??
                                       </span>
                                     )}
                                   </h3>
@@ -5301,7 +5405,7 @@ showpage
                                               );
 
                                               alert(
-                                                `✅ "${note.title}" downloaded for offline access!`
+                                                `? "${note.title}" downloaded for offline access!`
                                               );
                                             } catch (error) {
                                               console.error(
@@ -5309,7 +5413,7 @@ showpage
                                                 error
                                               );
                                               alert(
-                                                `❌ Failed to download "${note.title}". Please try again.`
+                                                `? Failed to download "${note.title}". Please try again.`
                                               );
                                             } finally {
                                               // Remove from loading state
@@ -5327,8 +5431,8 @@ showpage
                                           )}
                                         >
                                           {downloadingNotes.has(note.id)
-                                            ? "⏳"
-                                            : "⬇️"}
+                                            ? "?"
+                                            : "??"}
                                         </button>
                                       )}
                                     {mode === "cloud" && note.isCloudOnly && (
@@ -5362,7 +5466,7 @@ showpage
                                             );
 
                                             alert(
-                                              `✅ "${note.title}" downloaded for offline access!`
+                                              `? "${note.title}" downloaded for offline access!`
                                             );
                                           } catch (error) {
                                             console.error(
@@ -5370,7 +5474,7 @@ showpage
                                               error
                                             );
                                             alert(
-                                              `❌ Failed to download "${note.title}". Please try again.`
+                                              `? Failed to download "${note.title}". Please try again.`
                                             );
                                           } finally {
                                             // Remove from loading state
@@ -5386,8 +5490,8 @@ showpage
                                         disabled={downloadingNotes.has(note.id)}
                                       >
                                         {downloadingNotes.has(note.id)
-                                          ? "⏳ Downloading..."
-                                          : "⬇️ Download"}
+                                          ? "? Downloading..."
+                                          : "?? Download"}
                                       </button>
                                     )}
                                     {note.isDownloaded &&
@@ -5397,7 +5501,7 @@ showpage
                                           className="text-cyan-400 text-xs opacity-0 group-hover:opacity-100"
                                           title="Available offline"
                                         >
-                                          💾
+                                          ??
                                         </span>
                                       )}
                                     {/* Arweave tracking */}
@@ -5413,7 +5517,7 @@ showpage
                                         className="text-blue-400 hover:text-blue-300 transition-colors duration-200 text-sm opacity-0 group-hover:opacity-100"
                                         title="Track on Viewblock"
                                       >
-                                        � Track
+                                        ? Track
                                       </button>
                                     )}
                                   </div>
@@ -5583,7 +5687,7 @@ showpage
                                 {note.title}
                                 {note.isPermanent && (
                                   <span className="text-xs text-amber-400 ml-1">
-                                    ⛓️
+                                    ??
                                   </span>
                                 )}
                               </h3>
@@ -5770,13 +5874,13 @@ showpage
                     <div className="p-6 space-y-6 max-h-[90vh] overflow-y-auto">
                       <div className="flex justify-between items-center">
                         <h2 className="text-2xl font-semibold text-gold-100">
-                          📁 Create New Folder
+                          ?? Create New Folder
                         </h2>
                         <button
                           onClick={() => setShowCreateFolderModal(false)}
                           className="text-gray-400 hover:text-white transition-colors"
                         >
-                          ×
+                          �
                         </button>
                       </div>
 
@@ -5943,7 +6047,7 @@ showpage
                       <div className="text-center relative">
                         <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
                           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-xl animate-bounce">
-                            <span className="text-2xl animate-pulse">🚀</span>
+                            <span className="text-2xl animate-pulse">??</span>
                           </div>
                         </div>
 
@@ -5960,7 +6064,7 @@ showpage
                           onClick={() => setShowPublishFolderModal(false)}
                           className="absolute top-4 right-4 w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-all duration-200 hover:scale-110"
                         >
-                          <span className="text-lg">×</span>
+                          <span className="text-lg">�</span>
                         </button>
                       </div>
 
@@ -5981,7 +6085,7 @@ showpage
                           <div className="group bg-gradient-to-br from-purple-800/50 to-purple-900/50 p-4 rounded-xl border border-purple-500/20 hover:border-purple-400/40 transition-all duration-300 hover:scale-[1.02]">
                             <div className="flex items-center space-x-3 mb-2">
                               <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                                <span className="text-xl">📁</span>
+                                <span className="text-xl">??</span>
                               </div>
                               <h4 className="text-purple-200 font-semibold text-sm">
                                 Organized Collections
@@ -5996,7 +6100,7 @@ showpage
                           <div className="group bg-gradient-to-br from-indigo-800/50 to-indigo-900/50 p-4 rounded-xl border border-indigo-500/20 hover:border-indigo-400/40 transition-all duration-300 hover:scale-[1.02]">
                             <div className="flex items-center space-x-3 mb-2">
                               <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center">
-                                <span className="text-xl">🔗</span>
+                                <span className="text-xl">??</span>
                               </div>
                               <h4 className="text-indigo-200 font-semibold text-sm">
                                 Smart Connections
@@ -6011,7 +6115,7 @@ showpage
                           <div className="group bg-gradient-to-br from-pink-800/50 to-pink-900/50 p-4 rounded-xl border border-pink-500/20 hover:border-pink-400/40 transition-all duration-300 hover:scale-[1.02]">
                             <div className="flex items-center space-x-3 mb-2">
                               <div className="w-8 h-8 bg-pink-500/20 rounded-lg flex items-center justify-center">
-                                <span className="text-xl">📊</span>
+                                <span className="text-xl">??</span>
                               </div>
                               <h4 className="text-pink-200 font-semibold text-sm">
                                 Advanced Analytics
@@ -6025,7 +6129,7 @@ showpage
                           <div className="group bg-gradient-to-br from-cyan-800/50 to-cyan-900/50 p-4 rounded-xl border border-cyan-500/20 hover:border-cyan-400/40 transition-all duration-300 hover:scale-[1.02]">
                             <div className="flex items-center space-x-3 mb-2">
                               <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                                <span className="text-xl">🌐</span>
+                                <span className="text-xl">??</span>
                               </div>
                               <h4 className="text-cyan-200 font-semibold text-sm">
                                 Shareable Links
@@ -6041,29 +6145,29 @@ showpage
                         {/* Special features */}
                         <div className="bg-gradient-to-r from-purple-900/30 via-pink-900/30 to-indigo-900/30 rounded-xl p-4 border border-purple-500/20">
                           <h4 className="text-lg font-bold text-center text-white mb-3">
-                            ✨ Premium Features
+                            ? Premium Features
                           </h4>
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div className="flex items-center space-x-2">
-                              <span className="text-purple-400">🎨</span>
+                              <span className="text-purple-400">??</span>
                               <span className="text-gray-300">
                                 Custom themes
                               </span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <span className="text-pink-400">📈</span>
+                              <span className="text-pink-400">??</span>
                               <span className="text-gray-300">
                                 Popularity tracking
                               </span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <span className="text-indigo-400">🔍</span>
+                              <span className="text-indigo-400">??</span>
                               <span className="text-gray-300">
                                 Advanced search
                               </span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <span className="text-cyan-400">📱</span>
+                              <span className="text-cyan-400">??</span>
                               <span className="text-gray-300">
                                 Mobile optimized
                               </span>
@@ -6076,7 +6180,7 @@ showpage
                       <div className="text-center space-y-4">
                         <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 rounded-xl p-4 border border-purple-500/20">
                           <p className="text-purple-200 font-medium">
-                            🚀 This revolutionary feature is currently in
+                            ?? This revolutionary feature is currently in
                             development
                           </p>
                           <p className="text-gray-400 text-sm mt-1">
@@ -6090,7 +6194,7 @@ showpage
                             onClick={() => setShowPublishFolderModal(false)}
                             className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-full transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                           >
-                            Can't Wait! 🎉
+                            Can't Wait! ??
                           </button>
                           <button
                             onClick={() => setShowPublishFolderModal(false)}
@@ -6112,7 +6216,7 @@ showpage
                     <div className="p-5 space-y-5">
                       <div className="flex justify-between items-center">
                         <h2 className="text-xl font-semibold text-white">
-                          🗑️ Delete Folder
+                          ??? Delete Folder
                         </h2>
                         <button
                           onClick={() => {
@@ -6121,12 +6225,12 @@ showpage
                           }}
                           className="text-gray-400 hover:text-white transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"
                         >
-                          ×
+                          �
                         </button>
                       </div>
 
                       <div className="text-center space-y-4">
-                        <div className="text-5xl">⚠️</div>
+                        <div className="text-5xl">??</div>
                         <h3 className="text-lg font-semibold text-white">
                           Are you sure?
                         </h3>
@@ -6143,15 +6247,15 @@ showpage
                             Important:
                           </h4>
                           <ul className="text-xs text-gray-300 space-y-1">
-                            <li>• 📁 The folder will be permanently deleted</li>
+                            <li>� ?? The folder will be permanently deleted</li>
                             <li>
-                              • 📝 Eternal notes inside will NOT be deleted
+                              � ?? Eternal notes inside will NOT be deleted
                             </li>
                             <li>
-                              • 🔄 Notes will remain in your published
+                              � ?? Notes will remain in your published
                               collection
                             </li>
-                            <li>• ❌ This action cannot be undone</li>
+                            <li>� ? This action cannot be undone</li>
                           </ul>
                         </div>
 
@@ -6218,7 +6322,7 @@ showpage
                             style={{ backgroundColor: viewingFolder.color }}
                           >
                             <span className="text-white font-bold text-xl">
-                              📁
+                              ??
                             </span>
                           </div>
                           <div>
@@ -6237,7 +6341,7 @@ showpage
                           onClick={() => setViewingFolder(null)}
                           className="text-gray-400 hover:text-white transition-colors"
                         >
-                          ×
+                          �
                         </button>
                       </div>
 
@@ -6246,7 +6350,7 @@ showpage
                           viewingFolder.noteIds.includes(note.id)
                         ).length === 0 ? (
                           <div className="text-center py-12">
-                            <div className="text-6xl mb-4">📝</div>
+                            <div className="text-6xl mb-4">??</div>
                             <h3 className="text-xl font-semibold text-white mb-2">
                               No Notes in This Folder
                             </h3>
@@ -6285,7 +6389,7 @@ showpage
                                         className="text-gray-400 hover:text-white transition-colors p-1"
                                         title="Copy note link"
                                       >
-                                        🔗
+                                        ??
                                       </button>
                                     </div>
                                   </div>
@@ -6300,7 +6404,7 @@ showpage
                                       ).toLocaleDateString()}
                                     </span>
                                     <span className="flex items-center space-x-1">
-                                      <span>🔗</span>
+                                      <span>??</span>
                                       <span>{note.id.substring(0, 8)}...</span>
                                     </span>
                                   </div>
@@ -6344,289 +6448,23 @@ showpage
                 <div className="bg-gradient-to-br from-indigo-900/95 via-indigo-800/95 to-purple-700/95 backdrop-blur-lg border border-indigo-500/50 rounded-xl shadow-[0_0_30px_rgba(79,70,229,0.3)] overflow-hidden">
                   {editingNote ? (
                     // Edit Mode
-                    <div className="p-6 space-y-6 max-h-[90vh] overflow-y-auto">
-                      <div className="flex justify-between items-center">
-                        <h2
-                          className={`text-2xl font-semibold ${
-                            settings.theme === "Light"
-                              ? "text-purple-900"
-                              : "text-gold-100"
-                          }`}
-                        >
-                          Edit Note
-                        </h2>
-                        <button
-                          onClick={() => {
-                            setEditingNote(null);
-                            setViewingNote(null);
-                          }}
-                          className="text-gray-400 hover:text-white transition-colors"
-                        >
-                          ×
-                        </button>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-200 mb-2">
-                            Note Title
-                          </label>
-                          <input
-                            type="text"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            className="w-full p-3 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-200 mb-2">
-                            Note Content
-                          </label>
-                          <div className="mb-2 flex flex-wrap gap-2">
-                            <button
-                              onClick={() => {
-                                const editor =
-                                  editTextareaRef.current as HTMLElement;
-                                if (editor) {
-                                  document.execCommand("bold", false);
-                                  editor.focus();
-                                }
-                              }}
-                              className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
-                              title="Bold"
-                            >
-                              <strong>B</strong>
-                            </button>
-                            <button
-                              onClick={() => {
-                                const editor =
-                                  editTextareaRef.current as HTMLElement;
-                                if (editor) {
-                                  document.execCommand("italic", false);
-                                  editor.focus();
-                                }
-                              }}
-                              className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
-                              title="Italic"
-                            >
-                              <em>I</em>
-                            </button>
-                            <button
-                              onClick={() => {
-                                const editor =
-                                  editTextareaRef.current as HTMLElement;
-                                if (editor) {
-                                  document.execCommand(
-                                    "insertUnorderedList",
-                                    false
-                                  );
-                                  editor.focus();
-                                }
-                              }}
-                              className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
-                              title="Bullet List"
-                            >
-                              • List
-                            </button>
-                            <button
-                              onClick={() => {
-                                const editor =
-                                  editTextareaRef.current as HTMLElement;
-                                if (editor) {
-                                  document.execCommand(
-                                    "insertOrderedList",
-                                    false
-                                  );
-                                  editor.focus();
-                                }
-                              }}
-                              className="px-3 py-1 bg-indigo-700/50 text-white rounded hover:bg-indigo-600/50 transition-colors text-sm"
-                              title="Numbered List"
-                            >
-                              1. List
-                            </button>
-                          </div>
-                          <div
-                            contentEditable
-                            ref={editTextareaRef as any}
-                            className="w-full p-4 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 h-64 resize-none overflow-y-auto"
-                            onInput={(e) =>
-                              setEditContent(e.currentTarget.innerHTML)
-                            }
-                            dangerouslySetInnerHTML={{ __html: editContent }}
-                            style={{
-                              minHeight: "256px",
-                              whiteSpace: "pre-wrap",
-                            }}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-200 mb-2">
-                            Template
-                          </label>
-                          <select
-                            value={editTemplate}
-                            onChange={(e) => setEditTemplate(e.target.value)}
-                            className="p-3 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                          >
-                            <option value="Auto">Auto</option>
-                            <option value="To-Do List">To-Do List</option>
-                            <option value="Checklist">Checklist</option>
-                            <option value="List">List</option>
-                            <option value="Canvas">Canvas</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end space-x-4">
-                        <button
-                          onClick={() => {
-                            setEditingNote(null);
-                            setEditTitle("");
-                            setEditContent("");
-                            setEditTemplate("Auto");
-                          }}
-                          className="px-4 py-2 bg-gray-700/80 text-white rounded-lg hover:bg-gray-600/80 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (editTitle && editContent && editingNote) {
-                              const updatedNote: Note = {
-                                ...editingNote,
-                                title: editTitle,
-                                content: editContent,
-                                template: editTemplate,
-                                updatedAt: new Date().toISOString(),
-                              };
-
-                              const updatedNotes = notes.map((n) =>
-                                n.id === editingNote.id ? updatedNote : n
-                              );
-                              setNotes(updatedNotes);
-
-                              // Update in database if db mode
-                              if (mode === "db" && user) {
-                                const session = (
-                                  await supabase.auth.getSession()
-                                ).data.session;
-                                if (session) {
-                                  const key = await deriveKey(session.user.id);
-                                  const encTitle = await encryptData(
-                                    editTitle,
-                                    key
-                                  );
-                                  const encContent = await encryptData(
-                                    editContent,
-                                    key
-                                  );
-
-                                  const { error } = await supabase
-                                    .from("notes")
-                                    .update({
-                                      title: JSON.stringify(encTitle),
-                                      content: JSON.stringify(encContent),
-                                      template: editTemplate,
-                                    })
-                                    .eq("id", editingNote.id);
-
-                                  if (error) {
-                                    console.error(
-                                      "Supabase update error:",
-                                      error
-                                    );
-                                    alert("Failed to update note in database.");
-                                  }
-                                }
-                              } else if (mode === "cloud") {
-                                // Save to localStorage
-                                localStorage.setItem(
-                                  `elysium_notes_${mode}`,
-                                  JSON.stringify(updatedNotes)
-                                );
-
-                                // For downloaded notes, try to sync to cloud immediately
-                                if (
-                                  editingNote.isDownloaded &&
-                                  cloudStorage.user
-                                ) {
-                                  try {
-                                    await cloudStorage.updateNote(
-                                      editingNote.id,
-                                      {
-                                        title: editTitle,
-                                        content: editContent,
-                                        template: editTemplate,
-                                      }
-                                    );
-                                    showNotification(
-                                      "Success",
-                                      "Downloaded note updated and synced to cloud!"
-                                    );
-                                  } catch (error) {
-                                    // If cloud update fails, add to offline queue
-                                    console.log(
-                                      "Cloud update failed, adding to offline queue:",
-                                      error
-                                    );
-                                    addToOfflineQueue(updatedNote);
-                                    showNotification(
-                                      "Offline",
-                                      "Note saved locally. Will sync to cloud when online."
-                                    );
-                                  }
-                                } else if (cloudStorage.user) {
-                                  try {
-                                    await cloudStorage.updateNote(
-                                      editingNote.id,
-                                      {
-                                        title: editTitle,
-                                        content: editContent,
-                                        template: editTemplate,
-                                      }
-                                    );
-                                    showNotification(
-                                      "Success",
-                                      "Note updated in cloud!"
-                                    );
-                                  } catch (error) {
-                                    // If cloud update fails, add to offline queue
-                                    console.log(
-                                      "Cloud update failed, adding to offline queue:",
-                                      error
-                                    );
-                                    addToOfflineQueue(updatedNote);
-                                    showNotification(
-                                      "Offline",
-                                      "Note saved locally. Will sync to cloud when online."
-                                    );
-                                  }
-                                } else {
-                                  // Not authenticated, add to queue for when they sign in
-                                  addToOfflineQueue(updatedNote);
-                                  showNotification(
-                                    "Offline",
-                                    "Note saved locally. Will sync to cloud when you sign in."
-                                  );
-                                }
-                              }
-
-                              setEditingNote(null);
-                              setViewingNote(null);
-                              setEditTitle("");
-                              setEditContent("");
-                              setEditTemplate("Auto");
-                            }
-                          }}
-                          className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-blue-700 text-white font-bold rounded-full hover:from-cyan-600 hover:to-blue-800 transition-all"
-                        >
-                          Save Changes
-                        </button>
-                      </div>
-                    </div>
+                    <CreateNote
+                      onSave={() => {}} // Not used in edit mode
+                      onCancel={() => {
+                        setEditingNote(null);
+                        setViewingNote(null);
+                      }}
+                      mode={mode}
+                      theme={settings.theme}
+                      defaultTemplate={settings.defaultTemplate}
+                      aiResponseStyle={settings.aiResponseStyle}
+                      aiPersonality={settings.aiPersonality}
+                      isEditing={true}
+                      initialTitle={editingNote.title}
+                      initialContent={editingNote.content}
+                      initialTemplate={editingNote.template}
+                      onEdit={handleEditNote}
+                    />
                   ) : (
                     // View Mode
                     <div className="max-h-[90vh] overflow-hidden flex flex-col">
@@ -6661,7 +6499,7 @@ showpage
                               </span>
                               {viewingNote.isPermanent && (
                                 <span className="bg-amber-900/50 px-3 py-1 rounded-full text-amber-300">
-                                  ⛓️ Blockchain Stored
+                                  ?? Blockchain Stored
                                 </span>
                               )}
                             </div>
@@ -6671,9 +6509,6 @@ showpage
                               <button
                                 onClick={() => {
                                   setEditingNote(viewingNote);
-                                  setEditTitle(viewingNote.title);
-                                  setEditContent(viewingNote.content);
-                                  setEditTemplate(viewingNote.template);
                                 }}
                                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-colors"
                               >
@@ -6816,7 +6651,7 @@ showpage
           <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-black p-6 sm:p-8 rounded-lg shadow-2xl text-white w-11/12 max-w-md sm:w-96 transform transition-all duration-300 ease-in-out border border-indigo-700/50">
             <div className="text-center">
               <div className="mb-4">
-                <div className="text-4xl">💻</div>
+                <div className="text-4xl">??</div>
               </div>
               <h3
                 className={`text-xl sm:text-2xl font-semibold mb-4 font-serif ${
