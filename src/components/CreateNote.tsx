@@ -174,12 +174,22 @@ const CreateNote: React.FC<CreateNoteProps> = ({
     return () => clearTimeout(timer);
   }, [translatedStrings, ensureLanguageApplied]);
 
-  // Focus textarea when editing
+  // Focus content editable when editing
   useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      // Simple focus for editing - user can click where they want to edit
+    if (isEditing) {
+      // Focus the content editable area and position cursor at the end
       setTimeout(() => {
-        textareaRef.current?.focus();
+        const editableDiv = document.querySelector('[contenteditable="true"]') as HTMLElement;
+        if (editableDiv) {
+          editableDiv.focus();
+          // Position cursor at the end of the content
+          const range = document.createRange();
+          const selection = window.getSelection();
+          range.selectNodeContents(editableDiv);
+          range.collapse(false); // false means collapse to end
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        }
       }, 100);
     }
   }, [isEditing]);
@@ -655,7 +665,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
   };
 
   const performSave = () => {
-    const noteContent = isEditing ? content : htmlContent;
+    const noteContent = htmlContent;
     if (isEditing && onEdit) {
       onEdit({ title, content: noteContent, template, files });
     } else {
@@ -767,8 +777,8 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   />
                 </label>
               </div>
-              {/* Formatting Toolbar - only for create mode (not editing) */}
-              {!isEditing && (mode === "cloud" || mode === "db") && (
+              {/* Formatting Toolbar - for create mode and edit mode (cloud/db only) */}
+              {(mode === "cloud" || mode === "db") && (
                 <div className="flex flex-wrap gap-1 mb-1 p-1 bg-indigo-900/30 rounded border border-indigo-700/30">
                   <button
                     onClick={insertBulletList}
@@ -819,37 +829,22 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   minHeight: template === "Canvas" ? "250px" : "200px",
                 }}
               >
-                {!isEditing ? (
-                  <ContentEditable
-                    html={htmlContent}
-                    onChange={handleHtmlContentChange}
-                    className={`${getTextareaClass()} w-full z-10 resize-none`}
-                    style={{
-                      color: "white",
-                      backgroundColor: "rgba(79, 70, 229, 0.1)",
-                      WebkitTextFillColor: "white",
-                      minHeight: template === "Canvas" ? "250px" : "200px",
-                      outline: "none",
-                      padding: "1rem",
-                      overflowY: "visible",
-                    }}
-                    data-placeholder={getPlaceholderText()}
-                    aria-required="true"
-                  />
-                ) : (
-                  <textarea
-                    ref={textareaRef}
-                    value={content}
-                    onChange={handleContentChange}
-                    placeholder={getPlaceholderText()}
-                    className={`${getTextareaClass()} w-full z-10`}
-                    style={{
-                      minHeight: template === "Canvas" ? "250px" : "200px",
-                      padding: "1rem",
-                    }}
-                    aria-required="true"
-                  />
-                )}
+                <ContentEditable
+                  html={htmlContent}
+                  onChange={handleHtmlContentChange}
+                  className={`${getTextareaClass()} w-full z-10 resize-none`}
+                  style={{
+                    color: "white",
+                    backgroundColor: "rgba(79, 70, 229, 0.1)",
+                    WebkitTextFillColor: "white",
+                    minHeight: template === "Canvas" ? "250px" : "200px",
+                    outline: "none",
+                    padding: "1rem",
+                    overflowY: "visible",
+                  }}
+                  data-placeholder={getPlaceholderText()}
+                  aria-required="true"
+                />
               </div>
               {files.length > 0 && (
                 <p className="text-xs text-gray-400 mt-2">
@@ -879,7 +874,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
 
       {/* AI Mascot - positioned at bottom right of create note interface */}
       <div
-        className="absolute bottom-4 right-4 cursor-pointer transition-all duration-300 ease-out md:hover:scale-110"
+        className="absolute md:bottom-4 md:right-4 bottom-20 right-2 cursor-pointer transition-all duration-300 ease-out md:hover:scale-110"
         onClick={() => setShowAIPopup(!showAIPopup)}
       >
         <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow duration-300 border-2 border-gold-400/50 animate-pulse relative overflow-hidden">
@@ -901,7 +896,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
 
       {/* AI Popup - positioned next to mascot */}
       {showAIPopup && (
-        <div className="absolute bottom-20 right-4 z-50">
+        <div className="absolute md:bottom-20 md:right-4 bottom-32 right-2 z-50">
           <div className="bg-gradient-to-br from-indigo-900/95 via-indigo-800/95 to-purple-700/95 backdrop-blur-lg border border-indigo-500/50 rounded-xl shadow-[0_0_30px_rgba(79,70,229,0.3)] p-4 max-w-xs w-80 max-h-[32rem] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-gold-100 flex items-center">
