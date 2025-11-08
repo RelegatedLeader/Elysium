@@ -848,18 +848,18 @@ Please provide a helpful response. Be conversational and focus on helping with t
           }
         `}
       </style>
-      <div className="relative w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl mx-4">
+      <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl mx-2 sm:mx-4">
         <div
-          className={`rounded-xl p-8 backdrop-blur-lg border shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all duration-300 ease-in-out transform hover:scale-105 ${
+          className={`rounded-xl p-3 sm:p-4 md:p-6 backdrop-blur-lg border shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all duration-300 ease-in-out md:transform md:hover:scale-105 ${
             theme === "Light"
               ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 border-purple-200/50"
               : "bg-gradient-to-br from-indigo-900/80 via-indigo-800/80 to-purple-700/80 border-indigo-500/50"
           }`}
         >
-          <h2 className="text-2xl font-semibold text-gold-100 mb-6 text-center tracking-tight text-shadow-md">
+          <h2 className="text-lg sm:text-xl font-semibold text-gold-100 mb-2 sm:mb-3 text-center tracking-tight text-shadow-md">
             {translatedStrings.createNewNote}
           </h2>
-          <div className="space-y-6">
+          <div className="space-y-3 sm:space-y-4">
             <div>
               <label
                 htmlFor="title"
@@ -873,7 +873,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
                 placeholder={translatedStrings.enterNoteTitle}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full p-3 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 hover:shadow-[inset_0_0_10px_rgba(79,70,229,0.2)]"
+                className="w-full p-2 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 hover:shadow-[inset_0_0_10px_rgba(79,70,229,0.2)]"
                 aria-required="true"
               />
             </div>
@@ -888,7 +888,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
                 <select
                   value={template}
                   onChange={(e) => setTemplate(e.target.value)}
-                  className="p-2 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 hover:shadow-[0_0_5px_rgba(79,70,229,0.3)]"
+                  className="p-1 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all duration-200 hover:shadow-[0_0_5px_rgba(79,70,229,0.3)]"
                   aria-label="Select note template"
                 >
                   <option value="Auto">{translatedStrings.auto}</option>
@@ -924,10 +924,10 @@ Please provide a helpful response. Be conversational and focus on helping with t
               </div>
               {/* Formatting Toolbar - only for cloud and database modes */}
               {(mode === "cloud" || mode === "db") && (
-                <div className="flex flex-wrap gap-2 mb-2 p-2 bg-indigo-900/30 rounded-lg border border-indigo-700/30">
+                <div className="flex flex-wrap gap-1 mb-1 p-1 bg-indigo-900/30 rounded-lg border border-indigo-700/30">
                   <button
                     onClick={insertBulletList}
-                    className={`px-3 py-1 text-white text-sm rounded transition-colors ${
+                    className={`px-2 py-1 text-white text-xs rounded transition-colors ${
                       isListActive
                         ? "bg-gradient-to-r from-cyan-500 to-blue-700 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
                         : "bg-indigo-700/50 hover:bg-indigo-600/50"
@@ -938,14 +938,14 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   </button>
                   <button
                     onClick={insertChecklist}
-                    className="px-3 py-1 bg-indigo-700/50 hover:bg-indigo-600/50 text-white text-sm rounded transition-colors"
+                    className="px-2 py-1 bg-indigo-700/50 hover:bg-indigo-600/50 text-white text-xs rounded transition-colors"
                     title={translatedStrings.insertChecklist}
                   >
                     {translatedStrings.checklistButton}
                   </button>
                   <button
                     onClick={insertBold}
-                    className={`px-3 py-1 text-white text-sm rounded font-bold transition-colors ${
+                    className={`px-2 py-1 text-white text-xs rounded font-bold transition-colors ${
                       isBoldActive
                         ? "bg-gradient-to-r from-cyan-500 to-blue-700 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
                         : "bg-indigo-700/50 hover:bg-indigo-600/50"
@@ -956,7 +956,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   </button>
                   <button
                     onClick={insertItalic}
-                    className={`px-3 py-1 text-white text-sm rounded italic transition-colors ${
+                    className={`px-2 py-1 text-white text-xs rounded italic transition-colors ${
                       isItalicActive
                         ? "bg-gradient-to-r from-cyan-500 to-blue-700 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
                         : "bg-indigo-700/50 hover:bg-indigo-600/50"
@@ -967,7 +967,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
                   </button>
                   <button
                     onClick={insertLargeText}
-                    className="px-3 py-1 bg-indigo-700/50 hover:bg-indigo-600/50 text-white text-sm rounded transition-colors"
+                    className="px-2 py-1 bg-indigo-700/50 hover:bg-indigo-600/50 text-white text-xs rounded transition-colors"
                     title={translatedStrings.largeHeadingTitle}
                   >
                     H1
@@ -977,8 +977,8 @@ Please provide a helpful response. Be conversational and focus on helping with t
               <div
                 className="relative overflow-y-auto"
                 style={{
-                  maxHeight: template === "Canvas" ? "320px" : "256px",
-                  minHeight: template === "Canvas" ? "320px" : "256px",
+                  maxHeight: template === "Canvas" ? "400px" : "320px",
+                  minHeight: template === "Canvas" ? "400px" : "320px",
                 }}
               >
                 <ContentEditable
@@ -992,7 +992,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
                     color: "white",
                     backgroundColor: "rgba(79, 70, 229, 0.1)",
                     WebkitTextFillColor: "white",
-                    minHeight: template === "Canvas" ? "320px" : "256px",
+                    minHeight: template === "Canvas" ? "400px" : "320px",
                     outline: "none",
                     padding: "1rem",
                     overflowY: "visible",
@@ -1007,17 +1007,17 @@ Please provide a helpful response. Be conversational and focus on helping with t
                 </p>
               )}
             </div>
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end space-x-3">
               <button
                 onClick={onCancel}
-                className="px-4 py-2 bg-gray-700/80 text-white rounded-lg hover:bg-gray-600/80 focus:ring-2 focus:ring-gray-500 focus:outline-none transition-all duration-200 hover:shadow-[0_0_10px_rgba(107,114,128,0.4)]"
+                className="px-3 py-2 bg-gray-700/80 text-white rounded-lg hover:bg-gray-600/80 focus:ring-2 focus:ring-gray-500 focus:outline-none transition-all duration-200 hover:shadow-[0_0_10px_rgba(107,114,128,0.4)] text-sm"
                 aria-label="Cancel note creation"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-700 text-white font-bold rounded-full hover:from-cyan-600 hover:to-blue-800 focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200 hover:shadow-[0_0_15px_rgba(0,74,173,0.7)]"
+                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-700 text-white font-bold rounded-full hover:from-cyan-600 hover:to-blue-800 focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200 hover:shadow-[0_0_15px_rgba(0,74,173,0.7)] text-sm"
                 aria-label="Save note to blockchain"
               >
                 Save
@@ -1029,7 +1029,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
 
       {/* AI Mascot - positioned at bottom right of create note interface */}
       <div
-        className="absolute bottom-4 right-4 cursor-pointer transition-all duration-300 ease-out hover:scale-110"
+        className="absolute bottom-4 right-4 cursor-pointer transition-all duration-300 ease-out md:hover:scale-110"
         onClick={() => setShowAIPopup(!showAIPopup)}
       >
         <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow duration-300 border-2 border-gold-400/50 animate-pulse relative overflow-hidden">
