@@ -848,18 +848,18 @@ Please provide a helpful response. Be conversational and focus on helping with t
           }
         `}
       </style>
-      <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl mx-2 sm:mx-4">
+      <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl mx-1 sm:mx-2">
         <div
-          className={`rounded-xl p-3 sm:p-4 md:p-6 backdrop-blur-lg border shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all duration-300 ease-in-out md:transform md:hover:scale-105 ${
+          className={`rounded-xl p-2 sm:p-3 md:p-6 backdrop-blur-lg border shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all duration-300 ease-in-out md:transform md:hover:scale-105 ${
             theme === "Light"
               ? "bg-gradient-to-br from-white/90 via-purple-50/90 to-indigo-50/90 border-purple-200/50"
               : "bg-gradient-to-br from-indigo-900/80 via-indigo-800/80 to-purple-700/80 border-indigo-500/50"
           }`}
         >
-          <h2 className="text-lg sm:text-xl font-semibold text-gold-100 mb-2 sm:mb-3 text-center tracking-tight text-shadow-md">
+          <h2 className="text-base sm:text-lg font-semibold text-gold-100 mb-1 sm:mb-2 text-center tracking-tight text-shadow-md">
             {translatedStrings.createNewNote}
           </h2>
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-2 sm:space-y-3">
             <div>
               <label
                 htmlFor="title"
@@ -924,7 +924,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
               </div>
               {/* Formatting Toolbar - only for cloud and database modes */}
               {(mode === "cloud" || mode === "db") && (
-                <div className="flex flex-wrap gap-1 mb-1 p-1 bg-indigo-900/30 rounded-lg border border-indigo-700/30">
+                <div className="flex flex-wrap gap-1 mb-1 p-1 bg-indigo-900/30 rounded border border-indigo-700/30">
                   <button
                     onClick={insertBulletList}
                     className={`px-2 py-1 text-white text-xs rounded transition-colors ${
@@ -977,8 +977,8 @@ Please provide a helpful response. Be conversational and focus on helping with t
               <div
                 className="relative overflow-y-auto"
                 style={{
-                  maxHeight: template === "Canvas" ? "400px" : "320px",
-                  minHeight: template === "Canvas" ? "400px" : "320px",
+                  maxHeight: template === "Canvas" ? "250px" : "200px",
+                  minHeight: template === "Canvas" ? "250px" : "200px",
                 }}
               >
                 <ContentEditable
@@ -992,7 +992,7 @@ Please provide a helpful response. Be conversational and focus on helping with t
                     color: "white",
                     backgroundColor: "rgba(79, 70, 229, 0.1)",
                     WebkitTextFillColor: "white",
-                    minHeight: template === "Canvas" ? "400px" : "320px",
+                    minHeight: template === "Canvas" ? "250px" : "200px",
                     outline: "none",
                     padding: "1rem",
                     overflowY: "visible",
@@ -1007,17 +1007,17 @@ Please provide a helpful response. Be conversational and focus on helping with t
                 </p>
               )}
             </div>
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end space-x-2">
               <button
                 onClick={onCancel}
-                className="px-3 py-2 bg-gray-700/80 text-white rounded-lg hover:bg-gray-600/80 focus:ring-2 focus:ring-gray-500 focus:outline-none transition-all duration-200 hover:shadow-[0_0_10px_rgba(107,114,128,0.4)] text-sm"
+                className="px-2 py-1 bg-gray-700/80 text-white rounded text-sm"
                 aria-label="Cancel note creation"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-700 text-white font-bold rounded-full hover:from-cyan-600 hover:to-blue-800 focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200 hover:shadow-[0_0_15px_rgba(0,74,173,0.7)] text-sm"
+                className="px-3 py-2 bg-gradient-to-r from-cyan-500 to-blue-700 text-white font-bold rounded-full text-sm"
                 aria-label="Save note to blockchain"
               >
                 Save
